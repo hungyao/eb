@@ -285,7 +285,7 @@ eb_load_subbook_indexes(book)
     /*
      * Read the index table in the subbook.
      */
-    if (zio_lseek(&subbook->text_zio, (off_t)0, SEEK_SET) < 0) {
+    if (zio_lseek(&subbook->text_zio, 0, SEEK_SET) < 0) {
 	error_code = EB_ERR_FAIL_SEEK_TEXT;
 	goto failed;
     }
@@ -472,10 +472,10 @@ eb_load_subbook_indexes(book)
 	&& sebxa_zip_index.start_page != 0
 	&& sebxa_zip_text.start_page != 0) {
 	zio_set_sebxa_mode(&subbook->text_zio,
-	    (off_t)(sebxa_zip_index.start_page - 1) * EB_SIZE_PAGE,
-	    (off_t)(sebxa_zip_text.start_page - 1) * EB_SIZE_PAGE,
-	    (off_t)(subbook->text.start_page - 1) * EB_SIZE_PAGE,
-	    (off_t)subbook->text.end_page * EB_SIZE_PAGE - 1);
+	    (sebxa_zip_index.start_page - 1) * EB_SIZE_PAGE,
+	    (sebxa_zip_text.start_page - 1) * EB_SIZE_PAGE,
+	    (subbook->text.start_page - 1) * EB_SIZE_PAGE,
+	    subbook->text.end_page * EB_SIZE_PAGE - 1);
     }
 
     eb_finalize_search(&sebxa_zip_index);
@@ -1079,16 +1079,11 @@ eb_set_subbook_epwing(book, subbook_code)
 	    sound_zio_code = ZIO_REOPEN;
     } else {
 	if (strncasecmp(subbook->text_file_name, "honmon2", 7)  == 0) {
-	    if (eb_find_file_name3(book->path, subbook->directory_name,
+	    eb_find_file_name3(book->path, subbook->directory_name,
 		subbook->data_directory_name, "honmons",
-		subbook->sound_file_name) == EB_SUCCESS) {
-		if (book->version < 6)
-		    default_zio_code = ZIO_PLAIN;
-		else
-		    default_zio_code = ZIO_EPWING6;
-		eb_path_name_zio_code(subbook->sound_file_name,
-		    default_zio_code, &sound_zio_code);
-	    }
+		subbook->sound_file_name);
+	    eb_path_name_zio_code(subbook->sound_file_name, ZIO_PLAIN,
+		&sound_zio_code);
 	} else {
 	    strcpy(subbook->sound_file_name, subbook->text_file_name);
 	    sound_zio_code = text_zio_code;
@@ -1126,7 +1121,7 @@ eb_unset_subbook(book)
     EB_Book *book;
 {
     eb_lock(&book->lock);
-    LOG(("in: eb_unset_subbook(book=%d)", (int)book->code));
+    LOG(("in: eb_unset_subbooks(book=%d)", (int)book->code));
 
     /*
      * Close the file of the current subbook.
@@ -1141,7 +1136,7 @@ eb_unset_subbook(book)
 	book->subbook_current = NULL;
     }
 
-    LOG(("out: eb_unset_subbook()"));
+    LOG(("out: eb_unset_subbooks()"));
     eb_unlock(&book->lock);
 }
 

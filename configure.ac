@@ -4,18 +4,13 @@ dnl *
 AC_INIT
 AC_CONFIG_SRCDIR(eb/eb.c)
 AC_PREREQ(2.52)
-AM_INIT_AUTOMAKE(eb, 3.2)
+AM_INIT_AUTOMAKE(eb, 3.2beta0)
 
 dnl *
 dnl * Library version info.
 dnl *
 LIBEB_VERSION_INFO=6:0:0
 AC_SUBST(LIBEB_VERSION_INFO)
-
-EB_VERSION_MAJOR=3
-EB_VERSION_MINOR=2
-AC_SUBST(EB_VERSION_MAJOR)
-AC_SUBST(EB_VERSION_MINOR)
 
 dnl *
 dnl * Set mailing address.
@@ -55,6 +50,21 @@ AC_ARG_ENABLE(samples,
    *)   AC_MSG_ERROR(invalid argument to --enable-samples) ;;
 esac], samples=false)
 AM_CONDITIONAL(ENABLE_SAMPLES, test ${samples} = true)
+
+dnl *
+dnl * --enable-debug option.
+dnl *
+AC_ARG_ENABLE(debug,
+AC_HELP_STRING([--enable-debug], [enable debug code [[no]]]),
+[case "${enableval}" in
+   yes) ENABLE_DEBUG=yes  ;;
+   no)  ENABLE_DEBUG=no ;;
+   *)   AC_MSG_ERROR(invalid argument to --enable-debug) ;;
+esac], ENABLE_DEBUG=no)
+
+if test $ENABLE_DEBUG = yes ; then
+    AC_DEFINE(ENABLE_DEBUG, 1, [Define if enabling debug codes.])
+fi
 
 dnl *
 dnl * --enable-pthread option.

@@ -191,24 +191,18 @@ width=%d, height=%d)",
 	    error_code = EB_ERR_FAIL_READ_BINARY;
 	    goto failed;
 	}
-	if (eb_uint2(buffer) != 0x1f45 || eb_uint2(buffer + 4) != 0x1f31) {
+	if (eb_uint2(buffer) != 0x1f45
+	    || eb_uint2(buffer + 4) != 0x1f31
+	    || eb_uint2(buffer + 12) != 0x1f51
+	    || eb_uint2(buffer + 20) != 0x1f65) {
 	    error_code = EB_ERR_UNEXP_BINARY;
 	    goto failed;
 	}
+
 	width = eb_bcd2(buffer + 8);
 	height = eb_bcd2(buffer + 10);
-
-	if (eb_uint2(buffer + 12) == 0x1f51) {
-	    real_position.page = eb_bcd4(buffer + 14);
-	    real_position.offset = eb_bcd2(buffer + 18);
-	} else if (eb_uint2(buffer + 14) == 0x1f51) {
-	    real_position.page = eb_bcd4(buffer + 16);
-	    real_position.offset = eb_bcd2(buffer + 20);
-	} else {
-	    error_code = EB_ERR_UNEXP_BINARY;
-	    goto failed;
-	}
-
+	real_position.page = eb_bcd4(buffer + 14);
+	real_position.offset = eb_bcd2(buffer + 18);
 	position = &real_position;
     }
 
@@ -1064,7 +1058,7 @@ eb_read_binary_wave(book, binary_max_length, binary, binary_length)
 	    copy_length = context->cache_length - context->cache_offset;
 
 	memcpy(binary_p, context->cache_buffer + context->cache_offset,
-	    (size_t)copy_length);
+	    copy_length);
 	binary_p += copy_length;
 	context->cache_offset += copy_length;
 
@@ -1152,7 +1146,7 @@ eb_read_binary_mono_graphic(book, binary_max_length, binary, binary_length)
 		copy_length = context->cache_length - context->cache_offset;
 
 	    memcpy(binary_p, context->cache_buffer + context->cache_offset,
-		(size_t)copy_length);
+		copy_length);
 	    binary_p += copy_length;
 	    *binary_length += copy_length;
 	    context->cache_offset += copy_length;
@@ -1202,11 +1196,11 @@ eb_read_binary_mono_graphic(book, binary_max_length, binary, binary_length)
 	if (context->offset % line_length == 0) {
 	    if (0 < line_pad_length) {
 		if (binary_max_length - *binary_length < line_pad_length) {
-		    memset(context->cache_buffer, 0, (size_t)line_pad_length);
+		    memset(context->cache_buffer, 0, line_pad_length);
 		    context->cache_length = line_pad_length;
 		    context->cache_offset = 0;
 		} else {
-		    memset(binary_p, 0, (size_t)line_pad_length);
+		    memset(binary_p, 0, line_pad_length);
 		    binary_p += line_pad_length;
 		    *binary_length += line_pad_length;
 		}
@@ -1286,7 +1280,7 @@ eb_read_binary_gray_graphic(book, binary_max_length, binary, binary_length)
 		copy_length = context->cache_length - context->cache_offset;
 
 	    memcpy(binary_p, context->cache_buffer + context->cache_offset,
-		(size_t)copy_length);
+		copy_length);
 	    binary_p += copy_length;
 	    *binary_length += copy_length;
 	    context->cache_offset += copy_length;
@@ -1336,11 +1330,11 @@ eb_read_binary_gray_graphic(book, binary_max_length, binary, binary_length)
 	if (context->offset % line_length == 0) {
 	    if (0 < line_pad_length) {
 		if (binary_max_length - *binary_length < line_pad_length) {
-		    memset(context->cache_buffer, 0, (size_t)line_pad_length);
+		    memset(context->cache_buffer, 0, line_pad_length);
 		    context->cache_length = line_pad_length;
 		    context->cache_offset = 0;
 		} else {
-		    memset(binary_p, 0, (size_t)line_pad_length);
+		    memset(binary_p, 0, line_pad_length);
 		    binary_p += line_pad_length;
 		    *binary_length += line_pad_length;
 		}
@@ -1372,7 +1366,7 @@ eb_unset_binary(book)
     EB_Book *book;
 {
     eb_lock(&book->lock);
-    LOG(("in: eb_unset_binary(book=%d)", (int)book->code));
+    LOG(("in: eb_unset_book(book=%d)", (int)book->code));
 
     eb_reset_binary_context(book);
 

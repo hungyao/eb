@@ -51,16 +51,8 @@ eb_canonicalize_path_name(path_name)
 	    return EB_ERR_FAIL_GETCWD;
 	if (EB_MAX_PATH_LENGTH < strlen(cwd) + 1 + strlen(path_name))
 	    return EB_ERR_TOO_LONG_FILE_NAME;
-
-	if (strcmp(path_name, ".") == 0) {
-	    strcpy(path_name, cwd);
-	} else if (strncmp(path_name, "./", 2) == 0) {
-	    sprintf(temporary_path_name, "%s/%s", cwd, path_name + 2);
-	    strcpy(path_name, temporary_path_name);
-	} else {
-	    sprintf(temporary_path_name, "%s/%s", cwd, path_name);
-	    strcpy(path_name, temporary_path_name);
-	}
+	sprintf(temporary_path_name, "%s/%s", cwd, path_name);
+	strcpy(path_name, temporary_path_name);
     }
 
     /*
@@ -118,8 +110,8 @@ eb_canonicalize_path_name(path_name)
 	     * `path_name' is a relative path.
 	     * Covert the path name to an absolute path.
 	     */
-	    if (getdcwd(toupper(*path_name) - 'A' + 1, cwd,
-		EB_MAX_PATH_LENGTH + 1) == NULL) {
+	    if (getdcwd(toupper(*path_name) - 'A' + 1, cwd, EB_MAX_PATH_LENGTH + 1)
+		== NULL) {
 		return EB_ERR_FAIL_GETCWD;
 	    }
 	    if (EB_MAX_PATH_LENGTH < strlen(cwd) + 1 + strlen(path_name + 2))
@@ -333,11 +325,6 @@ eb_fix_path_name_suffix(path_name, suffix)
 }
 
 
-#define FOUND_NONE		0
-#define FOUND_EBZ		1
-#define FOUND_BASENAME		2
-#define FOUND_ORG		3
-
 /*
  * Rewrite `found_file_name' to a real file name in the `path_name'
  * directory.
@@ -360,7 +347,6 @@ eb_find_file_name(path_name, target_file_name, found_file_name)
     DIR *dir;
     struct dirent *entry;
     size_t d_namlen;
-    int found = FOUND_NONE;
 
     strcpy(ebz_target_file_name, target_file_name);
     strcat(ebz_target_file_name, ".ebz");
@@ -380,7 +366,7 @@ eb_find_file_name(path_name, target_file_name, found_file_name)
 	 */
 	entry = readdir(dir);
 	if (entry == NULL)
-	    break;
+	    goto failed;
 
 	/*
 	 * Compare the given file names and the current entry name.
@@ -408,30 +394,21 @@ eb_find_file_name(path_name, target_file_name, found_file_name)
 	if (1 < d_namlen && *(entry->d_name + d_namlen - 1) == '.')
 	    d_namlen--;
 
-	if (strcasecmp(entry->d_name, ebz_target_file_name) == 0
-	    && *(ebz_target_file_name + d_namlen) == '\0'
-	    && found < FOUND_EBZ) {
-	    strcpy(found_file_name, entry->d_name);
-	    found = FOUND_EBZ;
-	}
 	if (strncasecmp(entry->d_name, target_file_name, d_namlen) == 0
-	    && *(target_file_name + d_namlen) == '\0'
-	    && found < FOUND_BASENAME) {
-	    strcpy(found_file_name, entry->d_name);
-	    found = FOUND_BASENAME;
+	    && *(target_file_name + d_namlen) == '\0') {
+	    break;
+	}
+	if (strcasecmp(entry->d_name, ebz_target_file_name) == 0
+	    && *(ebz_target_file_name + d_namlen) == '\0') {
+	    break;
 	}
 	if (strcasecmp(entry->d_name, org_target_file_name) == 0
-	    && *(org_target_file_name + d_namlen) == '\0'
-	    && found < FOUND_ORG) {
-	    strcpy(found_file_name, entry->d_name);
-	    found = FOUND_ORG;
+	    && *(org_target_file_name + d_namlen) == '\0') {
 	    break;
 	}
     }
 
-    if (found == FOUND_NONE)
-	goto failed;
-
+    strcpy(found_file_name, entry->d_name);
     closedir(dir);
 
     return EB_SUCCESS;

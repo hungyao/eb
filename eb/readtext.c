@@ -506,7 +506,7 @@ eb_read_rawtext(book, text_max_length, text, text_length)
     if (book->text_context.code == EB_TEXT_INVALID) {
 	error_code = EB_ERR_NO_PREV_SEEK;
 	goto failed;
-    } else if (book->text_context.code == EB_TEXT_SEEKED) {
+    } else if (book->text_context.code != EB_TEXT_SEEKED) {
 	eb_reset_text_context(book);
 	book->text_context.code = EB_TEXT_RAWTEXT;
     } else if (book->text_context.code != EB_TEXT_RAWTEXT) {
@@ -604,7 +604,7 @@ text_max_length=%ld, forward=%d)",
 	    if (context->out_rest_length < context->unprocessed_size)
 		goto succeeded;
 	    memcpy(context->out, context->unprocessed,
-		(size_t)context->unprocessed_size);
+		context->unprocessed_size);
 	    context->out += context->unprocessed_size;
 	    context->out_rest_length -= context->unprocessed_size;
 	}
@@ -914,7 +914,7 @@ text_max_length=%ld, forward=%d)",
 		break;
 
 	    case 0x45:
-		/* beginning of graphic block */
+		/* prefix of sound or picuture */
 		in_step = 4;
 		if (cache_rest_length < in_step) {
 		    error_code = EB_ERR_UNEXP_TEXT;
@@ -923,8 +923,6 @@ text_max_length=%ld, forward=%d)",
 		if (eb_uint1(cache_p + 2) != 0x1f) {
 		    argc = 2;
 		    argv[1] = eb_bcd4(cache_p + 2);
-		} else {
-		    in_step = 2;
 		}
 		break;
 
@@ -944,24 +942,6 @@ text_max_length=%ld, forward=%d)",
 		hook = hookset->hooks + EB_HOOK_BEGIN_WAVE;
 		break;
 
-	    case 0x4b:
-		/* beginning of paged reference */
-		in_step = 8;
-		if (cache_rest_length < in_step + 2) {
-		    error_code = EB_ERR_UNEXP_TEXT;
-		    goto failed;
-		}
-		argc = 3;
-		argv[1] = eb_bcd4(cache_p + 2);
-		argv[2] = eb_bcd2(cache_p + 6);
-		if (cache_p[8]==0x1f && cache_p[9]==0x6b) {
-		    hook = hookset->hooks + EB_HOOK_GRAPHIC_REFERENCE;
-		    in_step = 10;
-		} else {
-		    hook = hookset->hooks + EB_HOOK_BEGIN_GRAPHIC_REFERENCE;
-		}
-		break;
-
 	    case 0x4d:
 		/* beginning of color graphic (BMP or JPEG) */
 		in_step = 20;
@@ -979,7 +959,7 @@ text_max_length=%ld, forward=%d)",
 		    hook = hookset->hooks + EB_HOOK_BEGIN_COLOR_JPEG;
 		break;
 
-	    case 0x49: case 0x4c: case 0x4e: case 0x4f:
+	    case 0x49: case 0x4b: case 0x4c: case 0x4e: case 0x4f:
 		in_step = 2;
 		context->skip_code = eb_uint1(cache_p + 1) + 0x20;
 		break;
@@ -1062,16 +1042,6 @@ text_max_length=%ld, forward=%d)",
 		argv[1] = eb_bcd4(cache_p + 2);
 		argv[2] = eb_bcd2(cache_p + 6);
 		hook = hookset->hooks + EB_HOOK_END_MONO_GRAPHIC;
-		break;
-
-	    case 0x6b:
-		/* end of paged reference */
-		in_step = 2;
-		if (cache_rest_length < in_step) {
-		    error_code = EB_ERR_UNEXP_TEXT;
-		    goto failed;
-		}
-		hook = hookset->hooks + EB_HOOK_END_GRAPHIC_REFERENCE;
 		break;
 
 	    case 0x6a:
@@ -1541,7 +1511,7 @@ eb_write_text_string(book, string)
 	if (error_code != EB_SUCCESS)
 	    goto failed;
     } else {
-	memcpy(book->text_context.out, string, (size_t)string_length);
+	memcpy(book->text_context.out, string, string_length);
 	book->text_context.out += string_length;
 	book->text_context.out_rest_length -= string_length;
 	book->text_context.out_step += string_length;
@@ -1590,7 +1560,7 @@ eb_write_text(book, stream, stream_length)
 	    goto failed;
 	}
 	memcpy(reallocated + book->text_context.unprocessed_size, stream,
-	    (size_t)stream_length);
+	    stream_length);
 	book->text_context.unprocessed = reallocated;
 	book->text_context.unprocessed_size += stream_length;
 	    
@@ -1605,14 +1575,14 @@ eb_write_text(book, stream, stream_length)
 	    = book->text_context.out_step + stream_length;
 	memcpy(book->text_context.unprocessed, 
 	    book->text_context.out - book->text_context.out_step,
-	    (size_t)book->text_context.out_step);
+	    book->text_context.out_step);
 	memcpy(book->text_context.unprocessed + book->text_context.out_step,
-	    stream, (size_t)stream_length);
+	    stream, stream_length);
 	book->text_context.out -= book->text_context.out_step;
 	book->text_context.out_step = 0;
 
     } else {
-	memcpy(book->text_context.out, stream, (size_t)stream_length);
+	memcpy(book->text_context.out, stream, stream_length);
 	book->text_context.out += stream_length;
 	book->text_context.out_rest_length -= stream_length;
 	book->text_context.out_step += stream_length;
@@ -1659,6 +1629,7 @@ eb_forward_text(book, appendix)
     EB_Appendix *appendix;
 {
     EB_Error_Code error_code;
+    EB_Text_Code saved_text_code;
 
     eb_lock(&book->lock);
     LOG(("in: eb_forward_text(book=%d, appendix=%d)", (int)book->code,

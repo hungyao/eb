@@ -1,5 +1,5 @@
 /*                                                            -*- C -*-
- * Copyright (c) 2001, 02
+ * Copyright (c) 2001  
  *    Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
@@ -52,7 +52,7 @@ extern "C" {
 /*
  * Maximum ebzio compression level.
  */
-#define ZIO_MAX_EBZIP_LEVEL		5
+#define ZIO_MAX_EBZIP_LEVEL		3
 
 /*
  * Huffman node types.
@@ -210,29 +210,38 @@ struct Zio_Struct {
 };
 
 /*
- * Trick for function protypes.
- */
-#if defined(__STDC__) || defined(__cplusplus) || defined(WIN32)
-#define ZIO_P(p) p
-#else /* not (__STDC__ && __cplusplus && WIN32) */
-#define ZIO_P(p) ()
-#endif /* not (__STDC__ && __cplusplus && WIN32) */
-
-/*
  * Function declarations.
  */
+#if defined(__STDC__) || defined(__cplusplus) || defined(WIN32)
 /* zio.c */
-int zio_initialize_library ZIO_P((void));
-void zio_finalize_library ZIO_P((void));
-void zio_initialize ZIO_P((Zio *));
-void zio_finalize ZIO_P((Zio *));
-int zio_set_sebxa_mode ZIO_P((Zio *, off_t, off_t, off_t, off_t));
-int zio_open ZIO_P((Zio *, const char *, Zio_Code));
-void zio_close ZIO_P((Zio *));
-int zio_file ZIO_P((Zio *));
-Zio_Code zio_mode ZIO_P((Zio *));
-off_t zio_lseek ZIO_P((Zio *, off_t, int));
-ssize_t zio_read ZIO_P((Zio *, char *, size_t));
+int zio_initialize_library(void);
+void zio_finalize_library(void);
+void zio_initialize(Zio *);
+void zio_finalize(Zio *);
+int zio_set_sebxa_mode(Zio *, off_t, off_t, off_t, off_t);
+int zio_open(Zio *, const char *, Zio_Code);
+void zio_close(Zio *);
+int zio_file(Zio *);
+Zio_Code zio_mode(Zio *);
+off_t zio_lseek(Zio *, off_t, int);
+ssize_t zio_read(Zio *, char *, size_t);
+
+#else /* !defined(__STDC__) && !defined(__cplusplus) && ... */
+
+/* zio.c */
+int zio_initialize_library();
+void zio_finalize_library();
+void zio_initialize();
+void zio_finalize();
+int zio_set_sebxa_mode();
+int zio_open();
+void zio_close();
+int zio_file();
+Zio_Code zio_mode();
+off_t zio_lseek();
+ssize_t zio_read();
+
+#endif  /* !defined(__STDC__) && !defined(__cplusplus) && ... */
 
 #ifdef __cplusplus
 }

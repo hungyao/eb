@@ -6,7 +6,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2002-01-19 23:11+0900\n"
+"POT-Creation-Date: 2001-10-27 10:37+0900\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -29,162 +29,186 @@ msgstr ""
 msgid "%s: invalid subbook name `%s...'\n"
 msgstr ""
 
-#: ../libebutils/getopt.c:119
+#: ../libebutils/getopt.c:678
 #, c-format
-msgid "%s: option requires an argument -- %c\n"
+msgid "%s: option `%s' is ambiguous\n"
 msgstr ""
 
-#: ../libebutils/getopt.c:121
+#: ../libebutils/getopt.c:702
 #, c-format
-msgid "%s: option `%.*s' requires an argument\n"
+msgid "%s: option `--%s' doesn't allow an argument\n"
 msgstr ""
 
-#: ../libebutils/getopt.c:123
+#: ../libebutils/getopt.c:707
 #, c-format
-msgid "%s: option `--%.*s' is ambiguous\n"
+msgid "%s: option `%c%s' doesn't allow an argument\n"
 msgstr ""
 
-#: ../libebutils/getopt.c:125
+#: ../libebutils/getopt.c:724 ../libebutils/getopt.c:897
 #, c-format
-msgid "%s: option `--%.*s' doesn't allow an argument\n"
+msgid "%s: option `%s' requires an argument\n"
 msgstr ""
 
-#: ../libebutils/getopt.c:127
+#. --option
+#: ../libebutils/getopt.c:753
+#, c-format
+msgid "%s: unrecognized option `--%s'\n"
+msgstr ""
+
+#. +option or -option
+#: ../libebutils/getopt.c:757
+#, c-format
+msgid "%s: unrecognized option `%c%s'\n"
+msgstr ""
+
+#. 1003.2 specifies the format of this message.
+#: ../libebutils/getopt.c:783
 #, c-format
 msgid "%s: illegal option -- %c\n"
 msgstr ""
 
-#: ../libebutils/getopt.c:129
+#: ../libebutils/getopt.c:786
 #, c-format
 msgid "%s: invalid option -- %c\n"
 msgstr ""
 
-#: ../libebutils/getopt.c:131
+#. 1003.2 specifies the format of this message.
+#: ../libebutils/getopt.c:816 ../libebutils/getopt.c:946
 #, c-format
-msgid "%s: unrecognized option `--%.*s'\n"
+msgid "%s: option requires an argument -- %c\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:354 ../ebfont/ebfont.c:363 ../ebrefile/ebrefile.c:283
+#: ../libebutils/getopt.c:863
+#, c-format
+msgid "%s: option `-W %s' is ambiguous\n"
+msgstr ""
+
+#: ../libebutils/getopt.c:881
+#, c-format
+msgid "%s: option `-W %s' doesn't allow an argument\n"
+msgstr ""
+
+#: ../ebfont/ebfont.c:357 ../ebfont/ebfont.c:366 ../ebrefile/ebrefile.c:283
 #: ../ebrefile/ebrefile.c:291 ../ebzip/ebzip.c:235 ../ebzip/ebzip.c:245
 #, c-format
 msgid "%s: too long output directory path\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:397 ../ebinfo/ebinfo.c:174 ../ebrefile/ebrefile.c:323
+#: ../ebfont/ebfont.c:400 ../ebinfo/ebinfo.c:174 ../ebrefile/ebrefile.c:323
 #: ../ebzip/ebzip.c:313
 #, c-format
 msgid "%s: too many arguments\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:445 ../ebzip/unzipbook.c:82 ../ebzip/zipbook.c:82
+#: ../ebfont/ebfont.c:448 ../ebzip/unzipbook.c:82 ../ebzip/zipbook.c:82
 #: ../ebzip/zipinfobook.c:82
 #, c-format
 msgid "%s: unknown subbook name `%s'\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:510
+#: ../ebfont/ebfont.c:513
 #, c-format
 msgid "%s: unknown font height `%s...'\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:527
+#: ../ebfont/ebfont.c:530
 #, c-format
 msgid "%s: unknown font height `%s'\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:590
+#: ../ebfont/ebfont.c:593
 #, c-format
 msgid "%s: unknown image format name `%s...'\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:603
+#: ../ebfont/ebfont.c:606
 #, c-format
 msgid "%s: unknown image format name `%s'\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:640 ../ebinfo/ebinfo.c:480 ../ebrefile/ebrefile.c:368
+#: ../ebfont/ebfont.c:643 ../ebinfo/ebinfo.c:480 ../ebrefile/ebrefile.c:368
 #: ../ebzip/ebzip.c:460
 #, c-format
 msgid "Usage: %s [option...] [book-directory]\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:641 ../ebinfo/ebinfo.c:482 ../ebrefile/ebrefile.c:369
+#: ../ebfont/ebfont.c:644 ../ebinfo/ebinfo.c:482 ../ebrefile/ebrefile.c:369
 #: ../ebzip/ebzip.c:461
 msgid "Options:\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:642
+#: ../ebfont/ebfont.c:645
 msgid "  -d  --debug  --verbose     degug mode\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:643
+#: ../ebfont/ebfont.c:646
 msgid "  -f HEIGHT[,HEIGHT...]  --font-height HEIGHT[,HEIGHT...]\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:644
+#: ../ebfont/ebfont.c:647
 msgid ""
 "                             generate fonts with HEIGHT; 16, 24, 30 or 48\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:645 ../ebfont/ebfont.c:650 ../ebfont/ebfont.c:654
-#: ../ebfont/ebfont.c:662 ../ebinfo/ebinfo.c:488 ../ebrefile/ebrefile.c:373
+#: ../ebfont/ebfont.c:648 ../ebfont/ebfont.c:653 ../ebfont/ebfont.c:657
+#: ../ebfont/ebfont.c:665 ../ebinfo/ebinfo.c:488 ../ebrefile/ebrefile.c:373
 #: ../ebrefile/ebrefile.c:381 ../ebzip/ebzip.c:474 ../ebzip/ebzip.c:489
 #, c-format
 msgid "                             (default: %s)\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:647 ../ebinfo/ebinfo.c:483 ../ebrefile/ebrefile.c:370
+#: ../ebfont/ebfont.c:650 ../ebinfo/ebinfo.c:483 ../ebrefile/ebrefile.c:370
 #: ../ebzip/ebzip.c:463
 msgid "  -h  --help                 display this help, then exit\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:648
+#: ../ebfont/ebfont.c:651
 msgid "  -i FORMAT[,FORMAT...]  --image-format FORMAT[,FORMAT...]\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:649
+#: ../ebfont/ebfont.c:652
 msgid ""
-"                             generate fonts as FORMAT; xbm, xpm, gif or bmp\n"
+"                             generate fonts as FORMAT; xbm, xpm, or gif\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:652 ../ebrefile/ebrefile.c:371 ../ebzip/ebzip.c:472
+#: ../ebfont/ebfont.c:655 ../ebrefile/ebrefile.c:371 ../ebzip/ebzip.c:472
 msgid "  -o DIRECTORY  --output-directory DIRECTORY\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:653
+#: ../ebfont/ebfont.c:656
 msgid "                             output fonts under DIRECTORY\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:656 ../ebrefile/ebrefile.c:375 ../ebzip/ebzip.c:480
+#: ../ebfont/ebfont.c:659 ../ebrefile/ebrefile.c:375 ../ebzip/ebzip.c:480
 msgid "  -S SUBBOOK[,SUBBOOK...]  --subbook SUBBOOK[,SUBBOOK...]\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:657 ../ebrefile/ebrefile.c:376 ../ebzip/ebzip.c:481
+#: ../ebfont/ebfont.c:660 ../ebrefile/ebrefile.c:376 ../ebzip/ebzip.c:481
 msgid "                             target subbook\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:658 ../ebrefile/ebrefile.c:377 ../ebzip/ebzip.c:482
+#: ../ebfont/ebfont.c:661 ../ebrefile/ebrefile.c:377 ../ebzip/ebzip.c:482
 msgid "                             (default: all subbooks)\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:659 ../ebinfo/ebinfo.c:485 ../ebrefile/ebrefile.c:378
+#: ../ebfont/ebfont.c:662 ../ebinfo/ebinfo.c:485 ../ebrefile/ebrefile.c:378
 #: ../ebzip/ebzip.c:485
 msgid "  -v  --version              display version number, then exit\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:660 ../ebinfo/ebinfo.c:486 ../ebrefile/ebrefile.c:379
+#: ../ebfont/ebfont.c:663 ../ebinfo/ebinfo.c:486 ../ebrefile/ebrefile.c:379
 #: ../ebzip/ebzip.c:487
 msgid ""
 "\n"
 "Argument:\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:661 ../ebinfo/ebinfo.c:487 ../ebrefile/ebrefile.c:380
+#: ../ebfont/ebfont.c:664 ../ebinfo/ebinfo.c:487 ../ebrefile/ebrefile.c:380
 #: ../ebzip/ebzip.c:488
 msgid "  book-directory             top directory of a CD-ROM book\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:664 ../ebinfo/ebinfo.c:490 ../ebrefile/ebrefile.c:384
+#: ../ebfont/ebfont.c:667 ../ebinfo/ebinfo.c:490 ../ebrefile/ebrefile.c:384
 #: ../ebzip/ebzip.c:501
 #, c-format
 msgid ""
@@ -192,22 +216,22 @@ msgid ""
 "Report bugs to %s.\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:1083 ../ebrefile/ebrefile.c:475
+#: ../ebfont/ebfont.c:1086 ../ebrefile/ebrefile.c:475
 #: ../ebrefile/ebrefile.c:491 ../ebzip/copyfile.c:122 ../ebzip/copyfile.c:146
-#: ../ebzip/sebxa.c:58 ../ebzip/sebxa.c:191 ../ebzip/unzipfile.c:195
+#: ../ebzip/sebxa.c:58 ../ebzip/sebxa.c:189 ../ebzip/unzipfile.c:195
 #: ../ebzip/unzipfile.c:233 ../ebzip/zipfile.c:173 ../ebzip/zipfile.c:211
 #: ../ebzip/zipinfofile.c:107
 #, c-format
 msgid "%s: failed to open the file, %s: %s\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:1088 ../ebfont/ebfont.c:1093 ../ebzip/copyfile.c:183
+#: ../ebfont/ebfont.c:1091 ../ebfont/ebfont.c:1096 ../ebzip/copyfile.c:183
 #: ../ebzip/unzipfile.c:285 ../ebzip/zipfile.c:402 ../ebzip/zipfile.c:461
 #, c-format
 msgid "%s: failed to write to the file, %s: %s\n"
 msgstr ""
 
-#: ../ebfont/ebfont.c:1106
+#: ../ebfont/ebfont.c:1109
 #, c-format
 msgid "%s: failed to close the file, %s: %s\n"
 msgstr ""
@@ -339,14 +363,14 @@ msgid "%s: no catalog file: %s\n"
 msgstr ""
 
 #: ../ebrefile/ebrefile.c:503 ../ebrefile/ebrefile.c:529
-#: ../ebrefile/ebrefile.c:583 ../ebzip/sebxa.c:80 ../ebzip/sebxa.c:213
+#: ../ebrefile/ebrefile.c:583 ../ebzip/sebxa.c:79 ../ebzip/sebxa.c:210
 #, c-format
 msgid "%s: failed to read the file, %s: %s\n"
 msgstr ""
 
 #: ../ebrefile/ebrefile.c:513 ../ebrefile/ebrefile.c:554
 #: ../ebrefile/ebrefile.c:588 ../ebrefile/ebrefile.c:603
-#: ../ebrefile/ebrefile.c:620 ../ebzip/sebxa.c:133
+#: ../ebrefile/ebrefile.c:620 ../ebzip/sebxa.c:131
 #, c-format
 msgid "%s: failed to write the file, %s: %s\n"
 msgstr ""
@@ -356,8 +380,8 @@ msgstr ""
 msgid "%s: warning: no such subbook: %s\n"
 msgstr ""
 
-#: ../ebrefile/ebrefile.c:615 ../ebzip/sebxa.c:67 ../ebzip/sebxa.c:120
-#: ../ebzip/sebxa.c:200 ../ebzip/unzipfile.c:254 ../ebzip/zipfile.c:293
+#: ../ebrefile/ebrefile.c:615 ../ebzip/sebxa.c:67 ../ebzip/sebxa.c:119
+#: ../ebzip/sebxa.c:198 ../ebzip/unzipfile.c:254 ../ebzip/zipfile.c:293
 #: ../ebzip/zipfile.c:350 ../ebzip/zipfile.c:396 ../ebzip/zipfile.c:455
 #, c-format
 msgid "%s: failed to seek the file, %s: %s\n"
@@ -412,8 +436,8 @@ msgstr ""
 msgid "%s: failed to read from the file, %s: %s\n"
 msgstr ""
 
-#: ../ebzip/copyfile.c:169 ../ebzip/copyfile.c:174 ../ebzip/sebxa.c:84
-#: ../ebzip/sebxa.c:217 ../ebzip/unzipfile.c:264 ../ebzip/unzipfile.c:269
+#: ../ebzip/copyfile.c:169 ../ebzip/copyfile.c:174 ../ebzip/sebxa.c:83
+#: ../ebzip/sebxa.c:214 ../ebzip/unzipfile.c:264 ../ebzip/unzipfile.c:269
 #: ../ebzip/zipfile.c:303 ../ebzip/zipfile.c:308
 #, c-format
 msgid "%s: unexpected EOF: %s\n"
@@ -537,7 +561,7 @@ msgstr ""
 msgid "==> fix %s <==\n"
 msgstr ""
 
-#: ../ebzip/sebxa.c:141
+#: ../ebzip/sebxa.c:139
 msgid ""
 "completed\n"
 "\n"

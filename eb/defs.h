@@ -1,5 +1,5 @@
 /*                                                            -*- C -*-
- * Copyright (c) 1997, 98, 99, 2000, 01, 02
+ * Copyright (c) 1997, 98, 99, 2000, 01  
  *    Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
@@ -43,8 +43,8 @@ extern "C" {
 /*
  * Library version.
  */
-#define EB_VERSION_MAJOR		@EB_VERSION_MAJOR@
-#define EB_VERSION_MINOR		@EB_VERSION_MINOR@
+#define EB_VERSION_MAJOR		3
+#define EB_VERSION_MINOR		1
 
 /*
  * Disc code
@@ -72,6 +72,7 @@ extern "C" {
  */
 #define EB_SUBBOOK_INVALID		-1
 #define EB_MULTI_INVALID		-1
+#define EB_MULTI_ENTRY_INVALID		-1
 
 /*
  * Size of a page (The term `page' means `block' in JIS X 4081).
@@ -143,7 +144,7 @@ extern "C" {
 #define EB_MAX_MULTI_LABEL_LENGTH	30
 
 /*
- * Maximum length of alternation text string for a private character.
+ * Maximum number of font heights that a subbok supports.
  */
 #define EB_MAX_ALTERNATION_TEXT_LENGTH	31
 
@@ -180,7 +181,7 @@ extern "C" {
 /*
  * The number of text hooks.
  */
-#define EB_NUMBER_OF_HOOKS		41
+#define EB_NUMBER_OF_HOOKS		40
 
 /*
  * The number of search contexts required by a book.

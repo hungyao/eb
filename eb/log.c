@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 02
+ * Copyright (c) 2001
  *    Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,9 +19,9 @@
 
 #if defined(__STDC__) || defined(WIN32)
 #include <stdarg.h>
-#else
+#else /* not (__STDC__ || defined(WIN32)) */
 #include <varargs.h>
-#endif
+#endif /* not (__STDC__ || defined(WIN32)) */
 
 
 /*
@@ -32,34 +32,9 @@ static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 /*
- * Initialization flag.
- */
-int eb_log_initialized = 0;
-
-/*
- * Debug log flag.
- */
-int eb_log_flag = 0;
-
-/*
  * Pointer to log function.
  */
 static void (*eb_log_function) EB_P((const char *, va_list)) = eb_log_stderr;
-
-
-/*
- * Initialize logging sub-system.
- */
-void
-eb_initialize_log()
-{
-    if (eb_log_initialized)
-	return;
-
-    eb_log_flag = (getenv(EB_DEBUG_ENVIRONMENT_VARIABLE) != NULL);
-    eb_log_function = eb_log_stderr;
-    eb_log_initialized = 1;
-}
 
 /*
  * Set log function.
@@ -68,31 +43,7 @@ void
 eb_set_log_function(function)
     void (*function) EB_P((const char *, va_list));
 {
-    if (!eb_log_initialized)
-	eb_initialize_log();
     eb_log_function = function;
-}
-
-/*
- * Enable logging.
- */
-void
-eb_enable_log()
-{
-    if (!eb_log_initialized)
-	eb_initialize_log();
-    eb_log_flag = 1;
-}
-
-/*
- * Disable logging.
- */
-void
-eb_disable_log()
-{
-    if (!eb_log_initialized)
-	eb_initialize_log();
-    eb_log_flag = 0;
 }
 
 /*
@@ -116,8 +67,11 @@ eb_log(message, va_alist)
     va_start(ap);
 #endif /* not __STDC__ */
 
-    if (eb_log_flag && eb_log_function != NULL)
+    if (eb_log_function != NULL) {
+	pthread_mutex_lock(&log_mutex);
 	eb_log_function(message, ap);
+	pthread_mutex_unlock(&log_mutex);
+    }
 
     va_end(ap);
 }
@@ -125,28 +79,28 @@ eb_log(message, va_alist)
 /*
  * Output a log message to standard error.
  * This is the default log handler.
- *
- * Currently, this function doesn't work if the system lacks vprintf()
- * and dopront().
  */
+#if defined(HAVE_VPRINTF) || defined(HAVE_DOPRNT)
 void
 eb_log_stderr(message, ap)
     const char *message;
     va_list ap;
+#else /* not defined(HAVE_VPRINTF) || defined(HAVE_DOPRNT) */
+void
+eb_log_stderr(message, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+    const char *message;
+    char *a0, *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8, *a9;
+#endif /* not defined(HAVE_VPRINTF) || defined(HAVE_DOPRNT) */
 {
-    pthread_mutex_lock(&log_mutex);
-
     fputs("[EB] ", stderr);
 
 #if defined(HAVE_VPRINTF) || defined(HAVE_DOPRNT)
     vfprintf(stderr, message, ap);
-#else
-    fprintf(stderr, "eb_log_stderr() doesn't work on the system.");
-#endif
+#else /* not defined(HAVE_VPRINTF) || defined(HAVE_DOPRNT) */
+    fprintf(stderr, message, a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+#endif /* not defined(HAVE_VPRINTF) || defined(HAVE_DOPRNT) */
     fputc('\n', stderr);
     fflush(stderr);
-
-    pthread_mutex_unlock(&log_mutex);
 }
 
 #define MAX_QUOTED_STREAM_LENGTH	100

@@ -159,6 +159,10 @@ static struct option long_options[] = {
  */
 typedef int Image_Format_Code;
 
+#define IMAGE_FORMAT_XBM	0
+#define IMAGE_FORMAT_XPM	1
+#define IMAGE_FORMAT_GIF	2
+
 typedef struct {
     const char *name;
     const char *suffix;
@@ -169,11 +173,10 @@ static Image_Format image_formats[] = {
     {"xbm", "xbm", eb_bitmap_to_xbm},
     {"xpm", "xpm", eb_bitmap_to_xpm},
     {"gif", "gif", eb_bitmap_to_gif},
-    {"bmp", "bmp", eb_bitmap_to_bmp},
     {NULL, NULL, NULL}
 };
 
-#define MAX_IMAGE_FORMATS	4
+#define MAX_IMAGE_FORMATS	3
 #define MAX_LENGTH_IMAGE_NAME	3
 #define MAX_LENGTH_IMAGE_SUFFIX	3
 
@@ -284,7 +287,7 @@ main(argc, argv)
     /*
      * Initialize `book'.
      */
-    error_code = eb_initialize_library();
+    eb_initialize_library();
     if (error_code != EB_SUCCESS) {
 	fprintf(stderr, "%s: %s\n", invoked_name,
 	    eb_error_message(error_code));
@@ -297,7 +300,7 @@ main(argc, argv)
      */
     for (;;) {
 	ch = getopt_long(argc, argv, short_options, long_options, NULL);
-	if (ch == -1)
+	if (ch == EOF)
 	    break;
 	switch (ch) {
 	case 'd':
@@ -646,7 +649,7 @@ output_help()
 	DEFAULT_FONT_HEIGHT);
     printf(_("  -h  --help                 display this help, then exit\n"));
     printf(_("  -i FORMAT[,FORMAT...]  --image-format FORMAT[,FORMAT...]\n"));
-    printf(_("                             generate fonts as FORMAT; xbm, xpm, gif or bmp\n"));
+    printf(_("                             generate fonts as FORMAT; xbm, xpm, or gif\n"));
     printf(_("                             (default: %s)\n"),
 	DEFAULT_IMAGE_FORMAT);
     printf(_("  -o DIRECTORY  --output-directory DIRECTORY\n"));
