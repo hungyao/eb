@@ -27,7 +27,7 @@ translation approved by Free Software Foundation, Inc.
 
 File: eb-ja.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 
-   この文書は第 2.3 版です。この文書はまだ完成していません。
+   この文書は第 2.3beta0 版です。この文書はまだ完成していません。
 
 * Menu:
 
@@ -91,10 +91,10 @@ File: eb-ja.info,  Node: Introduction,  Next: Link,  Prev: Top,  Up: Top
 
    EB ライブラリは CD-ROM 書籍にアクセスするための C のライブラリで
 す。UNIX 系 OS のシステム上で動作させることができます。EB ライブラリは
-EB, EBG, EBXA, EBXA-C および EPWING 形式の CD-ROM 書籍に対応しています。
- これらの形式の CD-ROM 書籍は、日本で一般的に使われています。CD-ROM
-書籍自体は ISO 9660 形式になっていますので、他の ISO 9660 形式と同じ要
-領でマウントすることができます。
+EB, EBG, EBXA および EPWING 形式の CD-ROM 書籍に対応しています。これら
+の形式の CD-ROM 書籍は、日本で一般的に使われています。CD-ROM 書籍自体
+は ISO 9660 形式になっていますので、他の ISO 9660 形式と同じ要領でマウ
+ントすることができます。
 
    EB ライブラリは はフリーソフトウェアです。あなたは、Free Software
 Foundation が公表した GNU General Public License (GNU 一般公有使用許諾)
@@ -106,8 +106,8 @@ Foundation が公表した GNU General Public License (GNU 一般公有使用許諾)
 的適合性についての暗黙の保証を含めて、いかなる保証も行ないません。詳細
 については GNU General Public License をお読みください。
 
-   この文書は第 EB ライブラリバージョン 2.3 に対応しています。この文書
-はまだ完成していません。
+   この文書は第 EB ライブラリバージョン 2.3beta0 に対応しています。この
+文書はまだ完成していません。
 
 
 File: eb-ja.info,  Node: Link,  Next: Initialization,  Prev: Introduction,  Up: Top
@@ -532,9 +532,9 @@ File: eb-ja.info,  Node: Initialization Functions,  Prev: Initialization Data Ty
      関数 `eb_disc_type()' は BOOK のディスクの形式を返します。BOOK は
      あらかじめ書籍に結び付いていなければなりません。
 
-     書籍が EB/EBG/EBXA/EBXA-C なら `EB_DISC_EB' を返します。書籍が
-     EPWING なら `EB_DISC_EPWING' を返します。関数が失敗した場合は -1
-     を返し、`eb_error' をセットします。
+     書籍が EB/EBG/EBXA なら `EB_DISC_EB' を返します。書籍が EPWING な
+     ら `EB_DISC_EPWING' を返します。関数が失敗した場合は -1 を返し、
+     `eb_error' をセットします。
 
  - Function: EB_Character_Code eb_character_code (EB_Book *BOOK)
      関数 `eb_character_type()' は BOOK が書かれている文字コードを返し
@@ -1675,35 +1675,35 @@ File: eb-ja.info,  Node: Program Index,  Prev: Variable Index,  Up: Index
 
 Tag Table:
 Node: Top1040
-Node: Introduction2724
-Node: Link3801
-Node: Compilation4203
-Node: Configuration5677
-Node: Character Code7162
-Node: Initialization7924
-Node: Compressed Book10833
-Node: Initialization Sample11268
-Node: Initialization Data Types13268
-Node: Initialization Functions14381
-Node: Error Handling18657
-Node: Tolerance to Error19561
-Node: Error Data Types20746
-Node: Error Variables21313
-Node: Error Codes22141
-Node: Subbook31487
-Node: Current Subbook33337
-Node: Subbook Sample34952
-Node: Subbook Data Types37302
-Node: Subbook Functions37817
-Node: Search Basics43129
-Node: Word Search43958
-Node: Get Remained Entries46515
-Node: Word Search Data Types48332
-Node: Word Search Functions49202
-Node: Index53405
-Node: Data Type Index53686
-Node: Function Index54274
-Node: Variable Index55993
-Node: Program Index60001
+Node: Introduction2729
+Node: Link3803
+Node: Compilation4205
+Node: Configuration5679
+Node: Character Code7164
+Node: Initialization7926
+Node: Compressed Book10835
+Node: Initialization Sample11270
+Node: Initialization Data Types13270
+Node: Initialization Functions14383
+Node: Error Handling18654
+Node: Tolerance to Error19558
+Node: Error Data Types20743
+Node: Error Variables21310
+Node: Error Codes22138
+Node: Subbook31484
+Node: Current Subbook33334
+Node: Subbook Sample34949
+Node: Subbook Data Types37299
+Node: Subbook Functions37814
+Node: Search Basics43126
+Node: Word Search43955
+Node: Get Remained Entries46512
+Node: Word Search Data Types48329
+Node: Word Search Functions49199
+Node: Index53402
+Node: Data Type Index53683
+Node: Function Index54271
+Node: Variable Index55990
+Node: Program Index59998
 
 End Tag Table

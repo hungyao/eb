@@ -72,12 +72,11 @@ extern "C" {
 #define EB_HOOK_WIDE_FONT		38
 #define EB_HOOK_INITIALIZE		39
 #define EB_HOOK_STOPCODE		40
-#define EB_HOOK_GB2312			41
 
 /*
  * The number of hooks.
  */
-#define EB_NUM_HOOKS		42
+#define EB_NUM_HOOKS		41
 
 /*
  * The maximum length of a string in the text work buffer.

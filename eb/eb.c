@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999  Motoyuki Kasahara
+ * Copyright (c) 1997, 1998  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -330,7 +330,7 @@ eb_initialize_catalog(book)
 	 */
 	strncpy(sub->title, buf + 2, titlesize);
 	sub->title[titlesize] = '\0';
-	if (book->char_code != EB_CHARCODE_ISO8859_1)
+	if (book->char_code == EB_CHARCODE_JISX0208)
 	    eb_jisx0208_to_euc(sub->title, sub->title);
 
 	/*
@@ -378,12 +378,9 @@ eb_initialize_catalog(book)
      *      title of the 1st subbook: "%;%s%A%e%j!\%S%8%M%9!\%/%i%&%s"
      *   2. Shin Eiwa Waei Chujiten (earliest edition)
      *      title of the 1st subbook: "8&5f<R!!?71QOBCf<-E5".
-     *   3. EB Kagakugijutu Yougo Daijiten (YRRS-048)
-     *      title of the 1st subbook: "#E#B2J3X5;=QMQ8lBg<-E5".
      */
     if (strcmp(book->subbooks->title, "%;%s%A%e%j!\\%S%8%M%9!\\%/%i%&%s") == 0
-	|| strcmp(book->subbooks->title, "8&5f<R!!?71QOBCf<-E5") == 0
-	|| strcmp(book->subbooks->title, "#E#B2J3X5;=QMQ8lBg<-E5") == 0) {
+	|| strcmp(book->subbooks->title, "8&5f<R!!?71QOBCf<-E5") == 0) {
 	book->char_code = EB_CHARCODE_JISX0208;
 	for (i = 0, sub = book->subbooks; i < book->sub_count; i++, sub++)
 	    eb_jisx0208_to_euc(sub->title, sub->title);

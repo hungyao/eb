@@ -1,70 +1,3 @@
-1999-04-29  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
-
-	* Version 2.3.
-
-1999-04-24  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
-
-	* Version 2.3beta2.
-
-	* eb/subbook.c (eb_initialize_subbook): Don't access the removed
-	`length' member in the `EB_Search' structure.
-	* eb/text.c (eb_text): Likewise.  Don't tell text from menu.
-	* eb/text.c (CONTENT_MENU): Removed.
-
-1999-04-17  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
-
-	* eb/eb.c (eb_initialize_catalog): Force changing the character
-	code parameter of `EB Kagakugijutu Yougo Daijiten (YRRS-048)'
-	to JIS X 0208.
-
-1999-04-11  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
-
-	* eb/zio.c (eb_zopen): Remove and append `.' to a filename
-	and try to open the file, when failed to open the file.
-
-1999-03-28  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
-
-	* Version 2.3beta1.
-
-	* ebinfo/ebinfo.c (output_information): Recognize the book
-	written in EB_CHARCODE_JISX0208_GB2312.
-
-	* eb/text.c (eb_read_internal): Case to `unsigned char' when
-	assign an integral value to `*workbuf'.
-
-	* eb/defs.h (EB_Search): Add the member `length'.
-	* eb/subbook.c (eb_initialize_subbook): Record not only start
-	pages of search methods but their index length.
-	* eb/text.c (CONTENT_MENU): Defined.
-	* eb/text.c (eb_text): Check for the content type, text or menu.
-	* eb/text.c (eb_read_internal): If the content type is menu,
-	text is fed to the application until the library meets `0x1f03'.
-
-	* eb/eb.c (eb_initialize_catalog): Tell EB_CHARCODE_ISO8859_1
-	from others, not EB_CHARCODE_JISX0208 from others.
-	* eb/font.c (eb_initialize_eb_fonts,
-	eb_initialize_epwing_fonts): Likewise.
-	* eb/narwalt.c(eb_narrow_alt_character_text,
-	eb_forward_narrow_alt_character,
-	eb_backward_narrow_alt_character): Likewise.
-	* eb/narwfont.c (eb_narrow_font_character_bitmap,
-	eb_forward_narrow_font_character,
-	eb_backward_narrow_font_character): Likewise.
-	* eb/widealt.c(eb_wide_alt_character_text,
-	eb_forward_wide_alt_character,
-	eb_backward_wide_alt_character): Likewise.
-	* eb/widefont.c (eb_wide_font_character_bitmap,
-	eb_forward_wide_font_character,
-	eb_backward_wide_font_character): Likewise.
-
-	* eb/text.c (eb_read_internal): Recognize GB 2312 character in
-	EBXA-C.
-	* eb/text.h (EB_HOOK_GB2312): Add the hook.
-	* eb/text.h (EB_NUM_HOOKS): Increment.
-
-	* eb/defs.h (EB_CHARCODE_JISX0208_GB2312): Defined.
-	* eb/language.c:eb_initialize_languages): Recognize EBXA-C disc.
-	
 1999-03-07  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
 
 	* Version 2.3beta0.
@@ -556,7 +489,7 @@
 	* eb/eb.c (eb_initialize_catalog): Ignore font filenames
 	which beginning with a character 0x80...0xff.
 	* eb/filename.c (eb_catalog_filename_internal): Fix a gug;
-	add a suffix to a filename correctly.
+	Correctly addi a suffix to a filename.
 
 1998-06-09  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
 

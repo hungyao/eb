@@ -28,8 +28,8 @@ translation approved by Free Software Foundation, Inc.
 
 File: eb.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 
-   This is edition 2.3, for EB Library version 2.3.  This document is
-not completed.
+   This is edition 2.3beta0, for EB Library version 2.3beta0.  This
+document is not completed.
 
 * Menu:
 
@@ -94,10 +94,10 @@ Introduction
 
    EB Library is a C library for accessing CD-ROM books.  It can be
 built on UNIX derived systems.  EB Library supports to access CD-ROM
-books of EB, EBG, EBXA, EBXA-C and EPWING formats.  CD-ROM books of
-those formats are popular in Japan.  Since CD-ROM books themseves are
-stands on the ISO 9660 format, you can mount the discs by the same way
-as other ISO 9660 discs.
+books of EB, EBG, EBXA and EPWING formats.  CD-ROM books of those
+formats are popular in Japan.  Since CD-ROM books themseves are stands
+on the ISO 9660 format, you can mount the discs by the same way as
+other ISO 9660 discs.
 
    EB Library is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -109,7 +109,7 @@ later version.
 merchantability or fitness for a particular purpose.  See the GNU
 General Public License for more details.
 
-   This edition corresponds to version 2.3 of EB Library.  This
+   This edition corresponds to version 2.3beta0 of EB Library.  This
 document is not completed.
 
 
@@ -521,9 +521,9 @@ global variable `eb_error').
      The function `eb_disc_type()' inspects the format type of BOOK.
      BOOK must have been bound beforehand.
 
-     If the book is EB/EBG/EBXA/EBXA-C, it returns the `EB_DISC_EB'.
-     If the book is EPWING, it returns `EB_DISC_EPWING'.  If this
-     function fails, it returns -1 and sets `eb_error'.
+     If the book is EB/EBG/EBXA, it returns the `EB_DISC_EB'.  If the
+     book is EPWING, it returns `EB_DISC_EPWING'.  If this function
+     fails, it returns -1 and sets `eb_error'.
 
  - Function: EB_Character_Code eb_character_code (EB_Book *BOOK)
      The function `eb_character_code()' inspects the character code in
@@ -1696,36 +1696,36 @@ Sample Program Index
 
 Tag Table:
 Node: Top1038
-Node: Introduction2842
-Node: Link3871
-Node: Compilation4243
-Node: Configuration5697
-Node: Character Code7031
-Node: Initialization7719
-Node: Compressed Book10468
-Node: Initialization Sample10894
-Node: Initialization Data Types12842
-Node: Initialization Functions13969
-Node: Error Handling18059
-Node: Tolerance to Error18996
-Node: Error Data Types20102
-Node: Error Variables20645
-Node: Error Functions21470
-Node: Error Codes22595
-Node: Subbook31170
-Node: Current Subbook33241
-Node: Subbook Sample34966
-Node: Subbook Data Types37260
-Node: Subbook Functions37781
-Node: Search Basics43238
-Node: Word Search43958
-Node: Get Remained Entries46614
-Node: Word Search Data Types48404
-Node: Word Search Functions49264
-Node: Index53318
-Node: Data Type Index53614
-Node: Function Index54201
-Node: Variable Index56041
-Node: Program Index60128
+Node: Introduction2852
+Node: Link3878
+Node: Compilation4250
+Node: Configuration5704
+Node: Character Code7038
+Node: Initialization7726
+Node: Compressed Book10475
+Node: Initialization Sample10901
+Node: Initialization Data Types12849
+Node: Initialization Functions13976
+Node: Error Handling18060
+Node: Tolerance to Error18997
+Node: Error Data Types20103
+Node: Error Variables20646
+Node: Error Functions21471
+Node: Error Codes22596
+Node: Subbook31171
+Node: Current Subbook33242
+Node: Subbook Sample34967
+Node: Subbook Data Types37261
+Node: Subbook Functions37782
+Node: Search Basics43239
+Node: Word Search43959
+Node: Get Remained Entries46615
+Node: Word Search Data Types48405
+Node: Word Search Functions49265
+Node: Index53319
+Node: Data Type Index53615
+Node: Function Index54202
+Node: Variable Index56042
+Node: Program Index60129
 
 End Tag Table
