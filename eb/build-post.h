@@ -109,13 +109,6 @@
 #define EB_BINARY_INVALID		-1
 
 /*
- * Text-stop status.
- */
-#define EB_TEXT_STATUS_CONTINUED	0
-#define EB_TEXT_STATUS_SOFT_STOP	1
-#define EB_TEXT_STATUS_HARD_STOP	2
-
-/*
  * The maximum index depth of search indexes.
  */
 #define EB_MAX_INDEX_DEPTH		6
@@ -198,7 +191,6 @@ void eb_path_name_zio_code EB_P((const char *, Zio_Code, Zio_Code *));
 
 /* font.c */
 void eb_initialize_fonts EB_P((EB_Book *));
-void eb_load_fonts EB_P((EB_Book *));
 void eb_finalize_fonts EB_P((EB_Book *));
 
 /* hook.c */

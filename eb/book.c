@@ -540,10 +540,8 @@ eb_load_catalog_epwing(book, catalog_path)
 	     * Skip this entry if the first character of the file name
 	     * is not valid.
 	     */
-	    if (*buffer_p == '\0' || 0x80 <= *((unsigned char *)buffer_p)) {
-		buffer_p += EB_MAX_DIRECTORY_NAME_LENGTH;
+	    if (*buffer_p == '\0' || 0x80 <= *((unsigned char *)buffer_p))
 		continue;
-	    }
 	    strncpy(font->file_name, buffer_p, EB_MAX_DIRECTORY_NAME_LENGTH);
 	    font->file_name[EB_MAX_DIRECTORY_NAME_LENGTH] = '\0';
 	    font->font_code = j;
@@ -564,10 +562,8 @@ eb_load_catalog_epwing(book, catalog_path)
 	     * Skip this entry if the first character of the file name
 	     * is not valid.
 	     */
-	    if (*buffer_p == '\0' || 0x80 <= *((unsigned char *)buffer_p)) {
-		buffer_p += EB_MAX_DIRECTORY_NAME_LENGTH;
+	    if (*buffer_p == '\0' || 0x80 <= *((unsigned char *)buffer_p))
 		continue;
-	    }
 	    strncpy(font->file_name, buffer_p, EB_MAX_DIRECTORY_NAME_LENGTH);
 	    font->file_name[EB_MAX_DIRECTORY_NAME_LENGTH] = '\0';
 	    font->font_code = j;
@@ -583,19 +579,6 @@ eb_load_catalog_epwing(book, catalog_path)
     }
 
     /*
-     * Set default file names and compression types.
-     */
-    for (i = 0, subbook = book->subbooks; i < book->subbook_count;
-	 i++, subbook++) {
-	strcpy(subbook->text_file_name, EB_FILE_NAME_HONMON);
-	strcpy(subbook->graphic_file_name, EB_FILE_NAME_HONMON);
-	strcpy(subbook->sound_file_name, EB_FILE_NAME_HONMON);
-	subbook->text_hint_zio_code = ZIO_PLAIN;
-	subbook->graphic_hint_zio_code = ZIO_PLAIN;
-	subbook->sound_hint_zio_code = ZIO_PLAIN;
-    }
-
-    /*
      * Read extended information about subbook.
      */
     for (i = 0, subbook = book->subbooks; i < book->subbook_count;
@@ -606,10 +589,8 @@ eb_load_catalog_epwing(book, catalog_path)
 	if (zio_read(&zio, buffer, EB_SIZE_EPWING_CATALOG)
 	    != EB_SIZE_EPWING_CATALOG) {
 	    error_code = EB_ERR_FAIL_READ_CAT;
-	    break;
+	    goto failed;
 	}
-	if (*(buffer + 4) == '\0')
-	    continue;
 
 	/*
 	 * Set a text file name and its compression hint.
@@ -625,6 +606,16 @@ eb_load_catalog_epwing(book, catalog_path)
 	if (subbook->text_hint_zio_code == ZIO_INVALID) {
 	    error_code = EB_ERR_UNEXP_CAT;
 	    goto failed;
+	}
+
+	if (*(subbook->text_file_name) == '\0') {
+	    strcpy(subbook->text_file_name, EB_FILE_NAME_HONMON);
+	    strcpy(subbook->graphic_file_name, EB_FILE_NAME_HONMON);
+	    strcpy(subbook->sound_file_name, EB_FILE_NAME_HONMON);
+	    subbook->text_hint_zio_code = ZIO_PLAIN;
+	    subbook->graphic_hint_zio_code = ZIO_PLAIN;
+	    subbook->sound_hint_zio_code = ZIO_PLAIN;
+	    continue;
 	}
 
 	data_types = eb_uint2(buffer + 41);

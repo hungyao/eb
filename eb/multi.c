@@ -94,6 +94,7 @@ eb_load_multi_searches(book)
     char *buffer_p;
     int index_count;
     int index_id;
+    int page;
     int i, j, k;
 
     LOG(("in: eb_load_multi_searches(book=%d)", book->code));
@@ -147,29 +148,21 @@ eb_load_multi_searches(book)
 		 * Get the index page information of the entry.
 		 */
 		index_id = eb_uint1(buffer_p);
+		page = eb_uint4(buffer_p + 2);
 		switch (index_id) {
 		case 0x71:
+		    if (entry->start_page == 0)
+			entry->start_page = page;
+		    entry->index_id = index_id;
+		    break;
 		case 0x91:
 		case 0xa1:
-		    if (entry->start_page != 0 && entry->index_id != 0x71)
-			break;
-		    entry->start_page = eb_uint4(buffer_p + 2);
-		    entry->end_page = entry->start_page
-			+ eb_uint4(buffer_p + 6) - 1;
+		    entry->start_page = page;
 		    entry->index_id = index_id;
-		    entry->katakana         = EB_INDEX_STYLE_ASIS;
-		    entry->lower            = EB_INDEX_STYLE_CONVERT;
-		    entry->mark             = EB_INDEX_STYLE_ASIS;
-		    entry->long_vowel       = EB_INDEX_STYLE_ASIS;
-		    entry->double_consonant = EB_INDEX_STYLE_ASIS;
-		    entry->contracted_sound = EB_INDEX_STYLE_ASIS;
-		    entry->voiced_consonant = EB_INDEX_STYLE_ASIS;
-		    entry->small_vowel      = EB_INDEX_STYLE_ASIS;
-		    entry->p_sound          = EB_INDEX_STYLE_ASIS;
-		    entry->space            = EB_INDEX_STYLE_ASIS;
 		    break;
 		case 0x01:
-		    entry->candidates_page = eb_uint4(buffer_p + 2);
+		    entry->candidates_page = page;
+		    entry->index_id = index_id;
 		    break;
 		}
 		buffer_p += 16;
@@ -192,7 +185,7 @@ eb_load_multi_searches(book)
 /*
  * Default multi search titles (written in JIS X 0208).
  */
-static const char *default_multi_titles_jisx0208[] = {
+static const char *default_multi_titles[] = {
     "J#9g8!:w#1",    /* Multi search 1. */
     "J#9g8!:w#2",    /* Multi search 2. */
     "J#9g8!:w#3",    /* Multi search 3. */
@@ -203,22 +196,6 @@ static const char *default_multi_titles_jisx0208[] = {
     "J#9g8!:w#8",    /* Multi search 8. */
     "J#9g8!:w#9",    /* Multi search 9. */
     "J#9g8!:w#1#0",  /* Multi search 10. */
-};
-
-/*
- * Default multi search titles (written in ASCII, subset of ISO 8859-1).
- */
-static const char *default_multi_titles_latin[] = {
-    "Multi search 1",
-    "Multi search 2",
-    "Multi search 3",
-    "Multi search 4",
-    "Multi search 5",
-    "Multi search 6",
-    "Multi search 7",
-    "Multi search 8",
-    "Multi search 9",
-    "Multi search 10",
 };
 
 /*
@@ -243,17 +220,10 @@ eb_load_multi_titles(book)
     /*
      * Set default titles.
      */
-    if (book->character_code == EB_CHARCODE_ISO8859_1) {
-	for (i = 0; i < subbook->multi_count; i++) {
-	    title = subbook->multis[i].title;
-	    strcpy(title, default_multi_titles_latin[i]);
-	}
-    } else {
-	for (i = 0; i < subbook->multi_count; i++) {
-	    title = subbook->multis[i].title;
-	    strcpy(title, default_multi_titles_jisx0208[i]);
-	    eb_jisx0208_to_euc(title, title);
-	}
+    for (i = 0; i < subbook->multi_count; i++) {
+	title = subbook->multis[i].title;
+	strcpy(title, default_multi_titles[i]);
+	eb_jisx0208_to_euc(title, title);
     }
 
     if (book->disc_code != EB_DISC_EPWING || subbook->search_title_page == 0)

@@ -203,7 +203,6 @@ typedef int EB_Subbook_Code;
 typedef int EB_Index_Style_Code;
 typedef int EB_Search_Code;
 typedef int EB_Text_Code;
-typedef int EB_Text_Status_Code;
 typedef int EB_Multi_Search_Code;
 typedef int EB_Hook_Code;
 typedef int EB_Binary_Code;
@@ -411,11 +410,6 @@ struct EB_Font_Struct {
     EB_Font_Code font_code;
 
     /*
-     * Whether the object has been initialized.
-     */
-    int initialized;
-
-    /*
      * Character numbers of the start and end of the font.
      */
     int start;
@@ -510,7 +504,8 @@ struct EB_Multi_Search_Struct {
  */
 struct EB_Subbook_Struct {
     /*
-     * Whether the object has been initialized.
+     * Whether information about the subbook have been loaded in this
+     * structure.
      */
     int initialized;
 
@@ -738,9 +733,9 @@ struct EB_Text_Context_Struct {
     int file_end_flag;
 
     /*
-     * Status of the current text processing.
+     * Whether the current text content ends or not.
      */
-    EB_Text_Status_Code text_status;
+    int text_end_flag;
 
     /*
      * Skip until `skipcoe' appears.

@@ -1,21 +1,3 @@
-Major changes in release 3.3.
-
-* Fix a bug of eb_read_binary_mpeg().
-
-Major changes in release 3.3beta3.
-
-* Fix multi search.
-* Fix some minor bugs.
-
-Major changes in release 3.3beta2.
-
-* Fix some serious and minor bugs.
-* Install `eb3.m4' in `$(datadir)/aclocal'.
-
-Major changes in release 3.3beta1.
-
-* Fix some bugs.
-
 Major changes in release 3.3beta0.
 
 * Revise file name and compression type detection codes for EPWING.
