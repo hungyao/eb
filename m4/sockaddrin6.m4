@@ -1,5 +1,5 @@
 dnl *
-dnl * Copyright (c) 2001  Motoyuki Kasahara
+dnl * Copyright (c) 2001-2004  Motoyuki Kasahara
 dnl *
 dnl * Redistribution and use in source and binary forms, with or without
 dnl * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@ dnl *
 dnl * 
 dnl * Check for struct sockaddr_in6
 dnl *
-AC_DEFUN(AC_STRUCT_SOCKADDR_IN6,
+AC_DEFUN([AC_STRUCT_SOCKADDR_IN6],
 [AC_CACHE_CHECK(for struct sockaddr_in6, ac_cv_struct_sockaddr_in6,
 [AC_TRY_COMPILE([
 #include <sys/types.h>
@@ -45,7 +45,7 @@ fi])
 dnl * 
 dnl * Check for struct sockaddr_storage
 dnl * 
-AC_DEFUN(AC_STRUCT_SOCKADDR_STORAGE,
+AC_DEFUN([AC_STRUCT_SOCKADDR_STORAGE],
 [AC_CACHE_CHECK(for struct sockaddr_storage, ac_cv_struct_sockaddr_storage,
 [AC_TRY_COMPILE([
 #include <sys/types.h>

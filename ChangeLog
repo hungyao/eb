@@ -1,3 +1,251 @@
+2004-07-03  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Version 4.1
+
+	* doc/Makefile.am (uninstall-hook): Defined.
+	* doc/Makefile.am: Fix bugs that `make all' fails when $(srcdir)
+	!= `.'.
+
+2004-06-23  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* doc/Makefile.am (pkgdoc_DATA): Do not use meta characters to
+	specify splitted HTML files.  Use `install-data-hook' instead.
+
+2004-05-27  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* README-ja, INSTALL-ja: Removed.
+	* README, INSTALL: These documents are now written in Japanese.
+
+	* doc-ja: Directory removed.
+	* doc: The documents under the directory are now written in Japanese
+	and with HTML format.
+
+	* Makefile.am (SUBDIRS): Delete `doc-ja'.
+	* configure.ac (AC_CONFIG_FILES): Ditto.
+
+	* configure.ac (AC_ARG_WITH): Add `--with-pkgdocdir' option.
+
+	* move-if-change: Rewrite it from scratch.
+
+2004-05-22  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* EB Library now adopts BSD License.
+
+	* ebzip/zipfile.c (ebzip_zip_file_internal), 
+	ebzip/zipbook.c (ebzip_zip_book_eb, ebzip_zip_book_epwing):
+	Support for partial compression.
+	* ebzip/speedup.c: New file.
+	* ebzip/Makefile.am (ebzip_SOURCES): Add `ebzip/speedup.c'.
+	* po-ebutils/Makefile.in (POTFILES): Ditto.
+
+2004-05-16  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* ebzip/sebxa.c (fix_sebxa_start): Renamed to rewrite_sebxa_start().
+	* ebzip/sebxa.c (fix_sebxa_start): Fix a bug that ebzip outputs
+	`completed' message even when quiet flag is enabled.
+
+2004-05-09  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* ebzip/zipfile.c (ebzip_zip_file_internal): Output compression
+	result even when input is an empty file.
+
+2004-05-08  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* configure.ac (AC_CHECK_HEADERS): Delete `utime.h' and `sys/utime.h'.
+	Add `mbstring.h' instead.
+	* ebzip/ebzip.h (EBZIP_OVERWRITE_QUERY): Renamed to
+	EBZIP_OVERWRITE_CONFIRM.
+
+	* ebzip/ebzip.c: Add `--overwrite' (-w) option.
+
+	* ebzip/zipfile.c (ebzip_zip_file_internal): Don't abort when ebzip
+	fails to delete an original file.  Delete an original file even when
+	ebzip outputs "already exists, skip the file" message.
+	ebzip/unzipfile.c (ebzip_unzip_file_internal): Ditto.
+	ebzip/copyfile.c (ebzip_copy_file): Ditto.
+
+2004-05-07  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Use Automake-1.8.4 and Libtool-1.5.6.
+
+	* configure.ac (AC_TYPE_SIGNAL, AC_STRUCT_UTIMBUF): Removed.
+	* configure.ac (AC_CHECK_FUNCS): Remove dup2() and utime().
+	* m4/herrno.m4, m4/utimbuf,m4, m4/voidpointer.m4: Removed.
+	
+2004-04-29  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/bitmap.c (eb_bitmap_to_png): New function.
+	* eb/bitmap.c (eb_bitmap_to_xbm, eb_bitmap_to_xpm, eb_bitmap_to_gif,
+	eb_bitmap_to_bmp, eb_bitmap_to_png): They return EB_Error_Code.
+	* ebfont/ebfont.c: `ebfont' supports PNG format images.
+
+	* eb/zio.c: Enlarge cache buffer, contributed by Takashi NEMOTO.
+
+	* eb/setword.c (eb_convert_euc_jp): Fix argument order.
+
+	* configure.ac (AC_INIT): Set version to 4.1.
+	* configure.ac (EB_VERSION_MINOR): Set minor version to 1.
+	* configure.ac (LIBEB_VERSION_INFO): Set version to 9:0:0.
+	
+	* configure.ac (AC_C_CONST, AC_C_PROTOTYPES, AC_C_VOID_POINTER,
+	AC_HEADER_STDC, AC_HEADER_STAT, AC_HEADER_TIME, AC_HEADER_DIRENT, 
+	AC_FUNC_VPRINTF, AC_TYPE_OFF_T, AC_TYPE_SIZE_T): Removed.
+	* configure.ac (AC_CHECK_HEADERS): Remove checks for fcntl.h,
+	limits.h, memory.h, stdlib.h and unistd.h.
+	* eb/Makefile.am
+	* configure.ac (AC_CHECK_FUNCS): Remove checks for getcwd(), memcpy(),
+	memmove() and strchr().
+	* configure.ac (AC_REPLACE_FUNCS): Remove checks for memset() and
+	strerror().
+	
+	* eb/appendix.c, eb/appendix.h, eb/appsub.c, eb/bcd.c, eb/binary.c,
+	eb/binary.h, eb/bitmap.c, eb/book.c, eb/booklist.c, eb/booklist.h,
+	eb/build-post.h.in, eb/build-pre.h, eb/copyright.c, eb/defs.h,
+	eb/eb.c, eb/eb.h, eb/ebnet.c, eb/ebnet.h, eb/endword.c, eb/error.c,
+	eb/error.h, eb/exactword.c, eb/filename.c, eb/font.c, eb/font.h, 
+	eb/getaddrinfo.c, eb/getaddrinfo.h, eb/hook.c, eb/jacode.c, 
+	eb/keyword.c, eb/linebuf.c, eb/linebuf.h, eb/lock.c, eb/log.c, 
+	eb/makeproto, eb/match.c, eb/menu.c, eb/multi.c, eb/multiplex.c, 
+	eb/narwalt.c, eb/narwfont.c, eb/readtext.c, eb/search.c, eb/setword.c, 
+	eb/stopcode.c, eb/strcasecmp.c, eb/subbook.c, eb/text.c, eb/text.h, 
+	eb/urlparts.c, eb/urlparts.h, eb/word.c, eb/zio.c, eb/zio.h, 
+	ebfont/ebfont.c, ebinfo/ebinfo.c, ebrefile/ebrefile.c, 
+	ebstopcode/ebstopcode.c, ebzip/copyfile.c, ebzip/ebzip.c, 
+	ebzip/ebzip.h, ebzip/ebzip1.c, ebzip/sebxa.c, ebzip/unzipbook.c, 
+	ebzip/unzipfile.c, ebzip/zipbook.c, ebzip/zipfile.c, 
+	ebzip/zipinfobook.c, ebzip/zipinfofile.c, libebutils/ebutils.c, 
+	libebutils/ebutils.h.in, libebutils/getopt.c, libebutils/getopt.h, 
+	libebutils/getumask.c, libebutils/getumask.h, libebutils/makedir.c, 
+	libebutils/makedir.h, libebutils/puts_eucjp.c, libebutils/samefile.c, 
+	libebutils/samefile.h, libebutils/strcasecmp.c, libebutils/yesno.c, 
+	libebutils/yesno.h, samples/appendix.c, samples/booklist.c, 
+	samples/disctype.c, samples/font.c, samples/initexit.c, 
+	samples/subbook.c, samples/text.c, samples/word.c:
+	EB Library now assumes POSIX.1-1990 systems and requires ANSI C89
+	compiler.
+
+2004-03-20  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Version 4.0.1.
+
+	* ebzip/zipfile.c, ebzip/unzipfile.c, ebzip/copyfile.c, ebzip/sebxa.c:
+	Output progress messages to stderr, not stdout.
+
+	* ebzip/zipbook.c (ebzip_zip_book, ebzip_zip_book_eb,
+	ebzip_zip_book_epwing): Abort if ebzip_zip_file() fails.
+	* ebzip/unzipbook.c (ebzip_unzip_book, ebzip_unzip_book_eb,
+	ebzip_unzip_book_epwing): Abort if ebzip_unzip_file() or
+	ebzip_unzip_start_file() fails.
+
+2004-02-29  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* ebzip/zipinfobook.c (ebzip_zipinfo_book_epwing): Also display
+	movie files.
+
+2004-01-30  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/build-pre.h, eb/defs.h, ebzip/ebzip.h (EB_P): Fix typo in
+	the definition of EB_P.
+	* eb/zio.h (ZIO_P): Likewise.
+
+2003-12-28  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Version 4.0.
+
+	* eb/defs.h: Do not be generated from `eb/defs.h.in' any longer.
+	* eb/Makefile.am (EXTRA_DIST, MAINTAINERCLEANFILES): Delete
+	`stamp-defs-h' and `defs.h.in'.
+	* eb/Makefile.am (BUILT_SOURCES): Delete `defs.h'.
+
+	* configure.ac (AC_ARG_ENABLE): Add `--enable-ebnet' option.
+	* eb/Makefile.am (libeb_ebnet_sources): Define the variable according
+	with ENABLE_EBNET.
+
+	* samples/Makefile.am (noinst_PROGRAMS): Add `booklist'.
+	* doc-ja/Makefile.am (eb_ja_TEXINFOS, MAINTAINERCLEANFILES):
+	add `booklist-c.texi'.
+
+	* eb/zio.h: Fix TIME_WITH_SYS_TIME check code.
+
+	* eb/defs.h: Include `sysdefs.h'.  Use `EB_ENABLE_PTHREAD' and
+	`EB_ENABLE_EBNET', instead of `EBCONF_ENABLE_PTHREAD' and
+	`EBCONF_ENABLE_EBNET'.
+	* eb/Makefile.am (CLEANFILES): Add `stamp-sysdefs-h' and `sysdefs.h'.
+	* eb/Makefile.am (BUILT_SOURCES): Add `sysdefs.h'
+	* eb/Makefile.am (nodist_pkginclude_HEADERS): Defined.
+
+2003-12-22  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* m4/eb3.m4: Renamed to `eb4.m4'.
+	* m4/Makefile.am (m4data_DATA, EXTRA_DIST): Rename `eb4.m4' to
+	`eb3.m4'.
+
+	* Use Autoconf-2.59, Automake-1.8 and Libtool-1.5.
+	* m4/eb4.m4, m4/gettext.m4, m4/herrno.m4, m4/in6addr.m4,
+	m4/lcmessage.m4, m4/libtool.m4, m4/sockaddrin6.m4,
+	m4/utimbuf.m4, m4/voidpointer.m4: Quote function name to be defined
+	in AC_DEFUN.
+
+	* m4/eb4.m4 (AC_REQUIRE): Add AC_C_PROTOTYPES.
+
+2003-12-21  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb.conf.in: Always define EBCONF_ENABLE_EBNET.
+	* m4/eb3.m4: Check EBCONF_ENABLE_EBNET.
+	* eb/defs.h.in: Use EBCONF_ENABLE_EBNET instead of ENABLE_EBNET.
+
+	* eb/error.c, eb/error.h: Add two error codes EB_ERR_UNBOUND_BOOKLIST
+	and EB_ERR_NO_SUCH_BOOK.
+	* eb/defs.h, eb/booklist.c, eb/booklist.h: APIs for EB_BookList
+	are revised.  eb_booklist_book_count(), eb_booklist_book_name()
+	and eb_booklist_book_title() return EB_Error_Code.
+	* eb/defs.h, eb/booklist.c, eb/booklist.h: Support for pthread.
+	* eb/defs.h, eb/booklist.c, eb/booklist.h: Add internal object counter
+	for EB_BookList.
+
+2003-11-23  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* config.guess, config.sub, depcomp, install-sh, missing,
+	mkinstalldirs, doc/mdate-sh, doc-ja/mdate-sh:
+	Import from Autocomake-1.7.9.
+
+2003-11-22  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* m4/Makefile.am (EXTRA_DIST): Add `voidpointer.m4'.
+
+	* eb/search.c (eb_hit_list_keyword, eb_hit_list_multi): 
+	Don't perform comparison of input keyword and group entry element.
+
+	* eb/readtext.c (eb_read_text_internal): Fix a bug that EB Library
+	crashes when it outputs a debug log.
+
+2003-11-19  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* configure.ac (AC_C_VOID_POINTER, AC_C_PROTOTYPES): Added.
+	* configure.ac (AC_C_VOID_POINTER): Added.
+	* m4/voidpointer.m4: Define `AC_C_VOID_POINTER'.
+	* ebrefile/ebrefile.c, ebfont/ebfont.c, eb/zio.c, eb/memmove.c,
+	eb/zio.h, eb/urlparts.c, eb/urlparts.h, eb/linebuf.c, eb/build-pre.h,
+	eb/linebuf.h, eb/defs.h.in, eb/filename.c, eb/log.c, eb/multiplex.c,
+	eb/getaddrinfo.c, eb/eb.h, eb/getaddrinfo.h, eb/ebnet.c,
+	ebstopcode/ebstopcode.c, libebutils/getopt.c, libebutils/yesno.h,
+	libebutils/getopt.h, libebutils/ebutils.c, libebutils/makedir.h,
+	libebutils/getumask.h, libebutils/samefile.h, libebutils/memset.c,
+	ebinfo/ebinfo.c, ebzip/ebzip.h:
+	Use PROTOTYPES and VOID, instead of __STDC__ and WIN32.
+
+	* eb/log.c, eb/build-pre.h, eb/eb.h: Use `stdarg.h' if __STDC__ or
+	MSVC is defined.
+
+2003-11-12  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/match.c (eb_match_word_jis_kana): Rename the function to
+	`eb_match_word_kana_group'.
+	Add variant function eb_match_word_kana_group_single().
+	* eb/match.c (eb_exact_match_word_jis_kana): Rename the function to
+	`eb_exact_match_word_kana_group'.
+	Add variant function eb_match_exact_word_kana_group_single().
+
 2003-10-19  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
 
 	* Version 4.0beta3.
