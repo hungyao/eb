@@ -226,6 +226,7 @@ main(argc, argv)
     int argc;
     char *argv[];
 {
+    EB_Error_Code error_code;
     char out_path[PATH_MAX + 1];
     char book_path[PATH_MAX + 1];
     char subbook_name_list[EB_MAX_SUBBOOKS][EB_MAX_DIRECTORY_NAME_LENGTH + 1];
@@ -240,23 +241,28 @@ main(argc, argv)
      */
 #ifdef ENABLE_NLS
 #ifdef HAVE_SETLOCALE
-       setlocale(LC_ALL, "");
+    setlocale(LC_ALL, "");
 #endif
-       bindtextdomain(TEXT_DOMAIN_NAME, LOCALEDIR);
-       textdomain(TEXT_DOMAIN_NAME);
+    bindtextdomain(TEXT_DOMAIN_NAME, LOCALEDIR);
+    textdomain(TEXT_DOMAIN_NAME);
 #endif
 
     /*
      * Initialize `book'.
      */
-    eb_initialize_library();
+    error_code = eb_initialize_library();
+    if (error_code != EB_SUCCESS) {
+	fprintf(stderr, "%s: %s\n", invoked_name,
+	    eb_error_message(error_code));
+	goto die;
+    }
 
     /*
      * Parse command line options.
      */
     for (;;) {
         ch = getopt_long(argc, argv, short_options, long_options, NULL);
-        if (ch == EOF)
+        if (ch == -1)
             break;
         switch (ch) {
         case 'h':
@@ -338,7 +344,7 @@ main(argc, argv)
     /*
      * Refile a catalog.
      */
-    refile_book(book_path, out_path, subbook_name_list, subbook_name_count);
+    refile_book(out_path, book_path, subbook_name_list, subbook_name_count);
 
     eb_finalize_library();
 
@@ -578,7 +584,7 @@ refile_catalog(out_catalog_name, in_catalog_name, disc_code,
 		invoked_name, strerror(errno), in_catalog_name);
 	    goto failed;
 	}
-	if (write(out_file, buffer, read_length) != read_length) {
+	if (write(out_file, buffer, (size_t)read_length) != read_length) {
 	    fprintf(stderr, _("%s: failed to write the file, %s: %s\n"),
 		invoked_name, strerror(errno), out_catalog_name);
 	    goto failed;
@@ -605,7 +611,7 @@ refile_catalog(out_catalog_name, in_catalog_name, disc_code,
      */
     buffer[0] = (out_subbook_count >> 8) & 0xff;
     buffer[1] =  out_subbook_count       & 0xff;
-    if (lseek(out_file, 0, SEEK_SET) < 0) {
+    if (lseek(out_file, (off_t)0, SEEK_SET) < 0) {
 	fprintf(stderr, _("%s: failed to seek the file, %s: %s\n"),
 	    invoked_name, strerror(errno), out_catalog_name);
 	goto failed;

@@ -1,15 +1,21 @@
 dnl *
 dnl * Process this file with autoconf to produce a configure script.
 dnl *
-AC_INIT(eb/eb.c)
-AC_PREREQ(2.49)
-AM_INIT_AUTOMAKE(eb, 3.1beta1)
+AC_INIT
+AC_CONFIG_SRCDIR(eb/eb.c)
+AC_PREREQ(2.52)
+AM_INIT_AUTOMAKE(eb, 3.2)
 
 dnl *
 dnl * Library version info.
 dnl *
-LIBEB_VERSION_INFO=5:0:0
+LIBEB_VERSION_INFO=6:0:0
 AC_SUBST(LIBEB_VERSION_INFO)
+
+EB_VERSION_MAJOR=3
+EB_VERSION_MINOR=2
+AC_SUBST(EB_VERSION_MAJOR)
+AC_SUBST(EB_VERSION_MINOR)
 
 dnl *
 dnl * Set mailing address.
@@ -39,25 +45,22 @@ dnl *
 eb_GNU_GETTEXT
 
 dnl *
-dnl * --enable-debug option.
+dnl * --enable-samples option.
 dnl *
-AC_ARG_ENABLE(debug,
-[  --enable-debug         enable debug code [[no]]],
+AC_ARG_ENABLE(samples,
+[  --enable-samples        compile sample programs [default=no]],
 [case "${enableval}" in
-   yes) ENABLE_DEBUG=yes  ;;
-   no)  ENABLE_DEBUG=no ;;
-   *)   AC_MSG_ERROR(invalid argument to --enable-debug) ;;
-esac], ENABLE_DEBUG=yes)
-
-if test $ENABLE_DEBUG = yes ; then
-    AC_DEFINE(ENABLE_DEBUG, 1, [Define if enabling debug codes.])
-fi
+   yes) samples=true  ;;
+   no)  samples=false ;;
+   *)   AC_MSG_ERROR(invalid argument to --enable-samples) ;;
+esac], samples=false)
+AM_CONDITIONAL(ENABLE_SAMPLES, test ${samples} = true)
 
 dnl *
 dnl * --enable-pthread option.
 dnl *
 AC_ARG_ENABLE(pthread,
-[  --enable-pthread       build pthread safe libraries [[no]]],
+AC_HELP_STRING([--enable-pthread], [build pthread safe libraries [[no]]]),
 [case "${enableval}" in
    yes) ENABLE_PTHREAD=yes  ;;
    no)  ENABLE_PTHREAD=no ;;
@@ -68,24 +71,24 @@ dnl *
 dnl * --with-pthread-cppflags option.
 dnl *
 AC_ARG_WITH(pthread-cppflags,
-[  --with-pthread-cppflags=FLAGS
-                          additional CPPFLAGS for pthread support],
+AC_HELP_STRING([--with-pthread-cppflags=FLAGS],
+    [additional CPPFLAGS for pthread support]),
 [PTHREAD_CPPFLAGS="${withval}"], [PTHREAD_CPPFLAGS=''])
 
 dnl *
 dnl * --with-pthread-cflags option.
 dnl *
 AC_ARG_WITH(pthread-cflags,
-[  --with-pthread-cflags=FLAGS
-                          additional CFLAGS for pthread support],
+AC_HELP_STRING([--with-pthread-cflags=FLAGS], 
+    [additional CFLAGS for pthread support]),
 [PTHREAD_CFLAGS="${withval}"], [PTHREAD_CFLAGS=''])
 
 dnl *
 dnl * --with-pthread-ldflags option.
 dnl *
 AC_ARG_WITH(pthread-ldflags,
-[  --with-pthread-ldflags=FLAGS
-                          additional LDFLAGS for pthread support],
+AC_HELP_STRING([--with-pthread-ldflags=FLAGS],
+    [additional LDFLAGS for pthread support]),
 [PTHREAD_LDFLAGS="${withval}"], [PTHREAD_LDFLAGS=''])
 
 dnl *
@@ -130,7 +133,7 @@ dnl *
 dnl * --with-included-zlib option.
 dnl *
 AC_ARG_WITH(included-zlib,
-[  --with-included-zlib    use zlib included here],
+AC_HELP_STRING([--with-included-zlib], [use zlib included here]),
 [case "${withval}" in
    yes|no) included_zlib=${withval} ;;
    *)   AC_MSG_ERROR(invalid argument to --with-included-zlib) ;;
@@ -140,8 +143,7 @@ dnl *
 dnl * --with-zlib-includes option.
 dnl *
 AC_ARG_WITH(zlib-includes,
-[  --with-zlib-includes=DIR
-                          zlib include files are in DIR],
+AC_HELP_STRING([--with-zlib-includes=DIR], [zlib include files are in DIR]),
 [z_includedir="${withval}"], [z_includedir=''])
 
 if test "X$z_includedir" != X ; then
@@ -154,8 +156,7 @@ dnl *
 dnl * --with-zlib-libraries option.
 dnl *
 AC_ARG_WITH(zlib-libraries,
-[  --with-zlib-libraries=DIR
-                          zlib library files are in DIR],
+AC_HELP_STRING([--with-zlib-libraries=DIR], [zlib library files are in DIR]),
 [z_libdir="${withval}"], [z_libdir=''])
 
 if test "X$z_libdir" != X ; then
@@ -240,7 +241,7 @@ dnl *
 AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
 AC_TYPE_MODE_T
-AC_TYPE_SSIZE_T
+AC_CHECK_TYPE(ssize_t, int)
 
 AC_TYPE_SIGNAL
 if test "$ac_cv_type_signal" = void; then
@@ -291,7 +292,8 @@ dnl *
 dnl * Output Files.
 dnl * 
 AM_CONFIG_HEADER(config.h)
-AC_OUTPUT(Makefile eb/Makefile libebutils/Makefile ebappendix/Makefile \
-	ebfont/Makefile ebinfo/Makefile ebrefile/Makefile ebzip/Makefile \
-	doc/Makefile doc-ja/Makefile po-eb/Makefile po-ebutils/Makefile \
-	m4/Makefile)
+AC_CONFIG_FILES([Makefile eb/Makefile libebutils/Makefile ebappendix/Makefile
+    ebfont/Makefile ebinfo/Makefile ebrefile/Makefile ebzip/Makefile
+    doc/Makefile doc-ja/Makefile po-eb/Makefile po-ebutils/Makefile
+    m4/Makefile samples/Makefile])
+AC_OUTPUT

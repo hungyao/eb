@@ -123,9 +123,11 @@ void
 eb_reset_search_contexts(book)
     EB_Book *book;
 {
-    LOG(("in+out: eb_reset_search_context(book=%d)", (int)book->code));
+    LOG(("in: eb_reset_search_context(book=%d)", (int)book->code));
 
     eb_initialize_search_contexts(book);
+
+    LOG(("out: eb_reset_search_context()"));
 }
 
 
@@ -305,7 +307,7 @@ entry_arrangement=%d, entry_count=%d)",
 		goto failed;
 	    }
 	    if (context->compare_pre(context->canonicalized_word, cache_p,
-		context->entry_length) <= 0) {
+		(size_t)context->entry_length) <= 0) {
 		next_page = eb_uint4(cache_p + context->entry_length);
 		break;
 	    }
@@ -631,7 +633,7 @@ entry_arrangement=%d, entry_count=%d)",
 		 */
 		context->comparison_result
 		    = context->compare_hit(context->word, cache_p,
-			context->entry_length);
+			(size_t)context->entry_length);
 		if (context->comparison_result == 0) {
 		    hit->heading.page
 			= eb_uint4(cache_p + context->entry_length + 6);
@@ -678,7 +680,7 @@ entry_arrangement=%d, entry_count=%d)",
 		 */
 		context->comparison_result
 		    = context->compare_hit(context->word, cache_p + 1,
-			context->entry_length);
+			(size_t)context->entry_length);
 		if (context->comparison_result == 0) {
 		    hit->heading.page
 			= eb_uint4(cache_p + context->entry_length + 7);
@@ -729,10 +731,10 @@ entry_arrangement=%d, entry_count=%d)",
 		     */
 		    context->comparison_result
 			= context->compare_hit(context->canonicalized_word,
-			    cache_p + 2, context->entry_length);
+			    cache_p + 2, (size_t)context->entry_length);
 		    if (context->comparison_result == 0
 			&& context->compare_hit(context->word, cache_p + 2,
-			    context->entry_length) == 0) {
+			    (size_t)context->entry_length) == 0) {
 			hit->heading.page
 			    = eb_uint4(cache_p + context->entry_length + 8);
 			hit->heading.offset
@@ -760,7 +762,7 @@ entry_arrangement=%d, entry_count=%d)",
 		    }
 		    context->comparison_result
 			= context->compare_hit(context->canonicalized_word,
-			    cache_p + 4, context->entry_length);
+			    cache_p + 4, (size_t)context->entry_length);
 		    context->in_group_entry = 1;
 		    cache_p += context->entry_length + 4;
 		    context->offset += context->entry_length + 4;
@@ -782,7 +784,7 @@ entry_arrangement=%d, entry_count=%d)",
 		    if (context->comparison_result == 0
 			&& context->in_group_entry
 			&& context->compare_hit(context->word, cache_p + 2,
-			    context->entry_length) == 0) {
+			    (size_t)context->entry_length) == 0) {
 			hit->heading.page
 			    = eb_uint4(cache_p + context->entry_length + 8);
 			hit->heading.offset
@@ -963,7 +965,7 @@ entry_arrangement=%d, entry_count=%d)",
 		 */
 		context->comparison_result
 		    = context->compare_hit(context->word, cache_p,
-			context->entry_length);
+			(size_t)context->entry_length);
 		if (context->comparison_result == 0) {
 		    hit->heading.page
 			= eb_uint4(cache_p + context->entry_length + 6);
@@ -1009,7 +1011,7 @@ entry_arrangement=%d, entry_count=%d)",
 		 */
 		context->comparison_result
 		    = context->compare_hit(context->word, cache_p + 1,
-			context->entry_length);
+			(size_t)context->entry_length);
 		if (context->comparison_result == 0) {
 		    hit->heading.page
 			= eb_uint4(cache_p + context->entry_length + 7);
@@ -1060,10 +1062,10 @@ entry_arrangement=%d, entry_count=%d)",
 		     */
 		    context->comparison_result
 			= context->compare_hit(context->canonicalized_word,
-			    cache_p + 2, context->entry_length);
+			    cache_p + 2, (size_t)context->entry_length);
 		    if (context->comparison_result == 0
 			&& context->compare_hit(context->word, cache_p + 2,
-			    context->entry_length) == 0) {
+			    (size_t)context->entry_length) == 0) {
 			hit->heading.page
 			    = eb_uint4(cache_p + context->entry_length + 8);
 			hit->heading.offset
@@ -1090,8 +1092,8 @@ entry_arrangement=%d, entry_count=%d)",
 			goto failed;
 		    }
 		    context->comparison_result
-			= context->compare_hit(context->word,
-			    cache_p + 6, context->entry_length);
+			= context->compare_hit(context->word, cache_p + 6,
+			    (size_t)context->entry_length);
 		    context->keyword_heading.page
 			= eb_uint4(cache_p + context->entry_length + 6);
 		    context->keyword_heading.offset
@@ -1301,7 +1303,7 @@ entry_arrangement=%d, entry_count=%d)",
 		 */
 		context->comparison_result
 		    = context->compare_hit(context->word, cache_p,
-			context->entry_length);
+			(size_t)context->entry_length);
 		if (context->comparison_result == 0) {
 		    hit->heading.page
 			= eb_uint4(cache_p + context->entry_length + 6);
@@ -1347,7 +1349,7 @@ entry_arrangement=%d, entry_count=%d)",
 		 */
 		context->comparison_result
 		    = context->compare_hit(context->word, cache_p + 1,
-			context->entry_length);
+			(size_t)context->entry_length);
 		if (context->comparison_result == 0) {
 		    hit->heading.page
 			= eb_uint4(cache_p + context->entry_length + 7);
@@ -1398,10 +1400,10 @@ entry_arrangement=%d, entry_count=%d)",
 		     */
 		    context->comparison_result
 			= context->compare_hit(context->canonicalized_word,
-			    cache_p + 2, context->entry_length);
+			    cache_p + 2, (size_t)context->entry_length);
 		    if (context->comparison_result == 0
 			&& context->compare_hit(context->word, cache_p + 2,
-			    context->entry_length) == 0) {
+			    (size_t)context->entry_length) == 0) {
 			hit->heading.page
 			    = eb_uint4(cache_p + context->entry_length + 8);
 			hit->heading.offset
@@ -1429,7 +1431,7 @@ entry_arrangement=%d, entry_count=%d)",
 		    }
 		    context->comparison_result
 			= context->compare_hit(context->word,
-			    cache_p + 6, context->entry_length);
+			    cache_p + 6, (size_t)context->entry_length);
 		    context->in_group_entry = 1;
 		    cache_p += context->entry_length + 6;
 		    context->offset += context->entry_length + 6;

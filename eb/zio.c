@@ -1,5 +1,5 @@
 /*                                                            -*- C -*-
- * Copyright (c) 1998, 99, 2000, 01  
+ * Copyright (c) 1998, 99, 2000, 01, 02
  *    Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
@@ -56,6 +56,9 @@
 
 #include "zio.h"
 
+/*
+ * memcpy(), memchr(), memcmp(), memmove() and memset().
+ */
 #ifndef HAVE_MEMCPY
 #define memcpy(d, s, n) bcopy((s), (d), (n))
 #ifdef __STDC__
@@ -71,6 +74,9 @@ char *memset();
 #endif /* not __STDC__ */
 #endif
 
+/*
+ * Flags for open().
+ */
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
@@ -95,6 +101,9 @@ char *memset();
 #define SEEK_END 2
 #endif
 
+/*
+ * Generic pointer type.
+ */
 #ifndef VOID
 #ifdef __STDC__
 #define VOID void
@@ -103,6 +112,9 @@ char *memset();
 #endif
 #endif
 
+/*
+ * Mutual exclusion lock of Pthreads.
+ */
 #ifndef ENABLE_PTHREAD
 #define pthread_mutex_lock(m)
 #define pthread_mutex_unlock(m)
@@ -111,16 +123,12 @@ char *memset();
 /*
  * Debug message handler.
  */
-#ifdef ENABLE_DEBUG
-#define LOG(x) do {eb_log x;} while (0)
+#ifdef EB_BUILD_LIBRARY
+extern int eb_log_flag;
+extern void eb_log ZIO_P((const char *, ...));
+#define LOG(x) do {if (eb_log_flag) eb_log x;} while (0)
 #else
 #define LOG(x)
-#endif
-
-#ifdef __STDC__
-void eb_log(const char *message, ...);
-#else
-void eb_log();
 #endif
 
 /*
@@ -144,6 +152,15 @@ void eb_log();
  * Size of a page (The term `page' means `block' in JIS X 4081).
  */
 #define ZIO_SIZE_PAGE			2048
+
+/*
+ * Size of a cache buffer.
+ * It must be large enough to memory an uncompressed slice.
+ *
+ * (In EBZIP and EPWING compressions, the size of uncompressed slice
+ * is 2048.  In S-EBXA compression, the size is 4096.)
+ */
+#define ZIO_CACHE_BUFFER_SIZE		4096
 
 /*
  * NULL Zio ID.
@@ -180,37 +197,20 @@ static pthread_mutex_t zio_mutex = PTHREAD_MUTEX_INITIALIZER;
 /*
  * Unexported function.
  */
-#ifdef __STDC__
-static int zio_reopen(Zio *, const char *);
-static int zio_open_plain(Zio *, const char *);
-static int zio_open_ebzip(Zio *, const char *);
-static int zio_open_epwing(Zio *, const char *);
-static int zio_open_epwing6(Zio *, const char *);
-static int zio_make_epwing_huffman_tree(Zio *, int);
-static ssize_t zio_read_ebzip(Zio *, char *, size_t);
-static ssize_t zio_read_epwing(Zio *, char *, size_t);
-static ssize_t zio_read_raw(int, void *, size_t nbyte);
-static ssize_t zio_read_sebxa(Zio *, char *, size_t);
-static int zio_unzip_slice_ebzip1(char *, int, size_t, size_t);
-static int zio_unzip_slice_epwing(char *, int, Zio_Huffman_Node *);
-static int zio_unzip_slice_epwing6(char *, int, Zio_Huffman_Node *);
-static int zio_unzip_slice_sebxa(char *, int);
-#else /* not __STDC__ */
-static int zio_reopen();
-static int zio_open_plain();
-static int zio_open_ebzip();
-static int zio_open_epwing();
-static int zio_open_epwing6();
-static int zio_make_epwing_huffman_tree();
-static ssize_t zio_read_ebzip();
-static ssize_t zio_read_epwing();
-static ssize_t zio_read_raw();
-static ssize_t zio_read_sebxa();
-static int zio_unzip_slice_ebzip1();
-static int zio_unzip_slice_epwing();
-static int zio_unzip_slice_epwing6();
-static int zio_unzip_slice_sebxa();
-#endif /* not __STDC__ */
+static int zio_reopen ZIO_P((Zio *, const char *));
+static int zio_open_plain ZIO_P((Zio *, const char *));
+static int zio_open_ebzip ZIO_P((Zio *, const char *));
+static int zio_open_epwing ZIO_P((Zio *, const char *));
+static int zio_open_epwing6 ZIO_P((Zio *, const char *));
+static int zio_make_epwing_huffman_tree ZIO_P((Zio *, int));
+static ssize_t zio_read_ebzip ZIO_P((Zio *, char *, size_t));
+static ssize_t zio_read_epwing ZIO_P((Zio *, char *, size_t));
+static ssize_t zio_read_raw ZIO_P((int, void *, size_t nbyte));
+static ssize_t zio_read_sebxa ZIO_P((Zio *, char *, size_t));
+static int zio_unzip_slice_ebzip1 ZIO_P((char *, int, int, size_t, size_t));
+static int zio_unzip_slice_epwing ZIO_P((char *, int, Zio_Huffman_Node *));
+static int zio_unzip_slice_epwing6 ZIO_P((char *, int, Zio_Huffman_Node *));
+static int zio_unzip_slice_sebxa ZIO_P((char *, int));
 
 /*
  * Initialize cache buffer.
@@ -225,7 +225,7 @@ zio_initialize_library()
      * Allocate memory for cache buffer.
      */
     if (cache_buffer == NULL) {
-	cache_buffer = (char *) malloc(ZIO_SIZE_PAGE << ZIO_MAX_EBZIP_LEVEL);
+	cache_buffer = (char *) malloc(ZIO_CACHE_BUFFER_SIZE);
 	if (cache_buffer == NULL)
 	    goto failed;
     }
@@ -434,8 +434,9 @@ zio_open_plain(zio, file_name)
 	goto failed;
 
     zio->code = ZIO_PLAIN;
-    zio->file_size = lseek(zio->file, 0, SEEK_END);
-    if (zio->file_size < 0 || lseek(zio->file, 0, SEEK_SET) < 0)
+    zio->file_size = lseek(zio->file, (off_t)0, SEEK_END);
+    zio->slice_size = ZIO_SIZE_PAGE;
+    if (zio->file_size < 0 || lseek(zio->file, (off_t)0, SEEK_SET) < 0)
 	goto failed;
 
     /*
@@ -620,13 +621,14 @@ zio_open_epwing(zio, file_name)
     read_length = ZIO_EPWING_BUFFER_SIZE - (ZIO_EPWING_BUFFER_SIZE % 4);
     if (lseek(zio->file, zio->frequencies_location, SEEK_SET) < 0)
 	goto failed;
-    if (zio_read_raw(zio->file, buffer, read_length) != read_length)
+    if (zio_read_raw(zio->file, buffer, (size_t)read_length) != read_length)
 	goto failed;
 
     buffer_p = buffer;
     for (i = 0; i < leaf16_count; i++) {
 	if (buffer + read_length <= buffer_p) {
-	    if (zio_read_raw(zio->file, buffer, read_length) != read_length)
+	    if (zio_read_raw(zio->file, buffer, (size_t)read_length)
+		!= read_length)
 		goto failed;
 	    buffer_p = buffer;
 	}
@@ -786,13 +788,14 @@ zio_open_epwing6(zio, file_name)
     read_length = ZIO_EPWING_BUFFER_SIZE - (ZIO_EPWING_BUFFER_SIZE % 6);
     if (lseek(zio->file, zio->frequencies_location, SEEK_SET) < 0)
 	goto failed;
-    if (zio_read_raw(zio->file, buffer, read_length) != read_length)
+    if (zio_read_raw(zio->file, buffer, (size_t)read_length) != read_length)
 	goto failed;
 
     buffer_p = buffer;
     for (i = 0; i < leaf32_count; i++) {
 	if (buffer + read_length <= buffer_p) {
-	    if (zio_read_raw(zio->file, buffer, read_length) != read_length)
+	    if (zio_read_raw(zio->file, buffer, (size_t)read_length)
+		!= read_length)
 		goto failed;
 	    buffer_p = buffer;
 	}
@@ -812,13 +815,14 @@ zio_open_epwing6(zio, file_name)
     if (lseek(zio->file, zio->frequencies_location + leaf32_count * 6,
 	SEEK_SET) < 0)
 	goto failed;
-    if (zio_read_raw(zio->file, buffer, read_length) != read_length)
+    if (zio_read_raw(zio->file, buffer, (size_t)read_length) != read_length)
 	goto failed;
 
     buffer_p = buffer;
     for (i = 0; i < leaf16_count; i++) {
 	if (buffer + read_length <= buffer_p) {
-	    if (zio_read_raw(zio->file, buffer, read_length) != read_length)
+	    if (zio_read_raw(zio->file, buffer, (size_t)read_length)
+		!= read_length)
 		goto failed;
 	    buffer_p = buffer;
 	}
@@ -1197,6 +1201,7 @@ zio_read_ebzip(zio, buffer, length)
     size_t zipped_slice_size;
     off_t slice_location;
     off_t next_slice_location;
+    int page_offset_in_slice;
     int n;
     
     LOG(("in: zio_read_ebzip(zio=%d, length=%ld)", (int)zio->id,
@@ -1214,11 +1219,11 @@ zio_read_ebzip(zio, buffer, length)
 	 * `zio->file'.
 	 */
 	if (cache_zio_id != zio->id
-	    || zio->location < cache_location 
-	    || cache_location + zio->slice_size <= zio->location) {
+	    || zio->location < cache_location
+	    || cache_location + ZIO_SIZE_PAGE <= zio->location) {
 
 	    cache_zio_id = ZIO_ID_NONE;
-	    cache_location = zio->location - (zio->location % zio->slice_size);
+	    cache_location = zio->location - (zio->location % ZIO_SIZE_PAGE);
 
 	    /*
 	     * Get buffer location and size from index table in `zio->file'.
@@ -1227,8 +1232,8 @@ zio_read_ebzip(zio, buffer, length)
 		zio->location / zio->slice_size * zio->index_width
 		+ ZIO_SIZE_EBZIP_HEADER, SEEK_SET) < 0)
 		goto failed;
-	    if (zio_read_raw(zio->file, temporary_buffer, zio->index_width * 2)
-		!= zio->index_width * 2)
+	    if (zio_read_raw(zio->file, temporary_buffer,
+		(size_t)zio->index_width * 2) != zio->index_width * 2)
 		goto failed;
 
 	    switch (zio->index_width) {
@@ -1248,6 +1253,8 @@ zio_read_ebzip(zio, buffer, length)
 		goto failed;
 	    }
 	    zipped_slice_size = next_slice_location - slice_location;
+	    page_offset_in_slice = (zio->location % zio->slice_size)
+		/ ZIO_SIZE_PAGE;
 
 	    if (next_slice_location <= slice_location
 		|| zio->slice_size < zipped_slice_size)
@@ -1260,8 +1267,9 @@ zio_read_ebzip(zio, buffer, length)
 	     */
 	    if (lseek(zio->file, slice_location, SEEK_SET) < 0)
 		goto failed;
+
 	    if (zio_unzip_slice_ebzip1(cache_buffer, zio->file,
-		zio->slice_size, zipped_slice_size) < 0)
+		page_offset_in_slice, zio->slice_size, zipped_slice_size) < 0)
 		goto failed;
 
 	    cache_zio_id = zio->id;
@@ -1270,13 +1278,13 @@ zio_read_ebzip(zio, buffer, length)
 	/*
 	 * Copy data from `cache_buffer' to `buffer'.
 	 */
-	n = zio->slice_size - (zio->location % zio->slice_size);
+	n = ZIO_SIZE_PAGE - (zio->location % ZIO_SIZE_PAGE);
 	if (length - read_length < n)
 	    n = length - read_length;
 	if (zio->file_size - zio->location < n)
 	    n = zio->file_size - zio->location;
 	memcpy(buffer + read_length,
-	    cache_buffer + (zio->location - cache_location), n);
+	    cache_buffer + (zio->location % ZIO_SIZE_PAGE), (size_t)n);
 	read_length += n;
 	zio->location += n;
     }
@@ -1368,7 +1376,7 @@ zio_read_epwing(zio, buffer, length)
 	if (zio->file_size - zio->location < n)
 	    n = zio->file_size - zio->location;
 	memcpy(buffer + read_length,
-	    cache_buffer + (zio->location - cache_location), n);
+	    cache_buffer + (zio->location - cache_location), (size_t)n);
 	read_length += n;
 	zio->location += n;
     }
@@ -1424,7 +1432,7 @@ zio_read_sebxa(zio, buffer, length)
 		n = length - read_length;
 	    if (lseek(zio->file, zio->location, SEEK_SET) < 0)
 		goto failed;
-	    if (zio_read_raw(zio->file, buffer, n) != n)
+	    if (zio_read_raw(zio->file, buffer, (size_t)n) != n)
 		goto failed;
 	    read_length += n;
 
@@ -1492,7 +1500,7 @@ zio_read_sebxa(zio, buffer, length)
 	    if (zio->file_size - zio->location < n)
 		n = zio->file_size - zio->location;
 	    memcpy(buffer + read_length,
-		cache_buffer + (zio->location - cache_location), n);
+		cache_buffer + (zio->location - cache_location), (size_t)n);
 	    read_length += n;
 	    zio->location += n;
 	}
@@ -1528,7 +1536,7 @@ zio_read_raw(file, buffer, length)
 
     while (0 < rest_length) {
 	errno = 0;
-	n = read(file, buffer_p, rest_length);
+	n = read(file, buffer_p, (size_t)rest_length);
 	if (n < 0) {
 	    if (errno == EINTR)
 		continue;
@@ -1559,57 +1567,97 @@ zio_read_raw(file, buffer, length)
  * If it succeeds, 0 is returned.  Otherwise, -1 is returned.
  */
 static int
-zio_unzip_slice_ebzip1(out_buffer, in_file, slice_size, zipped_slice_size)
+zio_unzip_slice_ebzip1(out_buffer, in_file, page_offset, slice_size,
+    zipped_slice_size)
     char *out_buffer;
     int in_file;
+    int page_offset;
     size_t slice_size;
     size_t zipped_slice_size;
 {
-    char temporary_buffer[ZIO_SIZE_PAGE << ZIO_MAX_EBZIP_LEVEL];
+    char in_buffer[ZIO_SIZE_PAGE];
     z_stream stream;
+    size_t read_length;
+    int z_result;
+    int i;
 
     LOG(("in: zio_unzip_slice_ebzip1(in_file=%d, slice_size=%ld, \
 zipped_slice_size=%ld)", 
 	in_file, (long)slice_size, (long)zipped_slice_size));
 
-    stream.zalloc = NULL;
-    stream.zfree = NULL;
-    stream.opaque = NULL;
-
     if (slice_size == zipped_slice_size) {
-	if (zio_read_raw(in_file, out_buffer, slice_size) != slice_size)
+	/*
+	 * The input slice is not compressed.
+	 * Read the target page in the slice.
+	 */
+	for (i = 0; i < page_offset; i++) {
+	    if (zio_read_raw(in_file, out_buffer, ZIO_SIZE_PAGE)
+		!= ZIO_SIZE_PAGE)
+		goto failed;
+	}
+	if (zio_read_raw(in_file, out_buffer, ZIO_SIZE_PAGE) != ZIO_SIZE_PAGE)
 	    goto failed;
-	goto succeeded;
+
+    } else {
+	/*
+	 * The input slice is compressed.
+	 * Read and uncompress the target page in the slice.
+	 */
+	stream.zalloc = NULL;
+	stream.zfree = NULL;
+	stream.opaque = NULL;
+	
+	if (inflateInit(&stream) != Z_OK)
+	    goto failed;
+
+	stream.next_in = (Bytef *) in_buffer;
+	stream.avail_in = 0;
+	stream.next_out = (Bytef *) out_buffer;
+	stream.avail_out = ZIO_SIZE_PAGE;
+
+	while (stream.total_out
+	    < page_offset * ZIO_SIZE_PAGE + ZIO_SIZE_PAGE) {
+
+	    if (0 < stream.avail_in)
+		memmove(in_buffer, stream.next_in, stream.avail_in);
+
+	    if (zipped_slice_size - stream.total_in < ZIO_SIZE_PAGE) {
+		read_length = zipped_slice_size - stream.total_in 
+		    - stream.avail_in;
+	    } else {
+		read_length = ZIO_SIZE_PAGE - stream.avail_in;
+	    }
+
+	    if (zio_read_raw(in_file, in_buffer + stream.avail_in, read_length)
+		!= read_length)
+		goto failed;
+	
+	    stream.next_in = (Bytef *) in_buffer;
+	    stream.avail_in += read_length;
+	    if (stream.total_out + ZIO_SIZE_PAGE < page_offset * ZIO_SIZE_PAGE
+		|| stream.total_out == page_offset * ZIO_SIZE_PAGE) {
+		stream.next_out = (Bytef *) out_buffer;
+		stream.avail_out = ZIO_SIZE_PAGE;
+	    } else if (stream.total_out < page_offset * ZIO_SIZE_PAGE) {
+		stream.next_out = (Bytef *) out_buffer;
+		stream.avail_out = page_offset * ZIO_SIZE_PAGE
+		    - stream.total_out;
+	    }
+
+	    z_result = inflate(&stream, Z_SYNC_FLUSH);
+	    if (z_result == Z_STREAM_END) {
+		if (stream.total_out
+		    != page_offset * ZIO_SIZE_PAGE + ZIO_SIZE_PAGE)
+		    goto failed;
+		break;
+	    } else if (z_result != Z_OK && z_result != Z_BUF_ERROR) {
+		goto failed;
+	    }
+	}
+
+	inflateEnd(&stream);
     }
 
-    if (zio_read_raw(in_file, temporary_buffer, zipped_slice_size)
-	!= zipped_slice_size)
-	goto succeeded;
-
-    if (inflateInit(&stream) != Z_OK)
-	goto failed;
-    
-    stream.next_in = (Bytef *) temporary_buffer;
-    stream.avail_in = zipped_slice_size;
-    stream.next_out = (Bytef *) out_buffer;
-    stream.avail_out = slice_size;
-
-    if (inflate(&stream, Z_FINISH) != Z_STREAM_END)
-	goto failed;
-
-    if (inflateEnd(&stream) != Z_OK)
-	goto failed;
-
-    if (stream.total_out < slice_size) {
-#ifdef HAVE_MEMCPY
-	memset(out_buffer + stream.total_out, 0,
-	    slice_size - stream.total_out);
-#else
-	bzero(out_buffer + stream.total_out, slice_size - stream.total_out);
-#endif
-    }
-
-  succeeded:
     LOG(("out: zio_unzip_slice_ebzip1() = %d", 0));
     return 0;
 
@@ -1618,6 +1666,7 @@ zipped_slice_size=%ld)",
      */
   failed:
     LOG(("out: zio_unzip_slice_ebzip1() = %d", -1));
+    inflateEnd(&stream);
     return -1;
 }
 
@@ -1697,9 +1746,9 @@ zio_unzip_slice_epwing(out_buffer, in_file, huffman_tree)
 	     */
 	    if (out_length < ZIO_SIZE_PAGE) {
 #ifdef HAVE_MEMCPY
-		memset(out_buffer_p, ZIO_SIZE_PAGE - out_length, '\0');
+		memset(out_buffer_p, '\0', (size_t)ZIO_SIZE_PAGE - out_length);
 #else
-		bzero(out_buffer_p, ZIO_SIZE_PAGE - out_length);
+		bzero(out_buffer_p, (size_t)ZIO_SIZE_PAGE - out_length);
 #endif
 		out_length = ZIO_SIZE_PAGE;
 	    }
@@ -1786,7 +1835,7 @@ zio_unzip_slice_epwing6(out_buffer, in_file, huffman_tree)
      * If compression type is not 0, this page is not compressed.
      */
     if (compression_type != 0) {
-	if (zio_read_raw(in_file, out_buffer, ZIO_SIZE_PAGE) != 1)
+	if (zio_read_raw(in_file, out_buffer, ZIO_SIZE_PAGE) != ZIO_SIZE_PAGE)
 	    goto failed;
 	goto succeeded;
     }
@@ -1836,9 +1885,9 @@ zio_unzip_slice_epwing6(out_buffer, in_file, huffman_tree)
 	     */
 	    if (out_length < ZIO_SIZE_PAGE) {
 #ifdef HAVE_MEMCPY
-		memset(out_buffer_p, ZIO_SIZE_PAGE - out_length, '\0');
+		memset(out_buffer_p, '\0', (size_t)ZIO_SIZE_PAGE - out_length);
 #else
-		bzero(out_buffer_p, ZIO_SIZE_PAGE - out_length);
+		bzero(out_buffer_p, (size_t)ZIO_SIZE_PAGE - out_length);
 #endif
 		out_length = ZIO_SIZE_PAGE;
 	    }
@@ -1988,14 +2037,17 @@ zio_unzip_slice_sebxa(out_buffer, in_file)
 		    % ZIO_SEBXA_SLICE_LENGTH;
 		copy_length = (c1 & 0x0f) + 3;
 
-		if (out_length <= copy_offset)
-		    goto failed;
 		if (ZIO_SEBXA_SLICE_LENGTH < out_length + copy_length)
 		    copy_length = ZIO_SEBXA_SLICE_LENGTH - out_length;
 
-		copy_p = (unsigned char *)out_buffer + copy_offset;
-		for (j = 0; j < copy_length; j++)
-		    *out_buffer_p++ = *copy_p++;
+		if (copy_offset < out_length) {
+		    copy_p = (unsigned char *)out_buffer + copy_offset;
+		    for (j = 0; j < copy_length; j++)
+			*out_buffer_p++ = *copy_p++;
+		} else {
+		    for (j = 0; j < copy_length; j++)
+			*out_buffer_p++ = 0x00;
+		}
 
 		in_read_rest -= 2;
 		in_buffer_p += 2;
@@ -2017,10 +2069,11 @@ zio_unzip_slice_sebxa(out_buffer, in_file)
 	     * Return if the slice has been uncompressed.
 	     */
 	    if (ZIO_SEBXA_SLICE_LENGTH <= out_length)
-		break;
+		goto succeeded;
 	}
     }
 
+  succeeded:
     LOG(("out: zio_unzip_slice_sebxa() = %d", 0));
     return 0;
 

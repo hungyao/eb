@@ -25,14 +25,17 @@ AC_REQUIRE([AC_PROG_LIBTOOL])
 AC_REQUIRE([AC_C_CONST])
 AC_REQUIRE([AC_TYPE_OFF_T])
 AC_REQUIRE([AC_TYPE_SIZE_T])
-AC_REQUIRE([AC_TYPE_SSIZE_T])
 AC_REQUIRE([AC_HEADER_TIME])
+
+AC_CHECK_HEADERS(limits.h)
+AC_CHECK_TYPE(ssize_t, int)
 
 dnl *
 dnl * --with-eb-conf option.
 dnl *
 AC_ARG_WITH(eb-conf,
-[  --with-eb-conf=FILE     eb.conf file is FILE [[default=SYSCONFDIR/eb.conf]]],
+AC_HELP_STRING([--with-eb-conf=FILE],
+    [eb.conf file is FILE [[SYSCONFDIR/eb.conf]]]),
 [ebconf="${withval}"], [ebconf=$sysconfdir/eb.conf])
 if test X$prefix = XNONE ; then
    PREFIX=$ac_default_prefix
