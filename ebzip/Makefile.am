@@ -1,15 +1,18 @@
-@SET_MAKE@
+localedir = $(datadir)/locale
 
 LIBEB = $(top_builddir)/eb/libeb.la
 LIBEBUTILS = $(top_builddir)/libebutils/libebutils.a
 
 bin_PROGRAMS = ebzip
+noinst_HEADERS = ebzip.h
 
-ebzip_SOURCES = ebzip.c ebzip1.c filelist.c
-ebzip_LDADD = $(LIBEB) $(LIBEBUTILS) @LDADD_FOR_LIBZ@
-ebzip_DEPENDENCIES = $(LIBEB) $(LIBEBUTILS) @DEPENDENCIES_FOR_LIBZ@
+ebzip_SOURCES = ebzip.c ebzip1.c copyfile.c unzipbook.c unzipfile.c \
+	zipbook.c zipfile.c zipinfobook.c zipinfofile.c
+ebzip_LDADD = $(LIBEB) $(LIBEBUTILS) $(ZLIBLIBS) $(INTLLIBS)
+ebzip_DEPENDENCIES = $(LIBEB) $(LIBEBUTILS) $(ZLIBDEPS) $(INTLDEPS)
 
-INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/libebutils @INCLUDES_FOR_LIBZ@
+INCLUDES = -I../libebutils -I$(top_srcdir)/libebutils \
+	-I../eb -I$(top_srcdir)/eb $(INTLINCS) $(ZLIBINCS)
 
 # Shorten command name `ebzipinfo' for DOS & Win32.
 if EXEEXT_EXE
@@ -33,10 +36,3 @@ install-exec-hook:
 uninstall-hook:
 	rm -f $(DESTDIR)$(bindir)/`echo ebunzip|sed '$(transform)'`$(EXEEXT)
 	rm -f $(DESTDIR)$(bindir)/`echo $(ebzipinfo)|sed '$(transform)'`$(EXEEXT)
-
-### *.o dependencies ###
-ebzip.o: ebzip.c ../config.h ../eb/eb.h ../eb/defs.h ../eb/error.h \
- ../eb/internal.h ../libebutils/fakelog.h ../libebutils/getopt.h \
- ../libebutils/getumask.h ../libebutils/makedir.h \
- ../libebutils/samefile.h ../libebutils/yesno.h
-ebzip1.o: ebzip1.c ../config.h ../eb/eb.h ../eb/defs.h

@@ -187,24 +187,72 @@ Optional Feature List
    `configure' in this package recognizes the following `--enable-' and
 `--with-' options.
 
-`--with-zlib'
-     Use an installed zlib library.  This package contains source codes
-     of zlib.  By default, they are compiled and linked to EB Library
-     utilities, but when you specify this option, an installed zlib
-     is used.
+`--enable-pthread'
+     EB Library is compiled with pthread support codes.
+     The default value is `no'.  `configure' reports an error if you
+     specify `yes' but `configure' failed to compile or run a sample
+     program which uses pthread.
+
+`--with-pthread-cppflags=FLAGS'
+`--with-pthread-cflags=FLAGS'
+`--with-pthread-ldflags=FLAGS'
+     additional CPPFLAGS, CFLAGS and LDFLAGS to build pthread supported
+     version of EB Library.
+
+`--with-included-zlib'
+     Use zlib included in this package.  When this option is NOT
+     specified, `configure' checks whether zlib has been installed on
+     the system or not.  If found, the installed zlib is used.
+     Otherwise, zlib will be built from source codes in this package.
+
+     When this option is specified, zlib is always built from source
+     regardless of existance of installed zlib.
+
+     Please note that `configure' reports an error if you specify
+     `yes' but `configure' failed to find zlib.
 
 `--with-zlib-includes=DIR'
      Look for header files of zlib installed in directory DIR.  This
-     option is ignored when neither `--with-zlib' nor `--with-eb'
-     option is not specified.
+     option is meaningless when zlib is built from source codes in
+     this package.
 
 `--with-zlib-libraries=DIR'
      Look for zlib library files installed in directory DIR.  This
-     option is ignored when neither `--with-zlib' nor `--with-eb'
-     option is not specified.
+     option is ignored when zlib is built from source codes in this
+     package.
 
-`--with-gnu-ld'
-     Assume the C compiler uses GNU ld.  The default value is `no'.
+`--enable-nls'
+     Native language support.  EB Library and utilities (e.g. ebinfo)
+     are compiled with native language support.
+
+     To use this optional feature, GNU gettext is required.  If your
+     system doesn't have it, please install GNU gettext before 
+     building this package, or give up use this feature.  The package
+     doesn't support gettext not compatible with GNU gettext such as
+     one on Solaris.
+
+     The default value is `yes' if GNU gettext is available, `no'
+     otherwise.  `configure' reports an error if you specify `yes'
+     but `configure' failed to compile, or run a sample program which
+     uses gettext() function.
+
+`--with-gettext-includes=DIR'
+     Look for header files of gettext installed in directory DIR.
+     This option is meaningless when NLS support is disabled.
+
+`--with-gettext-libraries=DIR'
+     Look for library files of gettext installed in directory DIR.
+     This option is meaningless when NLS support is disabled.
+
+`--with-iconv-includes=DIR'
+     Look for header files of iconv installed in directory DIR.
+     This option is meaningless when NLS support is disabled. or
+     gettext() function on the system doesn't use iconv().
+
+`--with-iconv-libraries=DIR'
+     Look for library files of iconv installed in directory DIR.
+     This option is meaningless when NLS support is disabled. or
+     gettext() funtion on the system doesn't use iconv().
 
 `--enable-shared'
      Build shared library version of EB library.  The default value is
@@ -213,3 +261,10 @@ Optional Feature List
 `--enable-static'
      Build static library version of EB library.  The default value is
      `yes'.
+
+`--with-gnu-ld'
+     Assume the C compiler uses GNU ld.  The default value is `no'.
+
+`--disable-libtool-lock'
+     Avoid locking (might break parallel builds).
+

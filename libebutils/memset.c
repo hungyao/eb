@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1997, 98, 2000  Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 2000, 01  
+ *    Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,15 +41,15 @@
  * memset() described in ISO 9899: 1990.
  */
 VOID *
-memset(str, c, len)
-    VOID *str;
-    int c;
-    size_t len;
+memset(stream, character, length)
+    VOID *stream;
+    int character;
+    size_t length;
 {
-    char *s = str;
+    char *s = stream;
 
-    while (0 < len--)
-	*s++ = c;
+    while (0 < length--)
+	*s++ = character;
 
-    return str;
+    return stream;
 }

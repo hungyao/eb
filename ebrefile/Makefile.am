@@ -1,18 +1,13 @@
-@SET_MAKE@
+localedir = $(datadir)/locale
 
-bin_SCRIPTS = ebrefile
+LIBEB = $(top_builddir)/eb/libeb.la
+LIBEBUTILS = $(top_builddir)/libebutils/libebutils.a
 
-EXTRA_DIST = ebrefile.in
-CLEANFILES = ebrefile ebrefile.tmp
+bin_PROGRAMS = ebrefile
 
-ebrefile: ebrefile.in $(top_srcdir)/libebutils/getopt_long.pl Makefile
-	rm -f ebrefile
-	sed -e 's;\@PERL\@;$(PERL);' \
-	    $(srcdir)/ebrefile.in | sed '/^$$/q' > ebrefile.tmp
-	cat $(top_srcdir)/libebutils/getopt_long.pl >> ebrefile.tmp
-	sed -e 's;\@VERSION\@;$(VERSION);' \
-	   -e 's;\@MAILING_ADDRESS\@;$(MAILING_ADDRESS);' \
-	   $(srcdir)/ebrefile.in | sed '1,/^$$/d' >> ebrefile.tmp
-	cp ebrefile.tmp ebrefile
-	chmod +x ebrefile
-	rm -f ebrefile.tmp
+ebrefile_SOURCES = ebrefile.c
+ebrefile_LDADD = $(LIBEBUTILS) $(LIBEB) $(ZLIBLIBS) $(INTLLIBS)
+ebrefile_DEPENDENCIES = $(LIBEBUTILS) $(LIBEB) $(ZLIBDEPS) $(INTLDEPS)
+
+INCLUDES = -I../libebutils -I$(top_srcdir)/libebutils -I$(top_srcdir) \
+	$(INTLINCS)

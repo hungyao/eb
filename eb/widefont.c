@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1997, 1998, 1999  Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 99, 2000, 01  
+ *    Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -12,16 +13,7 @@
  * GNU General Public License for more details.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include <stdio.h>
-#include <sys/types.h>
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
+#include "ebconfig.h"
 
 #include "eb.h"
 #include "error.h"
@@ -31,8 +23,138 @@
 /*
  * Unexported functions.
  */
-static int eb_wide_character_bitmap_jis EB_P((EB_Book *, int, char *));
-static int eb_wide_character_bitmap_latin EB_P((EB_Book *, int, char *));
+static EB_Error_Code eb_wide_character_bitmap_jis EB_P((EB_Book *, int,
+    char *));
+static EB_Error_Code eb_wide_character_bitmap_latin EB_P((EB_Book *, int,
+    char *));
+
+/*
+ * Get font information of the current font.
+ *
+ * If succeeded, 0 is returned.
+ * Otherwise, -1 is returned.
+ */
+EB_Error_Code
+eb_initialize_wide_font(book)
+    EB_Book *book;
+{
+    EB_Error_Code error_code;
+    EB_Subbook *subbook;
+    char ebz_hint_name[EB_MAX_FILE_NAME_LENGTH + 1];
+    char font_path_name[PATH_MAX + 1];
+    char buffer[16];
+    const char *hint_list[3];
+    int hint_index;
+    int character_count;
+    Zio *zio;
+    Zio_Code zio_code;
+
+    subbook = book->subbook_current;
+
+    /*
+     * If the book is EBWING, open the wide font file.
+     * (In EB books, font data are stored in the `START' file.)
+     */
+    if (book->disc_code == EB_DISC_EB) {
+	if (zio_mode(&subbook->wide_current->zio) != ZIO_INVALID)
+	    zio_code = ZIO_REOPEN;
+	else
+	    zio_code = zio_mode(&subbook->text_zio);
+	eb_compose_path_name2(book->path, subbook->directory_name, 
+	    subbook->text_file_name, font_path_name);
+
+    } else {
+	if (zio_mode(&subbook->wide_current->zio) != ZIO_INVALID)
+	    zio_code = ZIO_REOPEN;
+	else {
+	    eb_canonicalize_font_file_name(subbook->wide_current->file_name);
+	    strcpy(ebz_hint_name, subbook->wide_current->file_name);
+	    strcat(ebz_hint_name, ".ebz");
+
+	    hint_list[0] = subbook->wide_current->file_name;
+	    hint_list[1] = ebz_hint_name;
+	    hint_list[2] = NULL;
+
+	    eb_find_file_name3(book->path, subbook->directory_name, 
+	    subbook->gaiji_directory_name, hint_list,
+		subbook->wide_current->file_name, &hint_index);
+
+	    switch (hint_index) {
+	    case 0:
+		zio_code = ZIO_NONE;
+		break;
+	    case 1:
+		zio_code = ZIO_EBZIP1;
+		break;
+	    default:
+		error_code = EB_ERR_FAIL_OPEN_FONT;
+		goto failed;
+	    }
+	}
+
+	eb_compose_path_name3(book->path, subbook->directory_name,
+	    subbook->gaiji_directory_name, subbook->wide_current->file_name,
+	    font_path_name);
+    }
+
+    if (zio_open(&subbook->wide_current->zio, font_path_name,
+	zio_code) < 0) {
+	error_code = EB_ERR_FAIL_OPEN_FONT;
+	goto failed;
+    }
+
+    /*
+     * Read information from the text file.
+     */
+    zio = &subbook->wide_current->zio;
+
+    if (zio_lseek(zio, 
+	(off_t)(subbook->wide_current->page - 1) * EB_SIZE_PAGE,
+	SEEK_SET) < 0) {
+	error_code = EB_ERR_FAIL_SEEK_FONT;
+	goto failed;
+    }
+    if (zio_read(zio, buffer, 16) != 16) {
+	error_code = EB_ERR_FAIL_READ_FONT;
+	goto failed;
+    }
+
+    /*
+     * If the number of characters (`character_count') is 0, the font
+     * is unavailable).
+     */
+    character_count = eb_uint2(buffer + 12);
+    if (character_count == 0) {
+	subbook->wide_current->font_code = EB_FONT_INVALID;
+	subbook->wide_current = NULL;
+	goto succeeded;
+    }
+
+    /*
+     * Set the information.
+     */
+    subbook->wide_current->start = eb_uint2(buffer + 10);
+    if (book->character_code == EB_CHARCODE_ISO8859_1) {
+	subbook->wide_current->end = subbook->wide_current->start
+	    + ((character_count / 0xfe) << 8) + (character_count % 0xfe) - 1;
+	if (0xfe < (subbook->wide_current->end & 0xff))
+	    subbook->wide_current->end += 3;
+    } else {
+	subbook->wide_current->end = subbook->wide_current->start
+	    + ((character_count / 0x5e) << 8) + (character_count % 0x5e) - 1;
+	if (0x7e < (subbook->wide_current->end & 0xff))
+	    subbook->wide_current->end += 0xa3;
+    }
+
+  succeeded:
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    return error_code;
+}
 
 
 /*
@@ -42,222 +164,244 @@ int
 eb_have_wide_font(book)
     EB_Book *book;
 {
-    EB_Font *fnt;
     int i;
+
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
 
     /*
      * Current subbook must have been set.
      */
-    if (book->sub_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
-	return 0;
-    }
+    if (book->subbook_current == NULL)
+	goto failed;
 
     /*
      * If the wide font has already set, the subbook has wide fonts.
      */
-    if (book->sub_current->wide_current != NULL)
-	return 1;
+    if (book->subbook_current->wide_current != NULL)
+	goto succeeded;
 
     /*
      * Scan the font table.
      */
-    for (i = 0, fnt = book->sub_current->fonts;
-	 i < book->sub_current->font_count; i++, fnt++) {
-	if (eb_wide_font_width2(fnt->height) == fnt->width)
-	    return 1;
+    for (i = 0; i < EB_MAX_FONTS; i++) {
+	if (book->subbook_current->wide_fonts[i].font_code
+	    != EB_FONT_INVALID)
+	    break;
     }
 
-    eb_error = EB_ERR_NO_SUCH_FONT;
+    if (EB_MAX_FONTS <= i)
+	goto failed;
+
+    /*
+     * Unlock the book.
+     */
+  succeeded:
+    eb_unlock(&book->lock);
+    return 1;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    eb_unlock(&book->lock);
     return 0;
 }
 
 
+/*
+ * Get width of the font `font_code' in the current subbook of `book'.
+ */
+EB_Error_Code
+eb_wide_font_width(book, width)
+    EB_Book *book;
+    int *width;
+{
+    EB_Error_Code error_code;
+    EB_Font_Code font_code;
+
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
+
+    /*
+     * Current subbook must have been set.
+     */
+    if (book->subbook_current == NULL) {
+	error_code = EB_ERR_NO_CUR_SUB;
+	goto failed;
+    }
+
+    /*
+     * The wide font must be exist in the current subbook.
+     */
+    if (book->subbook_current->wide_current == NULL) {
+	error_code = EB_ERR_NO_CUR_FONT;
+	goto failed;
+    }
+
+    /*
+     * Calculate width.
+     */
+    font_code = book->subbook_current->wide_current->font_code;
+    error_code = eb_wide_font_width2(font_code, width);
+    if (error_code != EB_SUCCESS)
+	goto failed;
+
+    /*
+     * Unlock the book.
+     */
+    eb_unlock(&book->lock);
+
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    *width = 0;
+    eb_unlock(&book->lock);
+    return error_code;
+}
+
+
 /* 
- * Get the width of the current wide font in the current subbook in
- * `book'.
+ * Get width of the font `font_code'.
  */
-int
-eb_wide_font_width(book)
-    EB_Book *book;
+EB_Error_Code
+eb_wide_font_width2(font_code, width)
+    EB_Font_Code font_code;
+    int *width;
 {
-    /*
-     * Current subbook must have been set.
-     */
-    if (book->sub_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
-	return -1;
-    }
+    EB_Error_Code error_code;
 
-    /*
-     * The wide font must be exist in the current subbook.
-     */
-    if (book->sub_current->wide_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_FONT;
-	return -1;
-    }
-
-    return book->sub_current->wide_current->width;
-}
-
-
-/* 
- * Get the width of the font with `hegiht' in the current subbook in
- * `book'.
- */
-int
-eb_wide_font_width2(height)
-    EB_Font_Code height;
-{
-    switch (height) {
+    switch (font_code) {
     case EB_FONT_16:
-	return EB_WIDTH_WIDE_FONT_16;
+	*width = EB_WIDTH_WIDE_FONT_16;
+	break;
     case EB_FONT_24:
-	return EB_WIDTH_WIDE_FONT_24;
+	*width = EB_WIDTH_WIDE_FONT_24;
+	break;
     case EB_FONT_30:
-	return EB_WIDTH_WIDE_FONT_30;
+	*width = EB_WIDTH_WIDE_FONT_30;
+	break;
     case EB_FONT_48:
-	return EB_WIDTH_WIDE_FONT_48;
+	*width = EB_WIDTH_WIDE_FONT_48;
+	break;
+    default:
+	error_code = EB_ERR_NO_SUCH_FONT;
+	goto failed;
     }
 
-    eb_error = EB_ERR_NO_SUCH_FONT;
-    return -1;
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    *width = 0;
+    return error_code;
 }
 
 
 /*
- * Get the bitmap size of a character of the current font of the current
- * subbook in `book'.
+ * Get the bitmap size of the font `font_code' in the current subbook
+ * of `book'.
  */
-int
-eb_wide_font_size(book)
+EB_Error_Code
+eb_wide_font_size(book, size)
     EB_Book *book;
+    size_t *size;
 {
-    /*
-     * Current subbook must have been set.
-     */
-    if (book->sub_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
-	return -1;
-    }
-
-    /*
-     * The wide font must be exist in the current subbook.
-     */
-    if (book->sub_current->wide_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_FONT;
-	return -1;
-    }
-
-    return (book->sub_current->wide_current->width / 8)
-	* book->sub_current->wide_current->height;
-}
-
-
-/*
- * Get the bitmap size of a character of the font with `height' of the
- * current subbook in `book'.
- */
-int
-eb_wide_font_size2(height)
-    EB_Font_Code height;
-{
-    switch (height) {
-    case EB_FONT_16:
-	return EB_SIZE_WIDE_FONT_16;
-    case EB_FONT_24:
-	return EB_SIZE_WIDE_FONT_24;
-    case EB_FONT_30:
-	return EB_SIZE_WIDE_FONT_30;
-    case EB_FONT_48:
-	return EB_SIZE_WIDE_FONT_48;
-    }
-
-    eb_error = EB_ERR_NO_SUCH_FONT;
-    return -1;
-}
-
-
-/*
- * Get the filename of the current wide font in the current subbook
- * in `book'.
- */
-const char *
-eb_wide_font_filename(book)
-    EB_Book *book;
-{
-    /*
-     * Current subbook must have been set.
-     */
-    if (book->sub_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
-	return NULL;
-    }
-
-    /*
-     * The wide font must be exist in the current subbook.
-     */
-    if (book->sub_current->wide_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_FONT;
-	return NULL;
-    }
-
-    /*
-     * For EB* books, NULL is always returned because they
-     * have font data in the `START' file.
-     */
-    if (book->disc_code == EB_DISC_EB)
-	return NULL;
-
-    return book->sub_current->wide_current->filename;
-}
-
-
-/*
- * Get the filename of the wide font with `height' in the current subbook
- * in `book'.
- */
-const char *
-eb_wide_font_filename2(book, height)
-    EB_Book *book;
-    EB_Font_Code height;
-{
-    EB_Font *fnt;
+    EB_Error_Code error_code;
+    EB_Font_Code font_code;
     int width;
-    int i;
+    int height;
+
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
 
     /*
      * Current subbook must have been set.
      */
-    if (book->sub_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
-	return 0;
+    if (book->subbook_current == NULL) {
+	error_code = EB_ERR_NO_CUR_SUB;
+	goto failed;
     }
 
     /*
-     * Calculate the width of the font.
+     * The wide font must be exist in the current subbook.
      */
-    width = eb_wide_font_width2(height);
-    if (width < 0)
-	return NULL;
+    if (book->subbook_current->wide_current == NULL) {
+	error_code = EB_ERR_NO_CUR_FONT;
+	goto failed;
+    }
 
     /*
-     * Scan the font table.
+     * Calculate size.
      */
-    for (i = 0, fnt = book->sub_current->fonts;
-	 i < book->sub_current->font_count; i++, fnt++) {
-	if (fnt->height == height && fnt->width == width)
-	    break;
-    }
-    if (fnt == NULL) {
-	eb_error = EB_ERR_NO_SUCH_FONT;
-	return NULL;
+    font_code = book->subbook_current->wide_current->font_code;
+    error_code = eb_wide_font_width2(font_code, &width);
+    if (error_code != EB_SUCCESS)
+	goto failed;
+    error_code = eb_font_height2(font_code, &height);
+    if (error_code != EB_SUCCESS)
+	goto failed;
+    *size = (width / 8) * height;
+
+    /*
+     * Unlock the book.
+     */
+    eb_unlock(&book->lock);
+
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    *size = 0;
+    eb_unlock(&book->lock);
+    return error_code;
+}
+
+
+/*
+ * Get the bitmap size of a character in `font_code' of the current
+ * subbook.
+ */
+EB_Error_Code
+eb_wide_font_size2(font_code, size)
+    EB_Font_Code font_code;
+    size_t *size;
+{
+    EB_Error_Code error_code;
+
+    switch (font_code) {
+    case EB_FONT_16:
+	*size = EB_SIZE_WIDE_FONT_16;
+    case EB_FONT_24:
+	*size = EB_SIZE_WIDE_FONT_24;
+    case EB_FONT_30:
+	*size = EB_SIZE_WIDE_FONT_30;
+    case EB_FONT_48:
+	*size = EB_SIZE_WIDE_FONT_48;
+    default:
+	error_code = EB_ERR_NO_SUCH_FONT;
+	goto failed;
     }
 
-    if (book->disc_code == EB_DISC_EB)
-	return NULL;
-
-    return fnt->filename;
+    /*
+     * An error occurs...
+     */
+  failed:
+    *size = 0;
+    return error_code;
 }
 
 
@@ -265,27 +409,49 @@ eb_wide_font_filename2(book, height)
  * Get the character number of the start of the wide font of the current
  * subbook in `book'.
  */
-int
-eb_wide_font_start(book)
+EB_Error_Code
+eb_wide_font_start(book, start)
     EB_Book *book;
+    int *start;
 {
+    EB_Error_Code error_code;
+
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
+
     /*
      * Current subbook must have been set.
      */
-    if (book->sub_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
-	return -1;
+    if (book->subbook_current == NULL) {
+	error_code = EB_ERR_NO_CUR_SUB;
+	goto failed;
     }
 
     /*
      * The wide font must be exist in the current subbook.
      */
-    if (book->sub_current->wide_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_FONT;
-	return -1;
+    if (book->subbook_current->wide_current == NULL) {
+	error_code = EB_ERR_NO_CUR_FONT;
+	goto failed;
     }
 
-    return book->sub_current->wide_current->start;
+    *start = book->subbook_current->wide_current->start;
+
+    /*
+     * Unlock the book.
+     */
+    eb_unlock(&book->lock);
+
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    eb_unlock(&book->lock);
+    return error_code;
 }
 
 
@@ -293,83 +459,217 @@ eb_wide_font_start(book)
  * Get the character number of the end of the wide font of the current
  * subbook in `book'.
  */
-int
-eb_wide_font_end(book)
+EB_Error_Code
+eb_wide_font_end(book, end)
     EB_Book *book;
+    int *end;
 {
+    EB_Error_Code error_code;
+
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
+
     /*
      * Current subbook must have been set.
      */
-    if (book->sub_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
-	return -1;
+    if (book->subbook_current == NULL) {
+	error_code = EB_ERR_NO_CUR_SUB;
+	goto failed;
     }
 
     /*
      * The wide font must be exist in the current subbook.
      */
-    if (book->sub_current->wide_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_FONT;
-	return -1;
+    if (book->subbook_current->wide_current == NULL) {
+	error_code = EB_ERR_NO_CUR_FONT;
+	goto failed;
     }
 
-    return book->sub_current->wide_current->end;
+    *end = book->subbook_current->wide_current->end;
+
+    /*
+     * Unlock the book.
+     */
+    eb_unlock(&book->lock);
+
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    eb_unlock(&book->lock);
+    return error_code;
 }
 
 
 /*
- * Get bitmap data of the character with character number `ch' in the
- * current wide font of the current subbook in `book'.
+ * Get bitmap data of the character with character number `character_number'
+ * in the current wide font of the current subbook in `book'.
  */
-int
-eb_wide_font_character_bitmap(book, ch, bitmap)
+EB_Error_Code
+eb_wide_font_character_bitmap(book, character_number, bitmap)
     EB_Book *book;
-    int ch;
+    int character_number;
     char *bitmap;
 {
+    EB_Error_Code error_code;
+
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
+
     /*
      * Current subbook must have been set.
      */
-    if (book->sub_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
-	return -1;
+    if (book->subbook_current == NULL) {
+	error_code = EB_ERR_NO_CUR_SUB;
+	goto failed;
     }
 
     /*
      * The wide font must be exist in the current subbook.
      */
-    if (book->sub_current->wide_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_FONT;
-	return -1;
+    if (book->subbook_current->wide_current == NULL) {
+	error_code = EB_ERR_NO_CUR_FONT;
+	goto failed;
     }
 
-    if (book->char_code == EB_CHARCODE_ISO8859_1)
-	return eb_wide_character_bitmap_latin(book, ch, bitmap);
+    if (book->character_code == EB_CHARCODE_ISO8859_1) {
+	error_code = eb_wide_character_bitmap_latin(book, character_number,
+	    bitmap);
+    } else {
+	error_code = eb_wide_character_bitmap_jis(book, character_number,
+	    bitmap);
+    }
+    if (error_code != EB_SUCCESS)
+	goto failed;
+
+    /*
+     * Unlock the book.
+     */
+    eb_unlock(&book->lock);
+
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    *bitmap = '\0';
+    eb_unlock(&book->lock);
+    return error_code;
+}
+
+
+/*
+ * Get bitmap data of the character with character number `character_number'
+ * in the current wide font of the current subbook in `book'.
+ */
+static EB_Error_Code
+eb_wide_character_bitmap_jis(book, character_number, bitmap)
+    EB_Book *book;
+    int character_number;
+    char *bitmap;
+{
+    EB_Error_Code error_code;
+    int start;
+    int end;
+    int character_index;
+    off_t location;
+    int width;
+    int height;
+    size_t size;
+    Zio *zio;
+
+    start = book->subbook_current->wide_current->start;
+    end = book->subbook_current->wide_current->end;
+
+    /*
+     * Check for `character_number'.  Is it in a range of bitmaps?
+     * This test works correctly even when the font doesn't exist in
+     * the current subbook because `start' and `end' have set to -1
+     * in the case.
+     */
+    if (character_number < start
+	|| end < character_number
+	|| (character_number & 0xff) < 0x21
+	|| 0x7e < (character_number & 0xff)) {
+	error_code = EB_ERR_NO_SUCH_CHAR_BMP;
+	goto failed;
+    }
+
+    /*
+     * Calculate the size and the location of bitmap data.
+     */
+    error_code = eb_wide_font_width(book, &width);
+    if (error_code != EB_SUCCESS)
+	goto failed;
+    error_code = eb_font_height(book, &height);
+    if (error_code != EB_SUCCESS)
+	goto failed;
+    size = (width / 8) * height;
+
+    character_index = ((character_number >> 8) - (start >> 8)) * 0x5e
+	+ ((character_number & 0xff) - (start & 0xff));
+    location
+	= (off_t)book->subbook_current->wide_current->page * EB_SIZE_PAGE
+	+ (character_index / (1024 / size)) * 1024
+	+ (character_index % (1024 / size)) * size;
+
+    /*
+     * Read bitmap data.
+     */
+    if (book->disc_code == EB_DISC_EB)
+	zio = &book->subbook_current->text_zio;
     else
-	return eb_wide_character_bitmap_jis(book, ch, bitmap);
+	zio = &book->subbook_current->wide_current->zio;
 
-    /* not reached */
-    return 0;
+    if (zio_lseek(zio, location, SEEK_SET) < 0) {
+	error_code = EB_ERR_FAIL_SEEK_FONT;
+	goto failed;
+    }
+    if (zio_read(zio, bitmap, size) != size) {
+	error_code = EB_ERR_FAIL_READ_FONT;
+	goto failed;
+    }
+
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    *bitmap = '\0';
+    return error_code;
 }
 
 
 /*
- * Get bitmap data of the character with character number `ch' in the
- * current wide font of the current subbook in `book'.
+ * Get bitmap data of the character with character number `character_number'
+ * in the current wide font of the current subbook in `book'.
  */
-static int
-eb_wide_character_bitmap_jis(book, ch, bitmap)
+static EB_Error_Code
+eb_wide_character_bitmap_latin(book, character_number, bitmap)
     EB_Book *book;
-    int ch;
+    int character_number;
     char *bitmap;
 {
-    int start = book->sub_current->wide_current->start;
-    int end = book->sub_current->wide_current->end;
-    int chindex;
+    EB_Error_Code error_code;
+    int start;
+    int end;
+    int character_index;
     off_t location;
+    int width;
+    int height;
     size_t size;
-    EB_Zip *zip;
-    int font_file;
+    Zio *zio;
+
+    start = book->subbook_current->wide_current->start;
+    end = book->subbook_current->wide_current->end;
 
     /*
      * Check for `ch'.  Is it in a range of bitmaps?
@@ -377,283 +677,277 @@ eb_wide_character_bitmap_jis(book, ch, bitmap)
      * the current subbook because `start' and `end' have set to -1
      * in the case.
      */
-    if (ch < start || end < ch || (ch & 0xff) < 0x21 || 0x7e < (ch & 0xff)) {
-	eb_error = EB_ERR_NO_SUCH_CHAR_BMP;
-	return -1;
+    if (character_number < start
+	|| end < character_number
+	|| (character_number & 0xff) < 0x01
+	|| 0xfe < (character_number & 0xff)) {
+	error_code = EB_ERR_NO_SUCH_CHAR_BMP;
+	goto failed;
     }
 
     /*
      * Calculate the size and the location of bitmap data.
      */
-    size = (book->sub_current->wide_current->width / 8)
-	* book->sub_current->wide_current->height;
+    error_code = eb_wide_font_width(book, &width);
+    if (error_code != EB_SUCCESS)
+	goto failed;
+    error_code = eb_font_height(book, &height);
+    if (error_code != EB_SUCCESS)
+	goto failed;
+    size = (width / 8) * height;
 
-    chindex = ((ch >> 8) - (start >> 8)) * 0x5e
-	+ ((ch & 0xff) - (start & 0xff));
-
-    location = book->sub_current->wide_current->page * EB_SIZE_PAGE
-	+ (chindex / (1024 / size)) * 1024
-	+ (chindex % (1024 / size)) * size;
-
-    /*
-     * Read bitmap data.
-     */
-    if (book->disc_code == EB_DISC_EB) {
-	zip = &(book->sub_current->zip);
-	font_file = book->sub_current->sub_file;
-    } else {
-	zip = &(book->sub_current->wide_current->zip);
-	font_file = book->sub_current->wide_current->font_file;
-    }
-    if (eb_zlseek(zip, font_file, location, SEEK_SET) < 0) {
-	eb_error = EB_ERR_FAIL_SEEK_FONT;
-	return -1;
-    }
-    if (eb_zread(zip, font_file, bitmap, size) != size) {
-	eb_error = EB_ERR_FAIL_READ_FONT;
-	return -1;
-    }
-
-    return 0;
-}
-
-
-/*
- * Get bitmap data of the character with character number `ch' in the
- * current wide font of the current subbook in `book'.
- */
-static int
-eb_wide_character_bitmap_latin(book, ch, bitmap)
-    EB_Book *book;
-    int ch;
-    char *bitmap;
-{
-    int start = book->sub_current->wide_current->start;
-    int end = book->sub_current->wide_current->end;
-    int chindex;
-    off_t location;
-    size_t size;
-    EB_Zip *zip;
-    int font_file;
-
-    /*
-     * Check for `ch'.  Is it in a range of bitmaps?
-     * This test works correctly even when the font doesn't exist in
-     * the current subbook because `start' and `end' have set to -1
-     * in the case.
-     */
-    if (ch < start || end < ch || (ch & 0xff) < 0x01 || 0xfe < (ch & 0xff)) {
-	eb_error = EB_ERR_NO_SUCH_CHAR_BMP;
-	return -1;
-    }
-
-    /*
-     * Calculate the size and the location of bitmap data.
-     */
-    size = (book->sub_current->wide_current->width / 8)
-	* book->sub_current->wide_current->height;
-
-    chindex = ((ch >> 8) - (start >> 8)) * 0xfe
-	+ ((ch & 0xff) - (start & 0xff));
-
-    location = book->sub_current->wide_current->page * EB_SIZE_PAGE
-	+ (chindex / (1024 / size)) * 1024
-	+ (chindex % (1024 / size)) * size;
+    character_index = ((character_number >> 8) - (start >> 8)) * 0xfe
+	+ ((character_number & 0xff) - (start & 0xff));
+    location
+	= (off_t)book->subbook_current->wide_current->page * EB_SIZE_PAGE
+	+ (character_index / (1024 / size)) * 1024
+	+ (character_index % (1024 / size)) * size;
 
     /*
      * Read bitmap data.
      */
-    if (book->disc_code == EB_DISC_EB) {
-	zip = &(book->sub_current->zip);
-	font_file = book->sub_current->sub_file;
-    } else {
-	zip = &(book->sub_current->wide_current->zip);
-	font_file = book->sub_current->wide_current->font_file;
+    if (book->disc_code == EB_DISC_EB)
+	zio = &book->subbook_current->text_zio;
+    else
+	zio = &book->subbook_current->wide_current->zio;
+
+    if (zio_lseek(zio, location, SEEK_SET) < 0) {
+	error_code = EB_ERR_FAIL_SEEK_FONT;
+	goto failed;
     }
-    if (eb_zlseek(zip, font_file, location, SEEK_SET) < 0) {
-	eb_error = EB_ERR_FAIL_SEEK_FONT;
-	return -1;
-    }
-    if (eb_zread(zip, font_file, bitmap, size) != size) {
-	eb_error = EB_ERR_FAIL_READ_FONT;
-	return -1;
+    if (zio_read(zio, bitmap, size) != size) {
+	error_code = EB_ERR_FAIL_READ_FONT;
+	goto failed;
     }
 
-    return 0;
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    *bitmap = '\0';
+    return error_code;
 }
 
 
 /*
- * Return next `n'th character number from `ch'.
+ * Return next `n'th character number from `character_number'.
  */
-int
-eb_forward_wide_font_character(book, ch, n)
+EB_Error_Code
+eb_forward_wide_font_character(book, n, character_number)
     EB_Book *book;
-    int ch;
     int n;
+    int *character_number;
 {
+    EB_Error_Code error_code;
     int start;
     int end;
     int i;
 
     if (n < 0)
-	return eb_backward_wide_font_character(book, ch, -n);
+	return eb_backward_wide_font_character(book, -n, character_number);
+
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
 
     /*
      * Current subbook must have been set.
      */
-    if (book->sub_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
-	return -1;
+    if (book->subbook_current == NULL) {
+	error_code = EB_ERR_NO_CUR_SUB;
+	goto failed;
     }
 
     /*
      * The wide font must be exist in the current subbook.
      */
-    if (book->sub_current->wide_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_FONT;
-	return -1;
+    if (book->subbook_current->wide_current == NULL) {
+	error_code = EB_ERR_NO_CUR_FONT;
+	goto failed;
     }
 
-    start = book->sub_current->wide_current->start;
-    end = book->sub_current->wide_current->end;
+    start = book->subbook_current->wide_current->start;
+    end = book->subbook_current->wide_current->end;
 
-    if (book->char_code == EB_CHARCODE_ISO8859_1) {
+    if (book->character_code == EB_CHARCODE_ISO8859_1) {
 	/*
-	 * Check for `ch'. (ISO 8859 1)
+	 * Check for `*character_number'. (ISO 8859 1)
 	 */
-	if (ch < start || end < ch || (ch & 0xff) < 0x01
-	    || 0xfe < (ch & 0xff)) {
-	    eb_error = EB_ERR_NO_SUCH_CHAR_BMP;
-	    return -1;
+	if (*character_number < start
+	    || end < *character_number
+	    || (*character_number & 0xff) < 0x01
+	    || 0xfe < (*character_number & 0xff)) {
+	    error_code = EB_ERR_NO_SUCH_CHAR_BMP;
+	    goto failed;
 	}
 
 	/*
 	 * Get character number. (ISO 8859 1)
 	 */
 	for (i = 0; i < n; i++) {
-	    if (0xfe <= (ch & 0xff))
-		ch += 3;
+	    if (0xfe <= (*character_number & 0xff))
+		*character_number += 3;
 	    else
-		ch++;
-	    if (end < ch) {
-		eb_error = EB_ERR_NO_SUCH_CHAR_BMP;
-		return -1;
+		*character_number += 1;
+	    if (end < *character_number) {
+		error_code = EB_ERR_NO_SUCH_CHAR_BMP;
+		goto failed;
 	    }
 	}
     } else {
 	/*
-	 * Check for `ch'. (JIS X 0208)
+	 * Check for `*character_number'. (JIS X 0208)
 	 */
-	if (ch < start || end < ch || (ch & 0xff) < 0x21
-	    || 0x7e < (ch & 0xff)) {
-	    eb_error = EB_ERR_NO_SUCH_CHAR_BMP;
-	    return -1;
+	if (*character_number < start
+	    || end < *character_number
+	    || (*character_number & 0xff) < 0x21
+	    || 0x7e < (*character_number & 0xff)) {
+	    error_code = EB_ERR_NO_SUCH_CHAR_BMP;
+	    goto failed;
 	}
 
 	/*
 	 * Get character number. (JIS X 0208)
 	 */
 	for (i = 0; i < n; i++) {
-	    if (0x7e <= (ch & 0xff))
-		ch += 0xa3;
+	    if (0x7e <= (*character_number & 0xff))
+		*character_number += 0xa3;
 	    else
-		ch++;
-	    if (end < ch) {
-		eb_error = EB_ERR_NO_SUCH_CHAR_BMP;
-		return -1;
+		*character_number += 1;
+	    if (end < *character_number) {
+		error_code = EB_ERR_NO_SUCH_CHAR_BMP;
+		goto failed;
 	    }
 	}
     }
 
-    return ch;
+    /*
+     * Unlock the book.
+     */
+    eb_unlock(&book->lock);
+
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    *character_number = -1;
+    eb_unlock(&book->lock);
+    return error_code;
 }
 
 
 /*
- * Return previous `n'th character number from `ch'.
+ * Return previous `n'th character number from `*character_number'.
  */
-int
-eb_backward_wide_font_character(book, ch, n)
+EB_Error_Code
+eb_backward_wide_font_character(book, n, character_number)
     EB_Book *book;
-    int ch;
     int n;
+    int *character_number;
 {
+    EB_Error_Code error_code;
     int start;
     int end;
     int i;
 
     if (n < 0)
-	return eb_forward_wide_font_character(book, ch, -n);
+	return eb_forward_wide_font_character(book, -n, character_number);
+
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
 
     /*
      * Current subbook must have been set.
      */
-    if (book->sub_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
-	return -1;
+    if (book->subbook_current == NULL) {
+	error_code = EB_ERR_NO_CUR_SUB;
+	goto failed;
     }
 
     /*
      * The wide font must be exist in the current subbook.
      */
-    if (book->sub_current->wide_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_FONT;
-	return -1;
+    if (book->subbook_current->wide_current == NULL) {
+	error_code = EB_ERR_NO_CUR_FONT;
+	goto failed;
     }
 
-    start = book->sub_current->wide_current->start;
-    end = book->sub_current->wide_current->end;
+    start = book->subbook_current->wide_current->start;
+    end = book->subbook_current->wide_current->end;
 
-    if (book->char_code == EB_CHARCODE_ISO8859_1) {
+    if (book->character_code == EB_CHARCODE_ISO8859_1) {
 	/*
-	 * Check for `ch'. (ISO 8859 1)
+	 * Check for `*character_number'. (ISO 8859 1)
 	 */
-	if (ch < start || end < ch || (ch & 0xff) < 0x01
-	    || 0xfe < (ch & 0xff)) {
-	    eb_error = EB_ERR_NO_SUCH_CHAR_BMP;
-	    return -1;
+	if (*character_number < start
+	    || end < *character_number
+	    || (*character_number & 0xff) < 0x01
+	    || 0xfe < (*character_number & 0xff)) {
+	    error_code = EB_ERR_NO_SUCH_CHAR_BMP;
+	    goto failed;
 	}
 
 	/*
 	 * Get character number. (ISO 8859 1)
 	 */
 	for (i = 0; i < n; i++) {
-	    if ((ch & 0xff) <= 0x01)
-		ch -= 3;
+	    if ((*character_number & 0xff) <= 0x01)
+		*character_number -= 3;
 	    else
-		ch--;
-	    if (ch < start) {
-		eb_error = EB_ERR_NO_SUCH_CHAR_BMP;
-		return -1;
+		*character_number -= 1;
+	    if (*character_number < start) {
+		error_code = EB_ERR_NO_SUCH_CHAR_BMP;
+		goto failed;
 	    }
 	}
     } else {
 	/*
-	 * Check for `ch'. (JIS X 0208)
+	 * Check for `*character_number'. (JIS X 0208)
 	 */
-	if (ch < start || end < ch || (ch & 0xff) < 0x21
-	    || 0x7e < (ch & 0xff)) {
-	    eb_error = EB_ERR_NO_SUCH_CHAR_BMP;
-	    return -1;
+	if (*character_number < start
+	    || end < *character_number
+	    || (*character_number & 0xff) < 0x21
+	    || 0x7e < (*character_number & 0xff)) {
+	    error_code = EB_ERR_NO_SUCH_CHAR_BMP;
+	    goto failed;
 	}
 
 	/*
 	 * Get character number. (JIS X 0208)
 	 */
 	for (i = 0; i < n; i++) {
-	    if ((ch & 0xff) <= 0x21)
-		ch -= 0xa3;
+	    if ((*character_number & 0xff) <= 0x21)
+		*character_number -= 0xa3;
 	    else
-		ch--;
-	    if (ch < start) {
-		eb_error = EB_ERR_NO_SUCH_CHAR_BMP;
-		return -1;
+		*character_number -= 1;
+	    if (*character_number < start) {
+		error_code = EB_ERR_NO_SUCH_CHAR_BMP;
+		goto failed;
 	    }
 	}
     }
 
-    return ch;
+    /*
+     * Unlock the book.
+     */
+    eb_unlock(&book->lock);
+
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    *character_number = -1;
+    eb_unlock(&book->lock);
+    return error_code;
 }
 
 

@@ -14,7 +14,7 @@
 @ifinfo
 ebfont: Utility for generating font files of local characters in a CD-ROM book, by Motoyuki Kasahara.
 
-Copyright @copyright{} 1998, 1999  Motoyuki Kasahara
+Copyright @copyright{} 1998, 1999, 2000, 01  Motoyuki Kasahara
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -47,7 +47,7 @@ by Free Software Foundation, Inc.
 
 @page
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1998, 1999  Motoyuki Kasahara
+Copyright @copyright{} 1998, 1999, 2000, 01  Motoyuki Kasahara
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -118,7 +118,7 @@ CD-ROM 書籍は、外字のビットマップデータも持っています。
 @code{ebfont} は、XBM (X BitMap format)、XPM (X PixMap format)、
 GIF (Graphics Interchange Format) のうちのいずれか、または複数の画像
 ファイルを生成することができます。
-デフォルトでは、XBM 形式が選択されます。
+特に指定がなければ、XBM 形式が選択されます。
 
 外字は、@dfn{半角} (@dfn{narrow}) と @dfn{全角} (@dfn{wide}) の 2 種
 類に分類されます。
@@ -140,8 +140,8 @@ CD-ROM 書籍の内部形式の仕様書では、半角と全角の両方の外字に対して 4
 @end multitable
 
 @noindent
-デフォルトでは、@code{ebfont} は高さが 16 ピクセルのフォントの画像ファ
-イルを生成します。
+特に指定がなければ、@code{ebfont} は高さが 16 ピクセルのフォントの画像
+ファイルを生成します。
 
 @c ===================================================================
 @node Invoking ebfont, Summary of Options, What is Local Character, Top
@@ -183,13 +183,13 @@ CD-ROM 書籍の内部形式の仕様書では、半角と全角の両方の外字に対して 4
 
 @example
 @group
-EJDICT/16/narrow/a121.xbm
-EJDICT/16/wide/a321.xbm
+ejdict/16/narrow/a121.xbm
+ejdict/16/wide/a321.xbm
 @end group
 @end example
 
 @noindent
-@file{EJDICT/16/xbm/narrow} などの中間のディレクトリは、もし無けれ
+@file{ejdict/16/xbm/narrow} などの中間のディレクトリは、もし無けれ
 ば @code{ebfont} が生成します。
 
 @samp{--output-directory} オプションを指定することで、@code{ebfont}
@@ -241,8 +241,8 @@ XPM と GIF 形式では、前景色は黒 (RGB の @samp{#000000}) に、背景色は
 @node Heights, Subbooks, Image Formats, Invoking ebfont
 @section 高さ
 
-デフォルトでは、@code{ebfont} は、半角と全角それぞれについて、高さ 16 
-ピクセルのフォントの画像ファイルを生成します。
+特に指定がなければ、@code{ebfont} は、半角と全角それぞれについて、高さ
+16 ピクセルのフォントの画像ファイルを生成します。
 @samp{--font-height} (@samp{-f}) オプションを使用することで、他の高さ
 のフォントの画像ファイルを生成することができます。
 @samp{--font-height} オプションは引数を一つ取り、そこにカンマ (@samp{,})
@@ -279,39 +279,39 @@ XPM と GIF 形式では、前景色は黒 (RGB の @samp{#000000}) に、背景色は
 @example
 @group
 % ebinfo /mnt/cdrom
-disc type: EB/EBG/EBXA/EBXA-C/S-EBXA
-character code: JIS X 0208
-the number of subbooks: 3
-@end group
-
-@group
-subbook 1:
-  title: New English Japanese Dictionary (4th edition)
-  directory: ENGLISH
-  search methods: word endword keyword menu
-  font sizes: 16 24 30 48
-  narrow font characters: 0xa121 -- 0xa24e
-  wide font characters: 0xa321 -- 0xa27e
+ディスクの形式: EB/EBG/EBXA/EBXA-C/S-EBXA
+文字コード: JIS X 0208
+副本の数: 3
 
 @end group
 @group
-subbook 2:
-  title: CD-ROM French Japanese Dictionary (3rd edition)
-  directory: FRENCH
-  search methods: word endword keyword menu
-  font sizes: 16 24 30 48
-  narrow font characters: 
-  wide font characters: 0xa321 -- 0xa27e
+副本 1:
+  題名: 新英和辞典（第四版）
+  ディレクトリ: english
+  検索方式: 前方一致 後方一致 条件 メニュー
+  フォントの大きさ: 16 24 30 48
+  半角フォントの文字: 0xa121 -- 0xa24e
+  全角フォントの文字: 0xa321 -- 0xa27e
 
 @end group
 @group
-subbook 3:
-  title: Pocket German Japanese Dictionary (3rd edition)
-  directory: GERMAN
-  search methods: menu
-  font sizes: 16 24 30 48
-  narrow font characters: 
-  wide font characters: 0xa321 -- 0xa27e
+副本 2:
+  題名: CD-ROM 仏和辞典（第三版）
+  ディレクトリ: french
+  検索方式: 前方一致 後方一致 条件 メニュー
+  フォントの大きさ: 16 24 30 48
+  半角フォントの文字: 
+  全角フォントの文字: 0xa321 -- 0xa27e
+
+@end group
+@group
+副本 3:
+  題名: ポケット独和辞典（第三版）
+  ディレクトリ: german
+  検索方式: メニュー
+  フォントの大きさ: 16 24 30 48
+  半角フォントの文字: 
+  全角フォントの文字: 0xa321 -- 0xa27e
 @end group
 @end example
 
@@ -320,10 +320,10 @@ subbook 3:
 @pxref{Invoking ebinfo, , @code{ebinfo} の実行, ebinfo-ja, ebinfo-ja})。
 @*
 この例では、3 つの副本が書籍には含まれており、そのディレクトリ名は
-@code{ENGLISH}, @code{FRENCH}, @code{GERMAN} だということが分かります。
+@code{english}, @code{french}, @code{german} だということが分かります。
 
-次のコマンドを実行すると, @code{ebfont} は @code{ENGLISH} と
-@code{FRENCH} の画像ファイルだけを生成します。
+次のコマンドを実行すると, @code{ebfont} は @code{english} と
+@code{french} の画像ファイルだけを生成します。
 
 @example
 % ebfont --subbook english,french /mnt/cdrom
@@ -359,8 +359,8 @@ subbook 3:
 なくてはなりません。
 高さの指定として許されるのは、@samp{16}、@samp{24}、@samp{30}、@samp{48}
 です。
-デフォルトでは、@code{ebfont} は高さが 16 ピクセルのフォントのもの
-を生成します。
+指定がなければ、@code{ebfont} は高さが 16 ピクセルのフォントのものを
+生成します。
 (詳しくは、@pxref{Heights, , 高さ})。
 
 @item -h
@@ -374,14 +374,15 @@ subbook 3:
 のでなくてはなりません。
 対応している画像形式の名前は @samp{xbm}、@samp{xpm}、@samp{gif} で
 す。
-デフォルトで、@samp{ebfont} は XBM 形式の画像ファイルを生成します。
+指定しなかったときは、@samp{ebfont} は XBM 形式の画像ファイルを生成し
+ます。
 (詳しくは、@pxref{Image Formats, , 画像形式})。
 
 @item -o @var{ディレクトリ}
 @itemx --output-directory @var{ディレクトリ}
 画像ファイルを @var{ディレクトリ} 以下に出力します。
-デフォルトでは、@code{ebfont} はカレントディレクトリ (@code{.}) の
-下に画像ファイルを生成します。
+指定しなかったときは、@code{ebfont} はカレントディレクトリ (@code{.})
+の下に画像ファイルを生成します。
 (詳しくは、@pxref{Invoking ebfont, , @code{ebfont} の実行})。
 
 @item -S @var{副本}
@@ -389,7 +390,7 @@ subbook 3:
 @code{ebfont} に、どの副本の外字を生成させるのかを指定します。
 @var{副本} は、副本のディレクトリ名をカンマ (@samp{,}) で区切って
 並べたものでなくてはなりません。
-デフォルトでは、すべての副本が生成の対象になります。
+指定しなかったときは、すべての副本が生成の対象になります。
 (詳しくは、@pxref{Subbooks, , 副本})。
 
 @item -v

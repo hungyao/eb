@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1997, 1998  Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 2000, 01  
+ *    Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -12,143 +13,133 @@
  * GNU General Public License for more details.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include <stdio.h>
-#include <sys/types.h>
+#include "ebconfig.h"
 
 #include "eb.h"
 #include "error.h"
+#include "internal.h"
 
 /*
- * Error code.
+ * Mutex for gettext function call.
  */
-EB_Error_Code eb_error = EB_NO_ERR;
+#if defined(ENABLE_NLS) && defined(ENABLE_PTHREAD)
+pthread_mutex_t gettext_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 /*
  * Error messages.
  */
-static char *messages[] = {
+static const char * const error_messages[] = {
     /* 0 -- 4 */
-    "no error",
-    "memory exhausted",
-    "an empty filename",
-    "too long filename",
-    "too long word",
+    N_("no error"),
+    N_("memory exhausted"),
+    N_("an empty file name"),
+    N_("too long file name"),
+    N_("bad file name"),
 
     /* 5 -- 9 */
-    "a word contains bad character",
-    "an empty word",
-    "cannot get the current working directory",
-    "failed to open CATALOG or CATALOGS file",
-    "failed to open CATALOG or CATALOGS file for appendix",
+    N_("bad directory name"),
+    N_("too long word"),
+    N_("a word contains bad character"),
+    N_("an empty word"),
+    N_("failed to get the current working directory"),
 
     /* 10 -- 14 */
-    "failed to open LANGUAGE file",
-    "failed to open START or HONMON file",
-    "failed to open a font file",
-    "failed to open APPENDIX or FUROKU file",
-    "failed to read CATALOG or CATALOGS file",
+    N_("failed to open a catalog file"),
+    N_("failed to open an appendix catalog file"),
+    N_("failed to open a text file"),
+    N_("failed to open a font file"),
+    N_("failed to open an appendix file"),
 
     /* 15 -- 19 */
-    "failed to read CATALOG or CATALOGS file for appendix",
-    "failed to read LANGUAGE file",
-    "failed to read START or HONMON file",
-    "failed to read a font file",
-    "failed to seek APPENDIX or FUROKU file",
+    N_("failed to open a binary file"),
+    N_("failed to read a catalog file"),
+    N_("failed to read an appendix catalog file"),
+    N_("failed to read a text file"),
+    N_("failed to read a font file"),
 
     /* 20 -- 24 */
-    "failed to seek CATALOG or CATALOGS file",
-    "failed to seek CATALOG or CATALOGS file for appendix",
-    "failed to seek LANGUAGE file",
-    "failed to seek START or HONMON file",
-    "failed to seek a font file",
+    N_("failed to read an appendix file"),
+    N_("failed to read a binary file"),
+    N_("failed to seek a catalog file"),
+    N_("failed to seek an appendix catalog file"),
+    N_("failed to seek a text file"),
 
     /* 25 -- 29 */
-    "failed to seek APPENDIX or FUROKU file",
-    "unexpected format in CATALOG or CATALOGS file",
-    "unexpected format in CATALOG or CATALOGS file for appendix",
-    "unexpected format in LANGUAGE file",
-    "unexpected format in START or HONMON file",
+    N_("failed to seek a font file"),
+    N_("failed to seek an appendix file"),
+    N_("failed to seek a binary file"),
+    N_("unexpected format in a catalog file"),
+    N_("unexpected format in an appendix catalog file"),
 
     /* 30 -- 34 */
-    "unexpected format in a font file",
-    "unexpected format in APPENDIX or FUROKU file",
-    "book not bound",
-    "appendix not bound",
-    "no language",
+    N_("unexpected format in a text file"),
+    N_("unexpected format in a font file"),
+    N_("unexpected format in an appendix file"),
+    N_("unexpected format in a binary file"),
+    N_("book not bound"),
 
     /* 35 -- 39 */
-    "no subbook",
-    "no appendix",
-    "no message",
-    "no font",
-    "no start file",
+    N_("appendix not bound"),
+    N_("no subbook"),
+    N_("no subbook in the appendix"),
+    N_("no font"),
+    N_("no text file"),
 
     /* 40 -- 44 */
-    "no current language",
-    "no current subbook",
-    "no current appendix subbook",
-    "no current font",
-    "no such language",
+    N_("no current subbook"),
+    N_("no current appendix subbook"),
+    N_("no current font"),
+    N_("no current binary"),
+    N_("no such subbook"),
 
     /* 45 -- 49 */
-    "no such subbook",
-    "no such appendix subbook",
-    "no such message",
-    "no such font",
-    "no such character bitmap",
+    N_("no such appendix subbook"),
+    N_("no such font"),
+    N_("no such character bitmap"),
+    N_("no such character text"),
+    N_("no such search method"),
 
     /* 50 -- 54 */
-    "no such character text",
-    "no such search method",
-    "no such hook",
-    "invalid hook workspace usage",
-    "different content type",
+    N_("no such hook"),
+    N_("no such binary"),
+    N_("stop code found"),
+    N_("different content type"),
+    N_("no previous search"),
 
     /* 55 -- 59 */
-    "different subbook",
-    "different book",
-    "no previous search",
-    "no previous content",
-    "no such multi-id",
+    N_("no such multi search"),
+    N_("no such multi search entry"),
+    N_("too many words specified"),
+    N_("no word specified"),
+    N_("no candidates"),
 
-    /* 60 -- 64 */
-    "no such entry-id",
     NULL
 };
 
 /*
  * "Unknown error", the special error message.
  */
-static const char *unknown = "unknown error";
+static const char *unknown = N_("unknown error");
 
 
 /*
- * Look up the error message corresponding to the current error code.
+ * Look up the error message corresponding to the error code `error_code'.
  */
 const char *
-eb_error_message()
+eb_error_message(error_code)
+    EB_Error_Code error_code;
 {
-    if (eb_error < 0 || EB_NUM_ERRORS <= eb_error)
-	return unknown;
+    const char *message;
 
-    return messages[eb_error];
+    if (0 <= error_code && error_code < EB_NUMBER_OF_ERRORS)
+        message = error_messages[error_code];
+    else
+        message = unknown;
+
+#ifdef ENABLE_NLS
+    message = dgettext(EB_TEXT_DOMAIN_NAME, message);
+#endif /* ENABLE_NLS */
+
+    return message;
 }
-
-
-/*
- * Look up the error message corresponding to the error code `code'.
- */
-const char *
-eb_error_message2(code)
-    EB_Error_Code code;
-{
-    if (code < 0 || EB_NUM_ERRORS <= code)
-	return unknown;
-
-    return messages[code];
-}
-

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1997  Motoyuki Kasahara
+ * Copyright (c) 1997, 2000, 01  
+ *    Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,10 +26,8 @@
  */
 #ifdef __STDC__
 int make_missing_directory(const char *, int);
-int make_missing_directory_chain(const char *, int);
 #else /* not __STDC__ */
 int make_missing_directory();
-int make_missing_directory_chain();
 #endif  /* not __STDC__ */
 
 #endif /* not MAKEDIR_H */

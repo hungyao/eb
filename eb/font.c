@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1997, 1998, 1999  Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 99, 2000, 01  
+ *    Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -12,401 +13,159 @@
  * GNU General Public License for more details.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include <stdio.h>
-#include <sys/types.h>
-
-#if defined(STDC_HEADERS) || defined(HAVE_STRING_H)
-#include <string.h>
-#if !defined(STDC_HEADERS) && defined(HAVE_MEMORY_H)
-#include <memory.h>
-#endif /* not STDC_HEADERS and HAVE_MEMORY_H */
-#else /* not STDC_HEADERS and not HAVE_STRING_H */
-#include <strings.h>
-#endif /* not STDC_HEADERS and not HAVE_STRING_H */
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-#ifndef HAVE_MEMCPY
-#define memcpy(d, s, n) bcopy((s), (d), (n))
-#ifdef __STDC__
-void *memchr(const void *, int, size_t);
-int memcmp(const void *, const void *, size_t);
-void *memmove(void *, const void *, size_t);
-void *memset(void *, int, size_t);
-#else /* not __STDC__ */
-char *memchr();
-int memcmp();
-char *memmove();
-char *memset();
-#endif /* not __STDC__ */
-#endif
+#include "ebconfig.h"
 
 #include "eb.h"
 #include "error.h"
 #include "font.h"
 #include "internal.h"
 
-#ifdef HAVE_LIMITS_H
-#include <limits.h>
-#endif
-
-/*
- * The maximum length of path name.
- */
-#ifndef PATH_MAX
-#ifdef MAXPATHLEN
-#define PATH_MAX	MAXPATHLEN
-#else /* not MAXPATHLEN */
-#define PATH_MAX	1024
-#endif /* not MAXPATHLEN */
-#endif /* not PATH_MAX */
-
-/*
- * Unexported functions.
- */
-static int eb_initialize_eb_fonts EB_P((EB_Book *));
-static int eb_initialize_epwing_fonts EB_P((EB_Book *));
-
-
-/*
- * Get font information in the current subbook.
- *
- * If succeeded, 0 is returned.
- * Otherwise, -1 is returned and `eb_error' is set.
- */
-int
-eb_initialize_fonts(book)
-    EB_Book *book;
-{
-    /*
-     * Read font information.
-     */
-    if (book->disc_code == EB_DISC_EB)
-	return eb_initialize_eb_fonts(book);
-    else
-	return eb_initialize_epwing_fonts(book);
-
-    /* not reached */
-    return -1;
-}
-
-
-/*
- * For EB*, get font information in the current subbook.
- *
- * If succeeded, 0 is returned.
- * Otherwise, -1 is returned and `eb_error' is set.
- */
-static int
-eb_initialize_eb_fonts(book)
-    EB_Book *book;
-{
-    EB_Font *fnt;
-    char buf[16];
-    int len;
-    int i;
-
-    fnt = book->sub_current->fonts;
-    i = 0;
-    while (i < book->sub_current->font_count) {
-	/*
-	 * Read information from the `START' file.
-	 */
-	if (eb_zlseek(&(book->sub_current->zip),
-	    book->sub_current->sub_file, (fnt->page - 1) * EB_SIZE_PAGE,
-	    SEEK_SET) < 0) {
-	    eb_error = EB_ERR_FAIL_SEEK_START;
-	    return -1;
-	}
-	if (eb_zread(&(book->sub_current->zip),
-	    book->sub_current->sub_file, buf, 16) != 16) {
-	    eb_error = EB_ERR_FAIL_READ_START;
-	    return -1;
-	}
-
-	/*
-	 * Set the information.
-	 * (If the length parameter is 0, the font is unavailable).
-	 */
-	len = eb_uint2(buf + 12);
-	if (len == 0) {
-	    book->sub_current->font_count--;
-	    if (i < book->sub_current->font_count) {
-		memcpy(fnt, fnt + 1,
-		    sizeof(EB_Font) * (book->sub_current->font_count - i));
-	    }
-	    continue;
-	}
-	fnt->width = eb_uint1(buf + 8);
-	fnt->height = eb_uint1(buf + 9);
-	fnt->start = eb_uint2(buf + 10);
-	if (book->char_code == EB_CHARCODE_ISO8859_1) {
-	    fnt->end = fnt->start + ((len / 0xfe) << 8) + (len % 0xfe) - 1;
-	    if (0xfe < (fnt->end & 0xff))
-		fnt->end += 3;
-	} else {
-	    fnt->end = fnt->start + ((len / 0x5e) << 8) + (len % 0x5e) - 1;
-	    if (0x7e < (fnt->end & 0xff))
-		fnt->end += 0xa3;
-	}
-	fnt++;
-	i++;
-    }
-
-    return 0;
-}
-
-
-/*
- * For EPWING, get font information in the current subbook.
- *
- * If succeeded, 0 is returned.
- * Otherwise, -1 is returned and `eb_error' is set.
- */
-static int
-eb_initialize_epwing_fonts(book)
-    EB_Book *book;
-{
-    EB_Font *fnt;
-    EB_Zip zip;
-    char filename[PATH_MAX + 1];
-    int file;
-    char buf[16];
-    int len;
-    int i;
-    
-    fnt = book->sub_current->fonts;
-    i = 0;
-    while (i < book->sub_current->font_count) {
-	/*
-	 * Open a font file.
-	 */
-	sprintf(filename, "%s/%s/%s/%s", book->path,
-	    book->sub_current->directory, EB_DIRNAME_GAIJI, fnt->filename);
-	eb_fix_filename(book, filename);
-	file = eb_zopen(&zip, filename);
-	if (file < 0) {
-	    eb_error = EB_ERR_FAIL_OPEN_FONT;
-	    goto failed;
-	}
-
-	/*
-	 * Read information.
-	 */
-	if (eb_zread(&zip, file, buf, 16) != 16) {
-	    eb_error = EB_ERR_FAIL_READ_FONT;
-	    goto failed;
-	}
-
-	/*
-	 * Set the information.
-	 * (If the length parameter is 0, the font is unavailable).
-	 */
-	len = eb_uint2(buf + 12);
-	if (len == 0) {
-	    book->sub_current->font_count--;
-	    if (i < book->sub_current->font_count) {
-		memcpy(fnt, fnt + 1,
-		    sizeof(EB_Font) * (book->sub_current->font_count - i));
-	    }
-	    continue;
-	}
-	fnt->page = 1;
-	fnt->width = eb_uint1(buf + 8);
-	fnt->height = eb_uint1(buf + 9);
-	fnt->start = eb_uint2(buf + 10);
-	if (book->char_code == EB_CHARCODE_ISO8859_1) {
-	    fnt->end = fnt->start + ((len / 0xfe) << 8) + (len % 0xfe) - 1;
-	    if (0xfe < (fnt->end & 0xff))
-		fnt->end += 3;
-	} else {
-	    fnt->end = fnt->start + ((len / 0x5e) << 8) + (len % 0x5e) - 1;
-	    if (0x7e < (fnt->end & 0xff))
-		fnt->end += 0xa3;
-	}
-
-	/*
-	 * Close the font file.
-	 */
-	eb_zclose(&zip, file);
-
-	fnt++;
-	i++;
-    }
-
-    return 0;
-
-    /*
-     * An error occurs...
-     */
- failed:
-    if (0 <= file)
-	eb_zclose(&zip, file);
-    book->sub_current->font_count = 0;
-
-    return -1;
-}
-
-
 /*
  * Look up the height of the current font of the current subbook in
  * `book'.
  */
-EB_Font_Code
-eb_font(book)
+EB_Error_Code
+eb_font(book, font_code)
     EB_Book *book;
+    EB_Font_Code *font_code;
 {
+    EB_Error_Code error_code;
+
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
+
     /*
      * Current subbook must have been set.
      */
-    if (book->sub_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
-	return -1;
+    if (book->subbook_current == NULL) {
+	error_code = EB_ERR_NO_CUR_SUB;
+	goto failed;
     }
 
     /*
      * Look up the height of the current font.
      */
-    if (book->sub_current->narw_current != NULL)
-	return book->sub_current->narw_current->height;
+    if (book->subbook_current->narrow_current != NULL)
+	*font_code = book->subbook_current->narrow_current->font_code;
+    else if (book->subbook_current->wide_current != NULL)
+	*font_code = book->subbook_current->wide_current->font_code;
+    else {
+	error_code = EB_ERR_NO_CUR_FONT;
+	goto failed;
+    }
 
-    if (book->sub_current->wide_current != NULL)
-	return book->sub_current->wide_current->height;
+    /*
+     * Unlock the book.
+     */
+    eb_unlock(&book->lock);
 
-    eb_error = EB_ERR_NO_CUR_FONT;
-    return -1;
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    *font_code = EB_FONT_INVALID;
+    eb_unlock(&book->lock);
+    return error_code;
 }
 
 
 /*
- * Set the font with `height' as the current font of the current
+ * Set the font with `font_code' as the current font of the current
  * subbook in `book'.
  */
-int
-eb_set_font(book, height)
+EB_Error_Code
+eb_set_font(book, font_code)
     EB_Book *book;
-    EB_Font_Code height;
+    EB_Font_Code font_code;
 {
-    char filename[PATH_MAX + 1];
-    EB_Subbook *sub = book->sub_current;
-    EB_Font *fnt;
-    int narrowwidth, widewidth;
-    int i;
+    EB_Error_Code error_code;
+    EB_Subbook *subbook;
+
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
+
+    /*
+     * Check `font_code'.
+     */
+    if (font_code < 0 || EB_MAX_FONTS <= font_code) {
+	error_code = EB_ERR_NO_SUCH_FONT;
+	goto failed;
+    }
 
     /*
      * Current subbook must have been set.
      */
-    if (sub == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
+    subbook = book->subbook_current;
+    if (subbook == NULL) {
+	error_code = EB_ERR_NO_CUR_SUB;
 	goto failed;
     }
 
     /*
-     * Get the width of the new fonts.
-     */
-    narrowwidth = eb_narrow_font_width2(height);
-    widewidth = eb_wide_font_width2(height);
-    if (narrowwidth < 0) {
-	eb_error = EB_ERR_NO_SUCH_FONT;
-	goto failed;
-    }
-
-    /*
-     * If the current font is the font with `height', return immediately.
+     * If the current font is the font with `font_code', return immediately.
      * Otherwise close the current font and continue.
      */
-    if (sub->narw_current != NULL) {
-	if (sub->narw_current->height == height)
-	    return 0;
-	if (book->disc_code == EB_DISC_EPWING) {
-	    eb_zclose(&(sub->narw_current->zip),
-		sub->narw_current->font_file);
-	}
-	sub->narw_current = NULL;
+    if (subbook->narrow_current != NULL) {
+	if (subbook->narrow_current->font_code == font_code)
+	    goto succeeded;
+	if (book->disc_code == EB_DISC_EPWING)
+	    zio_close(&subbook->narrow_current->zio);
+	subbook->narrow_current = NULL;
     }
-    if (sub->wide_current != NULL) {
-	if (sub->wide_current->height == height)
+    if (subbook->wide_current != NULL) {
+	if (subbook->wide_current->font_code == font_code)
 	    return 0;
-	if (book->disc_code == EB_DISC_EPWING) {
-	    eb_zclose(&(sub->wide_current->zip),
-		sub->wide_current->font_file);
-	}
-	sub->wide_current = NULL;
+	if (book->disc_code == EB_DISC_EPWING)
+	    zio_close(&subbook->wide_current->zio);
+	subbook->wide_current = NULL;
     }
 
     /*
-     * Scan the font table in the book.
+     * Set the current font.
      */
-    for (i = 0, fnt = sub->fonts; i < sub->font_count; i++, fnt++) {
-	if (fnt->height == height && fnt->width == narrowwidth) {
-	    sub->narw_current = fnt;
-	    break;
-	}
-    }
-    for (i = 0, fnt = sub->fonts; i < sub->font_count; i++, fnt++) {
-	if (fnt->height == height && fnt->width == widewidth) {
-	    sub->wide_current = fnt;
-	    break;
-	}
-    }
+    if (subbook->narrow_fonts[font_code].font_code != EB_FONT_INVALID)
+	subbook->narrow_current = subbook->narrow_fonts + font_code;
+    if (subbook->wide_fonts[font_code].font_code != EB_FONT_INVALID)
+	subbook->wide_current = subbook->wide_fonts + font_code;
 
-    if (sub->narw_current == NULL && sub->wide_current == NULL) {
-	eb_error = EB_ERR_NO_SUCH_FONT;
+    if (subbook->narrow_current == NULL && subbook->wide_current == NULL) {
+	error_code = EB_ERR_NO_SUCH_FONT;
 	goto failed;
     }
 
     /*
-     * Set file discriptors for fonts.
-     * If the book is EBWING, open font files.
-     * (In EB books, font data are stored in the `START' file.)
+     * Initialize current font informtaion.
      */
-    if (sub->narw_current != NULL) {
-	if (book->disc_code == EB_DISC_EB)
-	    sub->narw_current->font_file = sub->sub_file;
-	else {
-	    sprintf(filename, "%s/%s/%s/%s", book->path, sub->directory,
-		EB_DIRNAME_GAIJI, sub->narw_current->filename);
-	    eb_fix_filename(book, filename);
-	    sub->narw_current->font_file =
-		eb_zopen(&(sub->narw_current->zip), filename);
-	    if (sub->narw_current->font_file < 0) {
-		book->sub_current->narw_current = NULL;
-		eb_error = EB_ERR_FAIL_OPEN_FONT;
-		goto failed;
-	    }
-	}
+    if (subbook->narrow_current != NULL) {
+	error_code = eb_initialize_narrow_font(book);
+	if (error_code != EB_SUCCESS)
+	    goto failed;
     }
-    if (sub->wide_current != NULL) {
-	if (book->disc_code == EB_DISC_EB)
-	    sub->wide_current->font_file = sub->sub_file;
-	else {
-	    sprintf(filename, "%s/%s/%s/%s", book->path, sub->directory,
-		EB_DIRNAME_GAIJI, sub->wide_current->filename);
-	    eb_fix_filename(book, filename);
-	    sub->wide_current->font_file =
-		eb_zopen(&(sub->wide_current->zip), filename);
-	    if (sub->wide_current->font_file < 0) {
-		book->sub_current->wide_current = NULL;
-		eb_error = EB_ERR_FAIL_OPEN_FONT;
-		goto failed;
-	    }
-	}
+    if (subbook->wide_current != NULL) {
+	error_code = eb_initialize_wide_font(book);
+	if (error_code != EB_SUCCESS)
+	    goto failed;
     }
 
-    return 0;
+    /*
+     * Unlock the book.
+     */
+  succeeded:
+    eb_unlock(&book->lock);
+    return EB_SUCCESS;
 
     /*
      * An error occurs...
      */
   failed:
     eb_unset_font(book);
-    return -1;
+    return error_code;
 }
 
 
@@ -418,138 +177,239 @@ eb_unset_font(book)
     EB_Book *book;
 {
     /*
-     * Current subbook must have been set.
+     * Lock the book.
      */
-    if (book->sub_current == NULL)
-	return;
-
-    /*
-     * Close font files if the book is EPWING and font files are
-     * opened.
-     */
-    if (book->disc_code == EB_DISC_EPWING) {
-	if (book->sub_current->narw_current != NULL) {
-	    eb_zclose(&(book->sub_current->narw_current->zip),
-		book->sub_current->narw_current->font_file);
-	}
-	if (book->sub_current->wide_current != NULL) {
-	    eb_zclose(&(book->sub_current->wide_current->zip),
-		book->sub_current->wide_current->font_file);
-	}
-    }
-
-    book->sub_current->narw_current = NULL;
-    book->sub_current->wide_current = NULL;
-}
-
-
-/*
- * Get the number of fonts in the current subbook in `book'.
- */
-int
-eb_font_count(book)
-    EB_Book *book;
-{
-    EB_Font *fnt1, *fnt2;
-    int i, j;
-    int count = 0;
+    eb_lock(&book->lock);
 
     /*
      * Current subbook must have been set.
      */
-    if (book->sub_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
-	return 0;
+    if (book->subbook_current != NULL) {
+	/*
+	 * Close font files if the book is EPWING and font files are
+	 * opened.
+	 */
+	if (book->disc_code == EB_DISC_EPWING) {
+	    if (book->subbook_current->narrow_current != NULL)
+		zio_close(&book->subbook_current->narrow_current->zio);
+	    if (book->subbook_current->wide_current != NULL)
+		zio_close(&book->subbook_current->wide_current->zio);
+	}
+
+	book->subbook_current->narrow_current = NULL;
+	book->subbook_current->wide_current = NULL;
     }
 
     /*
-     * Scan the font table in the book.
+     * Unlock the book.
      */
-    for (i = 0, fnt1 = book->sub_current->fonts;
-	 i < book->sub_current->font_count; i++, fnt1++) {
-	for (j = 0, fnt2 = book->sub_current->fonts; j < i; j++, fnt2++) {
-	    if (fnt1->height == fnt2->height)
-		break;
-	}
-	if (i <= j)
-	    count++;
-    }
-
-    return count;
+    eb_unlock(&book->lock);
 }
 
 
 /*
  * Make a list of fonts in the current subbook in `book'.
  */
-int
-eb_font_list(book, list)
+EB_Error_Code
+eb_font_list(book, font_list, font_count)
     EB_Book *book;
-    EB_Font_Code *list;
+    EB_Font_Code *font_list;
+    int *font_count;
 {
-    EB_Font_Code *lp = list;
-    EB_Font *fnt1, *fnt2;
-    int i, j;
-    int count = 0;
+    EB_Error_Code error_code;
+    EB_Subbook *subbook;
+    EB_Font_Code *list_p;
+    int i;
+
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
 
     /*
      * Current subbook must have been set.
      */
-    if (book->sub_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
-	return -1;
+    subbook = book->subbook_current;
+    if (subbook == NULL) {
+	error_code = EB_ERR_NO_CUR_SUB;
+	goto failed;
     }
 
     /*
      * Scan the font table in the book.
      */
-    for (i = 0, fnt1 = book->sub_current->fonts;
-	 i < book->sub_current->font_count; i++, fnt1++) {
-	for (j = 0, fnt2 = book->sub_current->fonts; j < i; j++, fnt2++) {
-	    if (fnt1->height == fnt2->height)
-		break;
-	}
-	if (i <= j) {
-	    *lp++ = fnt1->height;
-	    count++;
+    subbook = book->subbook_current;
+    list_p = font_list;
+    *font_count = 0;
+    for (i = 0; i < EB_MAX_FONTS; i++) {
+	if (subbook->narrow_fonts[i].font_code != EB_FONT_INVALID
+	    || subbook->wide_fonts[i].font_code != EB_FONT_INVALID) {
+	    *list_p++ = i;
+	    *font_count += 1;
 	}
     }
 
-    return count;
+    /*
+     * Unlock the book.
+     */
+    eb_unlock(&book->lock);
+
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    eb_unlock(&book->lock);
+    return error_code;
 }
 
 
 /*
  * Test whether the current subbook in `book' has a font with
- * `height' or not.
+ * `font_code' or not.
  */
 int
-eb_have_font(book, height)
+eb_have_font(book, font_code)
     EB_Book *book;
-    EB_Font_Code height;
+    EB_Font_Code font_code;
 {
-    EB_Font *fnt;
-    int i;
+    EB_Subbook *subbook;
+
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
+
+    /*
+     * Check `font_code'.
+     */
+    if (font_code < 0 || EB_MAX_FONTS <= font_code)
+	goto failed;
 
     /*
      * Current subbook must have been set.
      */
-    if (book->sub_current == NULL) {
-	eb_error = EB_ERR_NO_CUR_SUB;
-	return 0;
+    subbook = book->subbook_current;
+    if (subbook == NULL)
+	goto failed;
+
+    if (subbook->narrow_fonts[font_code].font_code == EB_FONT_INVALID
+	&& subbook->wide_fonts[font_code].font_code == EB_FONT_INVALID)
+	goto failed;
+    
+    /*
+     * Unlock the book.
+     */
+    eb_unlock(&book->lock);
+
+    return 1;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    eb_unlock(&book->lock);
+    return 0;
+}
+
+
+/*
+ * Get height of the font `font_code' in the current subbook of `book'.
+ */
+EB_Error_Code
+eb_font_height(book, height)
+    EB_Book *book;
+    int *height;
+{
+    EB_Error_Code error_code;
+    EB_Font_Code font_code;
+
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
+
+    /*
+     * Current subbook must have been set.
+     */
+    if (book->subbook_current == NULL) {
+	error_code = EB_ERR_NO_CUR_SUB;
+	goto failed;
     }
 
     /*
-     * Scan font entries.
+     * The narrow font must be exist in the current subbook.
      */
-    for (i = 0, fnt = book->sub_current->fonts;
-	 i < book->sub_current->font_count; i++, fnt++) {
-	if (fnt->height == height)
-	    return 1;
+    if (book->subbook_current->narrow_current != NULL)
+	font_code = book->subbook_current->narrow_current->font_code;
+    else if (book->subbook_current->wide_current != NULL)
+	font_code = book->subbook_current->wide_current->font_code;
+    else {
+	error_code = EB_ERR_NO_CUR_FONT;
+	goto failed;
     }
 
-    eb_error = EB_ERR_NO_SUCH_FONT;
-    return 0;
+    /*
+     * Calculate height.
+     */
+    error_code = eb_font_height2(font_code, height);
+    if (error_code != EB_SUCCESS)
+	goto failed;
+
+    /*
+     * Unlock the book.
+     */
+    eb_unlock(&book->lock);
+
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    *height = 0;
+    eb_unlock(&book->lock);
+    return error_code;
+}
+
+
+/* 
+ * Get height of the font `font_code'.
+ */
+EB_Error_Code
+eb_font_height2(font_code, height)
+    EB_Font_Code font_code;
+    int *height;
+{
+    EB_Error_Code error_code;
+
+    switch (font_code) {
+    case EB_FONT_16:
+	*height = EB_HEIGHT_FONT_16;
+	break;
+    case EB_FONT_24:
+	*height = EB_HEIGHT_FONT_24;
+	break;
+    case EB_FONT_30:
+	*height = EB_HEIGHT_FONT_30;
+	break;
+    case EB_FONT_48:
+	*height = EB_HEIGHT_FONT_48;
+	break;
+    default:
+	error_code = EB_ERR_NO_SUCH_FONT;
+	goto failed;
+    }
+
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    *height = 0;
+    return error_code;
 }
 
 

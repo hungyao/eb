@@ -9,7 +9,7 @@ END-INFO-DIR-ENTRY
    ebfont: Utility for generating font files of local characters in a
 CD-ROM book, by Motoyuki Kasahara.
 
-   Copyright (C) 1998, 1999  Motoyuki Kasahara
+   Copyright (C) 1998, 1999, 2000, 01  Motoyuki Kasahara
 
    Permission is granted to make and distribute verbatim copies of this
 manual provided the copyright notice and this permission notice are
@@ -28,8 +28,8 @@ translation approved by Free Software Foundation, Inc.
 
 File: ebfont-ja.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 
-   この文書は第 2.3.8 版です。 EB ライブラリバージョン 2.3.8 に対応して
-います。
+   この文書は第 3.0 版です。 EB ライブラリバージョン 3.0 に対応していま
+す。
 
 * Menu:
 
@@ -79,8 +79,8 @@ File: ebfont-ja.info,  Node: What is Local Character,  Next: Invoking ebfont,  P
 マンドは、CD-ROM 書籍のビットマップデータを読み、 それを指定された画像
 形式に変換し、ファイルに書き出します。 `ebfont' は、 XBM (X BitMap
 format)、XPM (X PixMap format)、 GIF (Graphics Interchange Format) のう
-ちのいずれか、または複数の画像ファイルを生成することができます。 デフ
-ォルトでは、XBM 形式が選択されます。
+ちのいずれか、または複数の画像ファイルを生成することができます。 特に
+指定がなければ、XBM 形式が選択されます。
 
    外字は、"半角" ("narrow") と "全角" ("wide") の 2 種類に分類されま
 す。 半角の文字のビットマップデータでは、高さは幅の約半分です。 全角の
@@ -97,8 +97,8 @@ format)、XPM (X PixMap format)、 GIF (Graphics Interchange Format) のう
 30                       16x30                    32x30
 48                       24x48                    48x48
 
-デフォルトでは、`ebfont' は高さが 16 ピクセルのフォントの画像ファイル
-を生成します。
+特に指定がなければ、`ebfont' は高さが 16 ピクセルのフォントの画像ファ
+イルを生成します。
 
 
 File: ebfont-ja.info,  Node: Invoking ebfont,  Next: Summary of Options,  Prev: What is Local Character,  Up: Top
@@ -126,10 +126,10 @@ File: ebfont-ja.info,  Node: Invoking ebfont,  Next: Summary of Options,  Prev: 
 拡張子は `xbm'、`xpm'、 `gif' のいずれかで、 文字番号は 16 進数 4 桁
 (`0' から `9' と `a' から `f') で、次のようになります。
 
-     EJDICT/16/narrow/a121.xbm
-     EJDICT/16/wide/a321.xbm
+     ejdict/16/narrow/a121.xbm
+     ejdict/16/wide/a321.xbm
 
-`EJDICT/16/xbm/narrow' などの中間のディレクトリは、もし無ければ
+`ejdict/16/xbm/narrow' などの中間のディレクトリは、もし無ければ
 `ebfont' が生成します。
 
    `--output-directory' オプションを指定することで、`ebfont' はカレント
@@ -174,14 +174,14 @@ File: ebfont-ja.info,  Node: Heights,  Next: Subbooks,  Prev: Image Formats,  Up
 高さ
 ====
 
-   デフォルトでは、`ebfont' は、半角と全角それぞれについて、高さ 16 ピ
-クセルのフォントの画像ファイルを生成します。 `--font-height' (`-f') オ
-プションを使用することで、他の高さのフォントの画像ファイルを生成するこ
-とができます。 `--font-height' オプションは引数を一つ取り、そこにカンマ
-(`,') で区切って、フォントの高さを並べて書きます。 フォントの高さは、
-`16'、`24'、`30'、`48' のいずれかでなくてはいけません。 たとえば、以下
-のコマンドを実行すると、`ebfont' は高さ 16 ピクセルと 24 ピクセルのフ
-ォントの画像ファイルを生成します。
+   特に指定がなければ、 `ebfont' は、半角と全角それぞれについて、高さ 16
+ピクセルのフォントの画像ファイルを生成します。 `--font-height' (`-f')
+オプションを使用することで、他の高さのフォントの画像ファイルを生成する
+ことができます。 `--font-height' オプションは引数を一つ取り、そこにカン
+マ (`,') で区切って、フォントの高さを並べて書きます。
+フォントの高さは、`16'、`24'、`30'、`48' のいずれかでなくてはいけませ
+ん。 たとえば、以下のコマンドを実行すると、`ebfont' は高さ 16 ピクセル
+と 24 ピクセルのフォントの画像ファイルを生成します。
 
      % ebfont --font-height 16,24 書籍へのパス
 
@@ -205,38 +205,37 @@ File: ebfont-ja.info,  Node: Subbooks,  Prev: Heights,  Up: Invoking ebfont
 いるのかを知ることができます。
 
      % ebinfo /mnt/cdrom
-     disc type: EB/EBG/EBXA/EBXA-C/S-EBXA
-     character code: JIS X 0208
-     the number of subbooks: 3
-     
-     subbook 1:
-       title: New English Japanese Dictionary (4th edition)
-       directory: ENGLISH
-       search methods: word endword keyword menu
-       font sizes: 16 24 30 48
-       narrow font characters: 0xa121 -- 0xa24e
-       wide font characters: 0xa321 -- 0xa27e
-     subbook 2:
-       title: CD-ROM French Japanese Dictionary (3rd edition)
-       directory: FRENCH
-       search methods: word endword keyword menu
-       font sizes: 16 24 30 48
-       narrow font characters:
-       wide font characters: 0xa321 -- 0xa27e
-     subbook 3:
-       title: Pocket German Japanese Dictionary (3rd edition)
-       directory: GERMAN
-       search methods: menu
-       font sizes: 16 24 30 48
-       narrow font characters:
-       wide font characters: 0xa321 -- 0xa27e
+     ディスクの形式: EB/EBG/EBXA/EBXA-C/S-EBXA
+     文字コード: JIS X 0208
+     副本の数: 3
+     副本 1:
+       題名: 新英和辞典（第四版）
+       ディレクトリ: english
+       検索方式: 前方一致後方一致条件メニュー
+       フォントの大きさ: 16 24 30 48
+       半角フォントの文字: 0xa121 -- 0xa24e
+       全角フォントの文字: 0xa321 -- 0xa27e
+     副本 2:
+       題名: CD-ROM 仏和辞典（第三版）
+       ディレクトリ: french
+       検索方式: 前方一致後方一致条件メニュー
+       フォントの大きさ: 16 24 30 48
+       半角フォントの文字:
+       全角フォントの文字: 0xa321 -- 0xa27e
+     副本 3:
+       題名: ポケット独和辞典（第三版）
+       ディレクトリ: german
+       検索方式: メニュー
+       フォントの大きさ: 16 24 30 48
+       半角フォントの文字:
+       全角フォントの文字: 0xa321 -- 0xa27e
 
 (`ebinfo' コマンドに関しての詳細は、 *note `ebinfo' の実行 :
 (ebinfo-ja)Invoking ebinfo.)。
 この例では、 3 つの副本が書籍には含まれており、そのディレクトリ名は
-`ENGLISH', `FRENCH', `GERMAN' だということが分かります。
+`english', `french', `german' だということが分かります。
 
-   次のコマンドを実行すると, `ebfont' は `ENGLISH' と `FRENCH' の画像フ
+   次のコマンドを実行すると, `ebfont' は `english' と `french' の画像フ
 ァイルだけを生成します。
 
      % ebfont --subbook english,french /mnt/cdrom
@@ -265,7 +264,7 @@ File: ebfont-ja.info,  Node: Summary of Options,  Prev: Invoking ebfont,  Up: To
 `--font-height 高さ'
      高さが高さの外字の画像ファイルを生成します。 高さは、高さをカン
      マ (`,') で区切って並べたものでなくてはなりません。 高さの指定と
-     して許されるのは、`16'、`24'、`30'、`48' です。 デフォルトでは、
+     して許されるのは、`16'、`24'、`30'、`48' です。 指定がなければ、
      `ebfont' は高さが 16 ピクセルのフォントのものを生成します。 (詳し
      くは、*note 高さ: Heights.)。
 
@@ -277,22 +276,22 @@ File: ebfont-ja.info,  Node: Summary of Options,  Prev: Invoking ebfont,  Up: To
 `--image-format 画像形式'
      画像形式形式の画像ファイルを生成します。 画像形式は、画像形式名
      をカンマ (`,') で区切って並べたものでなくてはなりません。 対応し
-     ている画像形式の名前は `xbm'、`xpm'、`gif' です。 デフォルトで、
-     `ebfont' は XBM 形式の画像ファイルを生成します。 (詳しくは、*note
-     画像形式: Image Formats.)。
+     ている画像形式の名前は `xbm'、`xpm'、`gif' です。 指定しなかった
+     ときは、`ebfont' は XBM 形式の画像ファイルを生成します。 (詳しく
+     は、*note 画像形式: Image Formats.)。
 
 `-o ディレクトリ'
 `--output-directory ディレクトリ'
-     画像ファイルをディレクトリ以下に出力します。 デフォルトでは、
-     `ebfont' はカレントディレクトリ (`.') の下に画像ファイルを生成し
-     ます。 (詳しくは、*note `ebfont' の実行: Invoking ebfont.)。
+     画像ファイルをディレクトリ以下に出力します。 指定しなかったとき
+     は、`ebfont' はカレントディレクトリ (`.') の下に画像ファイルを生成
+     します。 (詳しくは、*note `ebfont' の実行: Invoking ebfont.)。
 
 `-S 副本'
 `--subbook 副本'
      `ebfont' に、どの副本の外字を生成させるのかを指定します。
      副本は、副本のディレクトリ名をカンマ (`,') で区切って並べたもので
-     なくてはなりません。 デフォルトでは、すべての副本が生成の対象にな
-     ります。 (詳しくは、*note 副本: Subbooks.)。
+     なくてはなりません。 指定しなかったときは、すべての副本が生成の対
+     象になります。 (詳しくは、*note 副本: Subbooks.)。
 
 `-v'
 `--version'
@@ -301,13 +300,13 @@ File: ebfont-ja.info,  Node: Summary of Options,  Prev: Invoking ebfont,  Up: To
 
 
 Tag Table:
-Node: Top1052
-Node: Introduction1584
-Node: What is Local Character2402
-Node: Invoking ebfont3957
-Node: Image Formats5301
-Node: Heights6159
-Node: Subbooks6977
-Node: Summary of Options8946
+Node: Top1062
+Node: Introduction1590
+Node: What is Local Character2408
+Node: Invoking ebfont3971
+Node: Image Formats5315
+Node: Heights6173
+Node: Subbooks6994
+Node: Summary of Options8865
 
 End Tag Table
