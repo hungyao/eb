@@ -1,5 +1,20 @@
-Major changes in release 2.2.2:
+Major changes in release 2.3beta2:
 
+* No major change.
+
+Major changes in release 2.3beta2:
+
+* Fix minor bugs.
+
+Major changes in release 2.3beta1:
+
+* Experimental EBXA-C support.
+* Experimental support of automatic stop-code detection.
+
+Major changes in release 2.3beta0:
+
+* Support CD-ROM books compressed with the EPWING compression format.
+* Change informational messages of `ebzip'.
 * Fix a bug in `ebrefile'.
   `ebrefile' didn't find catalog file in the same order as `ebzip' does.
 

@@ -1,13 +1,137 @@
+1999-04-29  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Version 2.3.
+
+1999-04-24  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Version 2.3beta2.
+
+	* eb/subbook.c (eb_initialize_subbook): Don't access the removed
+	`length' member in the `EB_Search' structure.
+	* eb/text.c (eb_text): Likewise.  Don't tell text from menu.
+	* eb/text.c (CONTENT_MENU): Removed.
+
+1999-04-17  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/eb.c (eb_initialize_catalog): Force changing the character
+	code parameter of `EB Kagakugijutu Yougo Daijiten (YRRS-048)'
+	to JIS X 0208.
+
+1999-04-11  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/zio.c (eb_zopen): Remove and append `.' to a filename
+	and try to open the file, when failed to open the file.
+
+1999-03-28  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Version 2.3beta1.
+
+	* ebinfo/ebinfo.c (output_information): Recognize the book
+	written in EB_CHARCODE_JISX0208_GB2312.
+
+	* eb/text.c (eb_read_internal): Case to `unsigned char' when
+	assign an integral value to `*workbuf'.
+
+	* eb/defs.h (EB_Search): Add the member `length'.
+	* eb/subbook.c (eb_initialize_subbook): Record not only start
+	pages of search methods but their index length.
+	* eb/text.c (CONTENT_MENU): Defined.
+	* eb/text.c (eb_text): Check for the content type, text or menu.
+	* eb/text.c (eb_read_internal): If the content type is menu,
+	text is fed to the application until the library meets `0x1f03'.
+
+	* eb/eb.c (eb_initialize_catalog): Tell EB_CHARCODE_ISO8859_1
+	from others, not EB_CHARCODE_JISX0208 from others.
+	* eb/font.c (eb_initialize_eb_fonts,
+	eb_initialize_epwing_fonts): Likewise.
+	* eb/narwalt.c(eb_narrow_alt_character_text,
+	eb_forward_narrow_alt_character,
+	eb_backward_narrow_alt_character): Likewise.
+	* eb/narwfont.c (eb_narrow_font_character_bitmap,
+	eb_forward_narrow_font_character,
+	eb_backward_narrow_font_character): Likewise.
+	* eb/widealt.c(eb_wide_alt_character_text,
+	eb_forward_wide_alt_character,
+	eb_backward_wide_alt_character): Likewise.
+	* eb/widefont.c (eb_wide_font_character_bitmap,
+	eb_forward_wide_font_character,
+	eb_backward_wide_font_character): Likewise.
+
+	* eb/text.c (eb_read_internal): Recognize GB 2312 character in
+	EBXA-C.
+	* eb/text.h (EB_HOOK_GB2312): Add the hook.
+	* eb/text.h (EB_NUM_HOOKS): Increment.
+
+	* eb/defs.h (EB_CHARCODE_JISX0208_GB2312): Defined.
+	* eb/language.c:eb_initialize_languages): Recognize EBXA-C disc.
+	
 1999-03-07  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
 
-	* Version 2.2.2.
+	* Version 2.3beta0.
 
 	* eb/ebrefile.in: Find catalog file in the same order as
 	ebzip does.
 
+	* eb/zio.c (eb_zopen2): Defined.
+	* eb/zio.c (eb_zclose): Dispose memory for huffman nodes.
+
+	* ebzip/ebzip.c (zip_book, unzip_book, zipinfo_book): Support
+	CD-ROM book compressed with EPWING compression format.
+	* ebzip/ebzip.c (zip_book, unzip_book, zipinfo_book): Support
+	CD-ROM book compressed with EPWING compression format.
+	* ebzip/ebzip.c (zip_file, unzip_file): Argument formats are
+	changed. `in_filename' are changed to `in_filename_list'.
+	* ebzip/ebzip.c (zipinfo_file): Argument format is changed.
+	`ebz_filename' and `orig_filename' are unified to `filename_list'.
+	* ebzip/ebzip.c (zip_file, unzip_file, zipinfo_file): Use
+	eb_zopen2(), eb_zlseek(), eb_zread() and eb_zclose() for input
+	files.
+
+	* ebzip/ebzip.c (fix_filename, zip_file, unzip_file, zipinfo_file):
+	`eb_canonicalize_filename()' are called at `fix_filename()', not
+	elsewhere.
+	
+1999-02-27  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/zio.c (eb_read_all): Return the number of read bytes so far
+	when it receives an EOF.
+	
+1999-02-26  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/internal.h (EB_HUFFMAN_NODE_INTERMEDIATE, EB_HUFFMAN_NODE_LEAF8,
+	EB_HUFFMAN_NODE_LEAF16, EB_HUFFMAN_NODE_EOF): Defined.
+
+1999-02-25  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/unzip1.c: Renamed to `ebunzip1.c'.
+	* eb/ebunzip1.c (eb_unzip_mode1): Renamed to `eb_ebunzip1_slice'.
+
+	* ebzip/zip1.c: Renamed to `ebzip1.c'.
+	* ebzip/ebzip1.c (zip_mode1): Renamed to `ebzip1_slice'.
+	
+	* eb/def.h (EB_SIZE_ZIP_HEADER): Renamed to `EB_SIZE_EBZIP_HEADER'.
+	* eb/def.h (EB_SIZE_ZIP_MARGIN): Renamed to `EB_SIZE_EBZIP_MARGIN'.
+	* eb/def.h (EB_SIZE_ZIP_LEVEL): Renamed to `EB_SIZE_EBZIP_LEVEL'.
+	* eb/def.h (EB_ZIP_MODE1): Renamed to `EB_ZIP_EBZIP1'.
+	* eb/def.h (EB_ZIP_EPWING): Defined.
+	* eb/defs.h (EB_Huffman_Node): Defined.
+	* eb/defs.h (EB_Zip): Add some members for EPWING compression: 
+	`index_location', `index_length', `frequencies_location', 
+	`frequencies_length', `huffman_nodes' and `huffman_root'.
+
+	* eb/zio.c (eb_zopen): Split this function into `eb_zopen()' and
+	`eb_zopen_ebzipped()'.
+	* eb/zio.c (eb_zopen): Split this function into `eb_zread()' and
+	`eb_zread_ebzipped()'.
+	* eb/zio.c (eb_zopen_epwzipped, eb_zread_epwzipped): Defined.
+	* eb/zio.c (eb_fix_ebzip_filename): Removed.  The procedures in
+	this function are moved into `eb_open_ebzipped'.
+
 1999-02-20  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
 
 	* Version 2.2.1.
+
+	* eb/jpcode.c: Renamed to `eb/jacode.c'.
 
 	* configure.in (AC_CYGWIN, AC_MINGW32, AC_EXEEXT, AC_OBJEXT): 
 	Added.
@@ -432,7 +556,7 @@
 	* eb/eb.c (eb_initialize_catalog): Ignore font filenames
 	which beginning with a character 0x80...0xff.
 	* eb/filename.c (eb_catalog_filename_internal): Fix a gug;
-	Correctly addi a suffix to a filename.
+	add a suffix to a filename correctly.
 
 1998-06-09  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
 

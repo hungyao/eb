@@ -72,7 +72,7 @@ static EB_Book_Code bookcode = -1;
 /* Current subbook-code of the book. */
 static EB_Subbook_Code subcode = -1;
 
-/* Current method; CONTENT_TEXT, CONTENT_HEADING or CONTENT_RAWTEXT. */
+/* Current method; one of CONTENT_*. */
 static int method = -1;
 
 /* Current offset pointer of the START or HONMON file. */
@@ -108,7 +108,7 @@ static int charapp;
 /* EOF flag of the current subbook. */
 static int bookeof;
 
-/* Whether the current text content ends or not */
+/* Whether the current text content ends or not. */
 static int textend;
 
 /* Skip until `skipcoe' appears, if set to 0 or positive integer. */
@@ -120,7 +120,7 @@ static const EB_Hook nullhook = {EB_HOOK_NULL, NULL};
 /* default hookset */
 static EB_Hookset default_hookset;
 
-/* Whether `default_hookset' is initialized or not */
+/* Whether `default_hookset' is initialized or not. */
 static int default_hookset_initialized = 0;
 
 /*
@@ -272,16 +272,17 @@ eb_text(book, appendix, hookset, text, textsize)
     char *text;
     size_t textsize;
 {
+    EB_Subbook *sub = book->sub_current;
     const EB_Hook *hook;
 
     /*
      * Current subbook must have been set and START file must be exist.
      */
-    if (book->sub_current == NULL) {
+    if (sub == NULL) {
 	eb_error = EB_ERR_NO_CUR_SUB;
 	return -1;
     }
-    if (book->sub_current->sub_file < 0) {
+    if (sub->sub_file < 0) {
 	eb_error = EB_ERR_NO_START;
 	return -1;
     }
@@ -306,7 +307,7 @@ eb_text(book, appendix, hookset, text, textsize)
 	    eb_error = EB_ERR_DIFF_BOOK;
 	    return -1;
 	}
-	if (subcode != book->sub_current->code) {
+	if (subcode != sub->code) {
 	    eb_error = EB_ERR_DIFF_SUBBOOK;
 	    return -1;
 	}
@@ -346,16 +347,17 @@ eb_heading(book, appendix, hookset, text, textsize)
     char *text;
     size_t textsize;
 {
+    EB_Subbook *sub = book->sub_current;
     const EB_Hook *hook;
 
     /*
      * Current subbook must have been set and START file must be exist.
      */
-    if (book->sub_current == NULL) {
+    if (sub == NULL) {
 	eb_error = EB_ERR_NO_CUR_SUB;
 	return -1;
     }
-    if (book->sub_current->sub_file < 0) {
+    if (sub->sub_file < 0) {
 	eb_error = EB_ERR_NO_START;
 	return -1;
     }
@@ -380,11 +382,11 @@ eb_heading(book, appendix, hookset, text, textsize)
 	    eb_error = EB_ERR_DIFF_BOOK;
 	    return -1;
 	}
-	if (subcode != book->sub_current->code) {
+	if (subcode != sub->code) {
 	    eb_error = EB_ERR_DIFF_SUBBOOK;
 	    return -1;
 	}
-	if (method != CONTENT_TEXT) {
+	if (method != CONTENT_HEADING) {
 	    eb_error = EB_ERR_DIFF_CONTENT;
 	    return -1;
 	}
@@ -601,8 +603,9 @@ eb_read_internal(book, appendix, hookset, text, textsize)
 		argv[1] = eb_uint2(pagebufp + 2);
 
 		hook = hookset->hooks + EB_HOOK_STOPCODE;
-		if (charapp && hook->function != NULL && hook->function(book,
-		    appendix, workbuf, EB_HOOK_STOPCODE, argc, argv) < 0)
+		if (charapp && method == CONTENT_TEXT && hook->function != NULL
+		    && hook->function(book, appendix, workbuf,
+			EB_HOOK_STOPCODE, argc, argv) < 0)
 		    goto at_end;
 		break;
 
@@ -654,18 +657,14 @@ eb_read_internal(book, appendix, hookset, text, textsize)
 	    case 0x1a: case 0x1b: case 0x1c: case 0x1d: case 0x1e: case 0x1f:
 	    case 0xe0:
 		/* emphasis; described in JIS X 4081-1996 */
-		if (book->disc_code == EB_DISC_EB) {
-		    if (pagerest < step + 1) {
-			eb_error = EB_ERR_UNEXP_START;
-			return -1;
-		    }
-		} else {
-		    if (pagerest < step + 2) {
-			eb_error = EB_ERR_UNEXP_START;
-			return -1;
-		    }
-		    step += 2;
+		if (pagerest < step + 2) {
+		    eb_error = EB_ERR_UNEXP_START;
+		    return -1;
 		}
+		/* Some old EB books don't take an argument. */
+		if (book->disc_code == EB_DISC_EPWING
+		    || eb_uint1(pagebufp + 2) < 0x1f)
+		    step += 2;
 		break;
 
 	    case 0x32:
@@ -696,9 +695,11 @@ eb_read_internal(book, appendix, hookset, text, textsize)
 		step += 2;
 		argc = 2;
 		argv[1] = eb_uint2(pagebufp + 2);
+
 		hook = hookset->hooks + EB_HOOK_STOPCODE;
-		if (charapp && hook->function != NULL && hook->function(book,
-		    appendix, workbuf, EB_HOOK_STOPCODE, argc, argv) < 0)
+		if (charapp && method == CONTENT_TEXT && hook->function != NULL
+		    && hook->function(book, appendix, workbuf,
+			EB_HOOK_STOPCODE, argc, argv) < 0)
 		    goto at_end;
 		break;
 
@@ -853,80 +854,7 @@ eb_read_internal(book, appendix, hookset, text, textsize)
 	    }
 	} else if (0 <= skipcode) {
 	    step = 1;
-	} else if (book->char_code == EB_CHARCODE_JISX0208) {
-	    /*
-	     * The book is written in JIS X 0208.
-	     */
-	    charapp = 1;
-	    step = 2;
-	    argv[0] = eb_uint2(pagebufp);
-
-	    if (pagerest < 2) {
-		eb_error = EB_ERR_UNEXP_START;
-		return -1;
-	    }
-
-	    if (0x20 < c && c < 0x7f) {
-		/*
-		 * This is a JIS X 0208 KANJI character.
-		 */
-		*workbuf = (c | 0x80);
-		*(workbuf + 1) = (eb_uint1(pagebufp + 1) | 0x80);
-		*(workbuf + 2) = '\0';
-		if (narwflag) {
-		    hook = hookset->hooks + EB_HOOK_NARROW_JISX0208;
-		    if (hook->function != NULL && hook->function(book,
-			appendix, workbuf, EB_HOOK_NARROW_JISX0208, 0, argv)
-			< 0) {
-			eb_error = EB_ERR_HOOK_WORKSPACE;
-			return -1;
-		    }
-		} else {
-		    hook = hookset->hooks + EB_HOOK_WIDE_JISX0208;
-		    if (hook->function != NULL && hook->function(book,
-			appendix, workbuf, EB_HOOK_WIDE_JISX0208, argc, argv)
-			< 0) {
-			eb_error = EB_ERR_HOOK_WORKSPACE;
-			return -1;
-		    }
-		}
-	    } else {
-		/*
-		 * This is a local character.
-		 */
-		*workbuf = c;
-		*(workbuf + 1) = eb_uint1(pagebufp + 1);
-		*(workbuf + 2) = '\0';
-		if (narwflag) {
-		    hook = hookset->hooks + EB_HOOK_NARROW_FONT;
-		    if (hook->function != NULL && hook->function(book,
-			appendix, workbuf, EB_HOOK_NARROW_FONT, argc, argv)
-			< 0) {
-			eb_error = EB_ERR_HOOK_WORKSPACE;
-			return -1;
-		    }
-		} else {
-		    hook = hookset->hooks + EB_HOOK_WIDE_FONT;
-		    if (hook->function != NULL && hook->function(book,
-			appendix, workbuf, EB_HOOK_WIDE_FONT, argc, argv)
-			< 0) {
-			eb_error = EB_ERR_HOOK_WORKSPACE;
-			return -1;
-		    }
-		}
-	    }
-
-	    if (modhook->function != NULL && modhook->function(book, appendix,
-		workbuf, modhook->code, 0, argv) < 0) {
-		eb_error = EB_ERR_HOOK_WORKSPACE;
-		return -1;
-	    }
-	    if (refhook->function != NULL && refhook->function(book, appendix,
-		workbuf, refhook->code, 0, argv) < 0) {
-		eb_error = EB_ERR_HOOK_WORKSPACE;
-		return -1;
-	    }
-	} else {
+	} else if (book->char_code == EB_CHARCODE_ISO8859_1) {
 	    /*
 	     * The book is mainly written in ISO 8859 1.
 	     */
@@ -957,8 +885,8 @@ eb_read_internal(book, appendix, hookset, text, textsize)
 
 		step = 2;
 		argv[0] = eb_uint2(pagebufp);
-		*workbuf = c;
-		*(workbuf + 1) = eb_uint1(pagebufp + 1);
+		*workbuf = (unsigned char) c;
+		*(workbuf + 1) = (unsigned char) eb_uint1(pagebufp + 1);
 		*(workbuf + 2) = '\0';
 		hook = hookset->hooks + EB_HOOK_NARROW_FONT;
 		if (hook->function != NULL && hook->function(book, appendix,
@@ -979,8 +907,97 @@ eb_read_internal(book, appendix, hookset, text, textsize)
 		eb_error = EB_ERR_HOOK_WORKSPACE;
 		return -1;
 	    }
-	}
+	} else {
+	    /*
+	     * The book is written in JIS X 0208 (EB, EBXA, EPWING)
+	     * or JIS X 0208 & GB 2312 (EBXA-C).
+	     */
+	    int c2;
 
+	    charapp = 1;
+	    step = 2;
+	    argv[0] = eb_uint2(pagebufp);
+
+	    if (pagerest < 2) {
+		eb_error = EB_ERR_UNEXP_START;
+		return -1;
+	    }
+
+	    c2 = eb_uint1(pagebufp + 1);
+	    if (0x20 < c && c < 0x7f && 0x20 < c2 && c2 < 0x7f) {
+		/*
+		 * This is a JIS X 0208 KANJI character.
+		 */
+		*workbuf = (unsigned char) (c | 0x80);
+		*(workbuf + 1) = (unsigned char) (c2 | 0x80);
+		*(workbuf + 2) = '\0';
+		if (narwflag) {
+		    hook = hookset->hooks + EB_HOOK_NARROW_JISX0208;
+		    if (hook->function != NULL && hook->function(book,
+			appendix, workbuf, EB_HOOK_NARROW_JISX0208, 0, argv)
+			< 0) {
+			eb_error = EB_ERR_HOOK_WORKSPACE;
+			return -1;
+		    }
+		} else {
+		    hook = hookset->hooks + EB_HOOK_WIDE_JISX0208;
+		    if (hook->function != NULL && hook->function(book,
+			appendix, workbuf, EB_HOOK_WIDE_JISX0208, argc, argv)
+			< 0) {
+			eb_error = EB_ERR_HOOK_WORKSPACE;
+			return -1;
+		    }
+		}
+	    } else if (0x20 < c && c < 0x7f && 0xa0 < c2 && c2 < 0xff) {
+		/*
+		 * This is a GB 2312 HANJI character.
+		 */
+		*workbuf = (unsigned char) (c | 0x80);
+		*(workbuf + 1) = (unsigned char) c2;
+		*(workbuf + 2) = '\0';
+		hook = hookset->hooks + EB_HOOK_GB2312;
+		if (hook->function != NULL && hook->function(book,
+		    appendix, workbuf, EB_HOOK_GB2312, 0, argv) < 0) {
+		    eb_error = EB_ERR_HOOK_WORKSPACE;
+		    return -1;
+		}
+	    } else {
+		/*
+		 * This is a local character.
+		 */
+		*workbuf = (unsigned char) c;
+		*(workbuf + 1) = (unsigned char) c2;
+		*(workbuf + 2) = '\0';
+		if (narwflag) {
+		    hook = hookset->hooks + EB_HOOK_NARROW_FONT;
+		    if (hook->function != NULL && hook->function(book,
+			appendix, workbuf, EB_HOOK_NARROW_FONT, argc, argv)
+			< 0) {
+			eb_error = EB_ERR_HOOK_WORKSPACE;
+			return -1;
+		    }
+		} else {
+		    hook = hookset->hooks + EB_HOOK_WIDE_FONT;
+		    if (hook->function != NULL && hook->function(book,
+			appendix, workbuf, EB_HOOK_WIDE_FONT, argc, argv)
+			< 0) {
+			eb_error = EB_ERR_HOOK_WORKSPACE;
+			return -1;
+		    }
+		}
+	    }
+
+	    if (modhook->function != NULL && modhook->function(book, appendix,
+		workbuf, modhook->code, 0, argv) < 0) {
+		eb_error = EB_ERR_HOOK_WORKSPACE;
+		return -1;
+	    }
+	    if (refhook->function != NULL && refhook->function(book, appendix,
+		workbuf, refhook->code, 0, argv) < 0) {
+		eb_error = EB_ERR_HOOK_WORKSPACE;
+		return -1;
+	    }
+	}
 	pagebufp += step;
 	pagerest -= step;
 

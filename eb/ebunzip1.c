@@ -1,5 +1,5 @@
 /*                                                            -*- C -*-
- * Copyright (c) 1998  Motoyuki Kasahara
+ * Copyright (c) 1998, 1999  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,8 +23,13 @@
 
 #include "defs.h"
 
+/*
+ * Uncompress an ebzip'ped slice.
+ *
+ * If it succeeds, 0 is returned.  Otherwise, -1 is returned.
+ */
 int
-eb_unzip_mode1(out_buffer, out_byte_length, in_buffer, in_byte_length)
+eb_ebunzip1_slice(out_buffer, out_byte_length, in_buffer, in_byte_length)
     char *out_buffer;
     size_t out_byte_length;
     char *in_buffer;
