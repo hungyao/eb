@@ -719,7 +719,7 @@ eb_subbook_directory(book, directory)
     strcpy(directory, book->subbook_current->directory_name);
     for (p = directory; *p != '\0'; p++) {
 	if ('A' <= *p && *p <= 'Z')
-	    *p = tolower(*p);
+	    *p = ASCII_TOLOWER(*p);
     }
 
     LOG(("out: eb_subbook_directory(directory=%s) = %s", directory,
@@ -778,7 +778,7 @@ eb_subbook_directory2(book, subbook_code, directory)
     strcpy(directory, (book->subbooks + subbook_code)->directory_name);
     for (p = directory; *p != '\0'; p++) {
 	if ('A' <= *p && *p <= 'Z')
-	    *p = tolower(*p);
+	    *p = ASCII_TOLOWER(*p);
     }
 
     LOG(("out: eb_subbook_directory2(directory=%s) = %s", directory,
@@ -862,7 +862,7 @@ eb_set_subbook(book, subbook_code)
     /*
      * Load font files.
      */
-    eb_load_fonts(book);
+    eb_load_font_headers(book);
 
   succeeded:
     book->subbook_current->initialized = 1;

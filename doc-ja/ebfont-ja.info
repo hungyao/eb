@@ -1,4 +1,4 @@
-これは ebfont-ja.info、 ebfont-ja.texi より makeinfo バージョン 4.5
+これは ./ebfont-ja.info、./ebfont-ja.texi より makeinfo バージョン 4.5
 によって作成されました。
 
 INFO-DIR-SECTION CD-ROM Book Utilities
@@ -28,14 +28,14 @@ translation approved by Free Software Foundation, Inc.
 
 File: ebfont-ja.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 
-   この文書は第 3.3.4 版です。 EB ライブラリバージョン 3.3.4 に対応して
-います。
+   この文書は第 4.0 版です。 EB ライブラリバージョン 4.0 に対応していま
+す。
 
 * Menu:
 
 * Introduction::                はじめに
 * What is Local Character::     外字とは
-* Invoking ebfont::             `ebfont' の実行
+* Invoke ebfont::               `ebfont' の実行
 * Summary of Options::          `ebfont' のオプション一覧
 
  --- The Detailed Node Listing ---
@@ -66,7 +66,7 @@ File: ebfont-ja.info,  Node: Introduction,  Next: What is Local Character,  Prev
 ついては GNU General Public License をお読み下さい。
 
 
-File: ebfont-ja.info,  Node: What is Local Character,  Next: Invoking ebfont,  Prev: Introduction,  Up: Top
+File: ebfont-ja.info,  Node: What is Local Character,  Next: Invoke ebfont,  Prev: Introduction,  Up: Top
 
 外字とは
 ********
@@ -101,7 +101,7 @@ format)、XPM (X PixMap format)、 GIF (Graphics Interchange Format)、 BMP
 イルを生成します。
 
 
-File: ebfont-ja.info,  Node: Invoking ebfont,  Next: Summary of Options,  Prev: What is Local Character,  Up: Top
+File: ebfont-ja.info,  Node: Invoke ebfont,  Next: Summary of Options,  Prev: What is Local Character,  Up: Top
 
 `ebfont' の実行
 ***************
@@ -110,10 +110,11 @@ File: ebfont-ja.info,  Node: Invoking ebfont,  Next: Summary of Options,  Prev: 
 
      % ebfont 書籍へのパス
 
-書籍へのパスには、CD-ROM 書籍のトップディレクトリ、つまり `CATALOG' ま
-たは `CATALOGS' ファイルが存在するディレクトリを指定します。 複数のパ
-スを書くことはできませんが、以下のように、パスの指定を省くことはできま
-す。
+書籍へのパスには、CD-ROM 書籍のトップディレクトリ、つまり `catalog' ま
+たは `catalogs' ファイルが存在するディレクトリを指定します。 パスは、
+ローカルなパス (例: `/mnt/dict') でも遠隔アクセス識別子 (例 :
+`ebnet://localhost/dict') でも構いません。 複数のパスを書くことはできま
+せんが、以下のように、パスの指定を省くことはできます。
 
      % ebfont
 
@@ -146,7 +147,7 @@ File: ebfont-ja.info,  Node: Invoking ebfont,  Next: Summary of Options,  Prev: 
 * Subbooks::                    副本
 
 
-File: ebfont-ja.info,  Node: Image Formats,  Next: Heights,  Prev: Invoking ebfont,  Up: Invoking ebfont
+File: ebfont-ja.info,  Node: Image Formats,  Next: Heights,  Prev: Invoke ebfont,  Up: Invoke ebfont
 
 画像形式
 ========
@@ -172,7 +173,7 @@ XPM と GIF 形式では、前景色は黒 (RGB の `#000000') に、背景色は透明に
 ため、ファイルのサイズは相当大きくなります。
 
 
-File: ebfont-ja.info,  Node: Heights,  Next: Subbooks,  Prev: Image Formats,  Up: Invoking ebfont
+File: ebfont-ja.info,  Node: Heights,  Next: Subbooks,  Prev: Image Formats,  Up: Invoke ebfont
 
 高さ
 ====
@@ -193,7 +194,7 @@ File: ebfont-ja.info,  Node: Heights,  Next: Subbooks,  Prev: Image Formats,  Up
      % ebfont --font-height 16 --font-height 24 書籍へのパス
 
 
-File: ebfont-ja.info,  Node: Subbooks,  Prev: Heights,  Up: Invoking ebfont
+File: ebfont-ja.info,  Node: Subbooks,  Prev: Heights,  Up: Invoke ebfont
 
 副本
 ====
@@ -234,7 +235,7 @@ File: ebfont-ja.info,  Node: Subbooks,  Prev: Heights,  Up: Invoking ebfont
        全角フォントの文字: 0xa321 -- 0xa27e
 
 (`ebinfo' コマンドに関しての詳細は、 *note `ebinfo' の実行 :
-(ebinfo-ja)Invoking ebinfo.)。
+(ebinfo-ja)Invoke ebinfo.)。
 この例では、 3 つの副本が書籍には含まれており、そのディレクトリ名は
 `english', `french', `german' だということが分かります。
 
@@ -249,7 +250,7 @@ File: ebfont-ja.info,  Node: Subbooks,  Prev: Heights,  Up: Invoking ebfont
      % ebfont --subbook english --subbook french /mnt/cdrom
 
 
-File: ebfont-ja.info,  Node: Summary of Options,  Prev: Invoking ebfont,  Up: Top
+File: ebfont-ja.info,  Node: Summary of Options,  Prev: Invoke ebfont,  Up: Top
 
 `ebfont' のオプション一覧
 *************************
@@ -287,7 +288,7 @@ File: ebfont-ja.info,  Node: Summary of Options,  Prev: Invoking ebfont,  Up: To
 `--output-directory ディレクトリ'
      画像ファイルをディレクトリ以下に出力します。 指定しなかったとき
      は、`ebfont' はカレントディレクトリ (`.') の下に画像ファイルを生成
-     します。 (詳しくは、*note `ebfont' の実行: Invoking ebfont.)。
+     します。 (詳しくは、*note `ebfont' の実行: Invoke ebfont.)。
 
 `-S 副本'
 `--subbook 副本'
@@ -303,13 +304,13 @@ File: ebfont-ja.info,  Node: Summary of Options,  Prev: Invoking ebfont,  Up: To
 
 
 Tag Table:
-Node: Top1077
-Node: Introduction1609
-Node: What is Local Character2427
-Node: Invoking ebfont3995
-Node: Image Formats5345
-Node: Heights6277
-Node: Subbooks7098
-Node: Summary of Options8969
+Node: Top1080
+Node: Introduction1608
+Node: What is Local Character2426
+Node: Invoke ebfont3992
+Node: Image Formats5453
+Node: Heights6381
+Node: Subbooks7200
+Node: Summary of Options9067
 
 End Tag Table

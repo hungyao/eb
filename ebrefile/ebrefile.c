@@ -59,17 +59,17 @@
 
 #ifndef HAVE_MEMCPY
 #define memcpy(d, s, n) bcopy((s), (d), (n))
-#ifdef __STDC__
+#ifdef PROTOTYPES
 void *memchr(const void *, int, size_t);
 int memcmp(const void *, const void *, size_t);
 void *memmove(void *, const void *, size_t);
 void *memset(void *, int, size_t);
-#else /* not __STDC__ */
+#else
 char *memchr();
 int memcmp();
 char *memmove();
 char *memset();
-#endif /* not __STDC__ */
+#endif
 #endif
 
 #ifndef HAVE_STRCHR
@@ -78,14 +78,14 @@ char *memset();
 #endif /* HAVE_STRCHR */
 
 #ifndef HAVE_STRCASECMP
-#ifdef __STDC__
+#ifdef PROTOTYPES
 int strcasecmp(const char *, const char *);
 int strncasecmp(const char *, const char *, size_t);
-#else /* not __STDC__ */
+#else
 int strcasecmp()
 int strncasecmp();
-#endif /* not __STDC__ */
-#endif /* not HAVE_STRCASECMP */
+#endif
+#endif
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -146,12 +146,12 @@ int strncasecmp();
  * Trick for function protypes.
  */
 #ifndef EB_P
-#ifdef __STDC__
+#ifdef PROTOTYPES
 #define EB_P(p) p
-#else /* not __STDC__ */
-#define EB_P(p) ()
-#endif /* not __STDC__ */
-#endif /* EB_P */
+#else
+#define EB_P(p)
+#endif
+#endif
 
 /*
  * Tricks for gettext.
@@ -170,19 +170,6 @@ int strncasecmp();
 
 #define DEFAULT_BOOK_DIRECTORY		"."
 #define DEFAULT_OUTPUT_DIRECTORY	"."
-
-/*
- * Character type tests and conversions.
- */
-#define isdigit(c) ('0' <= (c) && (c) <= '9')
-#define isupper(c) ('A' <= (c) && (c) <= 'Z')
-#define islower(c) ('a' <= (c) && (c) <= 'z')
-#define isalpha(c) (isupper(c) || islower(c))
-#define isalnum(c) (isupper(c) || islower(c) || isdigit(c))
-#define isxdigit(c) \
- (isdigit(c) || ('A' <= (c) && (c) <= 'F') || ('a' <= (c) && (c) <= 'f'))
-#define toupper(c) (('a' <= (c) && (c) <= 'z') ? (c) - 0x20 : (c))
-#define tolower(c) (('A' <= (c) && (c) <= 'Z') ? (c) + 0x20 : (c))
 
 /*
  * Unexported functions.
@@ -332,6 +319,12 @@ main(argc, argv)
         strcpy(book_path, DEFAULT_BOOK_DIRECTORY);
     else
         strcpy(book_path, argv[optind]);
+
+    if (is_ebnet_url(book_path)) {
+	fprintf(stderr, "%s: %s\n", invoked_name,
+	    eb_error_message(EB_ERR_EBNET_UNSUPPORTED));
+	goto die;
+    }
     canonicalize_path(book_path);
 
     if (PATH_MAX

@@ -13,10 +13,10 @@ SAMPLES_SUBDIR =
 endif
 
 SUBDIRS = $(ZLIB_SUBDIR) eb libebutils ebappendix ebfont ebinfo \
-   ebrefile ebzip doc doc-ja po-eb po-ebutils m4 $(SAMPLES_SUBDIR)
+   ebrefile ebstopcode ebzip doc doc-ja po-eb po-ebutils m4 $(SAMPLES_SUBDIR)
 
 EXTRA_DIST = ChangeLog.0 ChangeLog.1 INSTALL-ja README-ja move-if-change \
-   eb.conf.in gttest.mo gttest.po
+   eb.conf.in gttest.mo gttest.po misc/ebfixlog misc/ebdump
 CLEANFILES = eb.conf
 
 appendixdir = $(pkgdatadir)/appendix
@@ -37,6 +37,7 @@ eb.conf: eb.conf.in Makefile
 	   -e 's;\@USE_NLS\@;$(USE_NLS);' \
 	   -e 's;\@EBCONF_INTLINCS\@;$(EBCONF_INTLINCS);' \
 	   -e 's;\@EBCONF_INTLLIBS\@;$(EBCONF_INTLLIBS);' \
+	   -e 's;\@ENABLE_EBNET\@;$(ENABLE_EBNET);' \
 	   $(srcdir)/$@.in > $@.tmp
 	cp $@.tmp $@
 	chmod 644 $@

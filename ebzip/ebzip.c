@@ -150,6 +150,8 @@ main(argc, argv)
 	|| strcasecmp(invoked_base_name, "ebunzip.exe") == 0) {
 	action_mode = EBZIP_ACTION_UNZIP;
     } else if (strcasecmp(invoked_base_name, "ebzipinfo") == 0
+	|| strcasecmp(invoked_base_name, "ebzipinfo.exe") == 0
+	|| strcasecmp(invoked_base_name, "ebzipinf") == 0
 	|| strcasecmp(invoked_base_name, "ebzipinf.exe") == 0) {
 	action_mode = EBZIP_ACTION_INFO;
     }
@@ -322,6 +324,12 @@ main(argc, argv)
         strcpy(book_path, EBZIP_DEFAULT_BOOK_DIRECTORY);
     else
         strcpy(book_path, argv[optind]);
+
+    if (is_ebnet_url(book_path)) {
+        fprintf(stderr, "%s: %s\n", invoked_name,
+	    eb_error_message(EB_ERR_EBNET_UNSUPPORTED));
+	goto die;
+    }
     canonicalize_path(book_path);
 
     /*
@@ -376,7 +384,7 @@ parse_zip_level(argument, zip_level)
     int level;
 
     level = (int)strtol(argument, &end_p, 10);
-    if (!isdigit(*argument) || *end_p != '\0'
+    if (!ASCII_ISDIGIT(*argument) || *end_p != '\0'
 	|| level < 0 || ZIO_MAX_EBZIP_LEVEL < level) {
 	fprintf(stderr, _("%s: invalid compression level `%s'\n"),
 	    invoked_name, argument);
@@ -412,7 +420,7 @@ parse_skip_content_argument(argument)
 	name_p = name;
 	while (*argument_p != ',' && *argument_p != '\0'
 	    && i < EB_MAX_DIRECTORY_NAME_LENGTH) {
-		*name_p = tolower(*argument_p);
+		*name_p = ASCII_TOLOWER(*argument_p);
 	    i++;
 	    name_p++;
 	    argument_p++;

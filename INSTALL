@@ -187,10 +187,20 @@ Optional Feature List
    `configure' in this package recognizes the following `--enable-' and
 `--with-' options.
 
+`--enable-ebnet'
+     Enable remote access support.  The default value is `yes'.
+
+`--enable-ipv6'
+     Enable IPv6 support for remote access.
+     The default is `yes' if the system supports IPv6.  `configure'
+     reports an error if you specify `yes' but `configure' fails to
+     compile a sample IPv6 program.  `configure' ignores this option
+     if you also specify `--enable-ebnet=no'.
+
 `--enable-pthread'
      EB Library is compiled with pthread support codes.
      The default value is `no'.  `configure' reports an error if you
-     specify `yes' but `configure' failed to compile or run a sample
+     specify `yes' but `configure' fails to compile or run a sample
      program which uses pthread.  
 
      WARNING: The pthread support is still incomplete and experimental.
@@ -211,7 +221,7 @@ Optional Feature List
      regardless of existance of installed zlib.
 
      Please note that `configure' reports an error if you specify
-     `yes' but `configure' failed to find zlib.
+     `yes' but `configure' fails to find zlib.
 
 `--with-zlib-includes=DIR'
      Look for header files of zlib installed in directory DIR.  This
@@ -235,7 +245,7 @@ Optional Feature List
 
      The default value is `yes' if GNU gettext is available, `no'
      otherwise.  `configure' reports an error if you specify `yes'
-     but `configure' failed to compile, or run a sample program which
+     but `configure' fails to compile, or run a sample program which
      uses gettext() function.
 
 `--with-gettext-includes=DIR'

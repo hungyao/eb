@@ -1,26 +1,440 @@
+2003-12-28  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/defs.h: Do not be generated from `eb/defs.h.in' any longer.
+	* eb/Makefile.am (EXTRA_DIST, MAINTAINERCLEANFILES): Delete
+	`stamp-defs-h' and `defs.h.in'.
+	* eb/Makefile.am (BUILT_SOURCES): Delete `defs.h'.
+
+	* configure.ac (AC_ARG_ENABLE): Add `--enable-ebnet' option.
+	* eb/Makefile.am (libeb_ebnet_sources): Define the variable according
+	with ENABLE_EBNET.
+
+	* samples/Makefile.am (noinst_PROGRAMS): Add `booklist'.
+	* doc-ja/Makefile.am (eb_ja_TEXINFOS, MAINTAINERCLEANFILES):
+	add `booklist-c.texi'.
+
+	* eb/zio.h: Fix TIME_WITH_SYS_TIME check code.
+
+	* eb/defs.h: Include `sysdefs.h'.  Use `EB_ENABLE_PTHREAD' and
+	`EB_ENABLE_EBNET', instead of `EBCONF_ENABLE_PTHREAD' and
+	`EBCONF_ENABLE_EBNET'.
+	* eb/Makefile.am (CLEANFILES): Add `stamp-sysdefs-h' and `sysdefs.h'.
+	* eb/Makefile.am (BUILT_SOURCES): Add `sysdefs.h'
+	* eb/Makefile.am (nodist_pkginclude_HEADERS): Defined.
+
+2003-12-22  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* m4/eb3.m4: Renamed to `eb4.m4'.
+	* m4/Makefile.am (m4data_DATA, EXTRA_DIST): Rename `eb4.m4' to
+	`eb3.m4'.
+
+	* Use Autoconf-2.59, Automake-1.8 and Libtool-1.5.
+	* m4/eb4.m4, m4/gettext.m4, m4/herrno.m4, m4/in6addr.m4,
+	m4/lcmessage.m4, m4/libtool.m4, m4/sockaddrin6.m4,
+	m4/utimbuf.m4, m4/voidpointer.m4: Quote function name to be defined
+	in AC_DEFUN.
+
+	* m4/eb4.m4 (AC_REQUIRE): Add AC_C_PROTOTYPES.
+
+2003-12-21  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb.conf.in: Always define EBCONF_ENABLE_EBNET.
+	* m4/eb3.m4: Check EBCONF_ENABLE_EBNET.
+	* eb/defs.h.in: Use EBCONF_ENABLE_EBNET instead of ENABLE_EBNET.
+
+	* eb/error.c, eb/error.h: Add two error codes EB_ERR_UNBOUND_BOOKLIST
+	and EB_ERR_NO_SUCH_BOOK.
+	* eb/defs.h, eb/booklist.c, eb/booklist.h: APIs for EB_BookList
+	are revised.  eb_booklist_book_count(), eb_booklist_book_name()
+	and eb_booklist_book_title() return EB_Error_Code.
+	* eb/defs.h, eb/booklist.c, eb/booklist.h: Support for pthread.
+	* eb/defs.h, eb/booklist.c, eb/booklist.h: Add internal object counter
+	for EB_BookList.
+
+2003-11-23  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* config.guess, config.sub, depcomp, install-sh, missing,
+	mkinstalldirs, doc/mdate-sh, doc-ja/mdate-sh:
+	Import from Autocomake-1.7.9.
+
+2003-11-22  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* m4/Makefile.am (EXTRA_DIST): Add `voidpointer.m4'.
+
+	* eb/search.c (eb_hit_list_keyword, eb_hit_list_multi): 
+	Don't perform comparison of input keyword and group entry element.
+
+	* eb/readtext.c (eb_read_text_internal): Fix a bug that EB Library
+	crashes when it outputs a debug log.
+
+2003-11-19  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* configure.ac (AC_C_VOID_POINTER, AC_C_PROTOTYPES): Added.
+	* configure.ac (AC_C_VOID_POINTER): Added.
+	* m4/voidpointer.m4: Define `AC_C_VOID_POINTER'.
+	* ebrefile/ebrefile.c, ebfont/ebfont.c, eb/zio.c, eb/memmove.c,
+	eb/zio.h, eb/urlparts.c, eb/urlparts.h, eb/linebuf.c, eb/build-pre.h,
+	eb/linebuf.h, eb/defs.h.in, eb/filename.c, eb/log.c, eb/multiplex.c,
+	eb/getaddrinfo.c, eb/eb.h, eb/getaddrinfo.h, eb/ebnet.c,
+	ebstopcode/ebstopcode.c, libebutils/getopt.c, libebutils/yesno.h,
+	libebutils/getopt.h, libebutils/ebutils.c, libebutils/makedir.h,
+	libebutils/getumask.h, libebutils/samefile.h, libebutils/memset.c,
+	ebinfo/ebinfo.c, ebzip/ebzip.h:
+	Use PROTOTYPES and VOID, instead of __STDC__ and WIN32.
+
+	* eb/log.c, eb/build-pre.h, eb/eb.h: Use `stdarg.h' if __STDC__ or
+	MSVC is defined.
+
+2003-11-12  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/match.c (eb_match_word_jis_kana): Rename the function to
+	`eb_match_word_kana_group'.
+	Add variant function eb_match_word_kana_group_single().
+	* eb/match.c (eb_exact_match_word_jis_kana): Rename the function to
+	`eb_exact_match_word_kana_group'.
+	Add variant function eb_match_exact_word_kana_group_single().
+
+2003-10-19  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Version 4.0beta3.
+
+	* ebstopcode/ebstopcode.c (parse_text_position_argument): Add check
+	codes for page:offset.
+
+2003-10-18  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* ebstopcode/ebstopcode.c: Add `--text-position' (-p) option.
+
+2003-10-14  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* doc-ja/c2texi: Expand tabs to spaces.
+
+2003-10-13  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/subbook.c, eb/urlparts.c, eb/build-pre.h, eb/filename.c,
+	eb/ebnet.c, libebutils/ebutils.c, ebfont/ebfont.c,
+	ebrefile/ebrefile.c, ebstopcode/ebstopcode.c, ebzip/ebzip.c,
+	ebzip/ebzip.h: Don't redefine or use ctype macros such as isalpha().
+	Define and use ASCII_ISXXX() macros instead.
+
+2003-10-04  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/Makefile.am (stamp-defs-h, stamp-build-post-h, stamp-widealt-h,
+	stamp-widefont-h): Insert "automatically generated from ..." messages
+	to the source files.
+
+	* m4/gettext.m4 (eb_GNU_GETTEXT): Also checks for iconv.h, 
+	libcharset.h, iconv_open(), libiconv_open(), locale_charset() and
+	-liconv.  Also add the ICONVINCS and ICONVLIBS variables.
+	* m4/gettext.m4 (eb_GNU_GETTEXT): Don't add iconv_includes to INTLINCS.
+	* configure.ac (AC_CHECK_FUNCS): Add nl_langinfo().
+	* configure.ac (AC_CHECK_HEADERS): Add `langinfo.h'.
+
+	* ebfont/Makefile.am (ebfont_LDADD, ebfont_DEPENDENCIES):
+	Add $(ICONVLIBS) and $(ICONVDEPS) respectively.
+	* ebinfo/Makefile.am (ebinfo_LDADD, ebinfo_DEPENDENCIES): Ditto
+	* ebrefile/Makefile.am (ebrefile_LDADD, ebrefile_DEPENDENCIES): Ditto
+	* ebstopcode/Makefile.am (ebstopcode_LDADD, ebstopcode_DEPENDENCIES):
+	Ditto
+	* ebzip/Makefile.am (ebzip_LDADD, ebzip_DEPENDENCIES): Ditto
+
+	* libebutils/puts_eucjp.c: New file.
+	* libebutils/Makefile.am (libebutils_a_SOURCES): Add puts_eucjp.c
+	* libebutils/Makefile.am (INCLUDES): Add @ICONVINCS@
+
+	* ebinfo/ebinfo.c: Print EUC-JP strings as the current locale
+	encoding with fputs_eucjp_to_locale().
+	* ebstopcode/ebstopcode.c: Ditto.
+
+	* ebzip/ebzip.c (main): Also recognize "ebzipinfo.exe" and "ebzipinf" 
+	as the `invoked_base_name' when EXEEXT_EXE is defined.
+
+2003-10-03  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/build-post.h.in (LOCALEDIR): Renamed to EB_LOCALEDIR.
+	* eb/build-post.h.in (LOCALEDIR): Set to localedir() if WIN32.
+	* ebutils/ebutils.h.in (LOCALEDIR): Ditto.
+
+	* eb/Makefile.am (dist_libeb_la_SOURCES, nodist_libeb_la_SOURCES):
+	Move `widealt.c' and `widefont.c' from nodist_ to to dist_.
+	* eb/Makefile.am (CLEANFILES, MAINTAINERCLEANFILES):
+	Move `stamp-wide-alt-h', `stamp-wide-font-h', `widealt.c' and
+	`widefont.c' from CLEANFILES to MAINTAINERCLEANFILES.
+	* eb/Makefile.am (EXTRA_DIST): Add ``stamp-wide-alt-h' and
+	`stamp-wide-font-h'.
+
+	* eb/Makefile.am (dist_pkginclude_HEADERS, nodist_pkginclude_HEADERS):
+	Move `defs.h' from nodist_ to to dist_.
+	* eb/Makefile.am (CLEANFILES, MAINTAINERCLEANFILES):
+	Move `stamp-defs-h' from CLEANFILES to MAINTAINERCLEANFILES.
+	* eb/Makefile.am (EXTRA_DIST): Add ``stamp-defs-h'.
+
+2003-09-23  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* configure.ac (AC_INIT): Set version to 4.0beta3.
+
+	* eb/build-pre.h, eb/refile.c, ebfont/ebfont.c, eb/urlparts.c,
+	ebstopcode/ebstopcode.c, libebutils/ebutils.c, ebzip/ebzip.h	
+	Undefine ctype macros if defined.
+
+	* ebzip/unzipfile (EB_P): Delete definition of the cpp macro.
+
+	* eb/ebnet.c (ebnet_get_booklist): Fix a bug.  Don't call close()
+	directly to close a connection.  Call ebnet_disconnect_socket()
+	instead.
+
+	* configure.ac (AC_CHECK_FUNCS): Delete `syslog' and `vsyslog'.
+	Add `dup2' instead.
+	* eb/ebnet.c (ebnet_read): Change type of the first argument
+	`file' from `int' to `int *'.  It means the given file descriptor
+	might be changed by ebnet_read().
+
+	* eb/multiplex.c: On WIN32, call closesocket() instead of close()
+	to close a socket.
+
+	* eb/zio.c, eb/build-post.h.in (is_ebnet_url): Don't call
+	strncasecmp().
+
+	* eb/filename.c (eb_fix_path_name_suffix, eb_compose_path_name,
+	eb_compose_path_name2, eb_compose_path_name3): Supprt for EBNET URL
+	handle on WIN32.
+	* eb/ebnet.c (ebnet_initialize): Call WSAStartup() if WIN32.
+	* eb/muliplex.c (ebnet_connect_socket): Replace dup() with
+	WSADuplicateSocket() if WIN32.
+
+	* ebinfo/ebinfo.c (output_booklist): Call eb_initialize_library()
+	and eb_finalize_library().
+
+2003-09-21  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/match.c (eb_match_word_jis_kana): Fix a bug that it never returns
+	0 even if `word' matches `pattern'.
+
+	* eb/keyword.c (eb_search_keyword): Perform `word search' for each
+	keyword.
+	eb/multi.c (eb_search_multi): Perform `word search' for each entry
+	if the entry doesn't have candidates.
+
+	* libebutils/makedir.c (make_missing_directory): Support for WIN32.
+	* eb/log.c (eb_log): Ditto.
+	* eb/linebuf.c: Ditto.
+	* eb/getaddrinfo.c, eb/getaddrinfo.h: Ditto.
+	* eb/dummyin6.c, eb/dummyin6.h: Ditto.
+	* eb/linebuf.c (read_line_buffer, binary_read_line_buffer): For WIN32,
+	use recv() rather than read().
+	* eb/filename.c (eb_path_name_zio_code): Support for Win32.
+
+	* libebutils/getopt.c: Include <stdlib.h> if exists.
+
+	* eb/Makefile.am (noinst_HEADERS): `build-post.h' is now 
+	nodist_noinst_HEADERS.
+
+2003-09-01  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Version 4.0beta2.
+
+	* eb/defs.h.in (EB_Search_Context_Struct): Add `compare_pre'.
+	* eb/match.c (eb_pre_match_word, eb_exact_pre_match_word_jis,
+	eb_exact_pre_match_word_latin): New functions for pre-search.
+	*eb/search.c (eb_presearch_word): Use `compare_pre' for comparision.
+
+	* eb/match.c (eb_match_word_jis_kana, eb_match_exactword_jis_kana):
+	Fix bugs in comparision of Kana characters.
+
+2003-08-30  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Version 4.0beta1.
+
+	* eb/error.c, eb/error.h: Add EB_ERR_NO_ALT and EB_ERR_NO_STOPCODE.
+	* eb/stopcode.c: Set stop_code[0] and stop_code[1] to -1 if an error
+	occurs.
+
+	* samples/Makefile.am (noinst_PROGRAMS): Add `appendix'.
+	* samples/appendix.c: New file.
+
+2003-08-24  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/multiplex.c (ebnet_connect_socket): Fix a bug in duplication
+	of socket entry.
+
+	* eb/narwfont.c (eb_open_narrow_font_file): Fix bugs in LOG() calls.
+
+2003-08-15  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* configure.ac (AC_INIT): Set version to "4.0beta1".
+
+2003-08-14  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/Makefile.am (dist_libeb_la_SOURCES): Add `booklist.c'.
+	* eb/Makefile.am (dist_pkginclude_HEADERS): Add `booklist.h'.
+	* eb/booklist.c: New file.
+	* eb/defs.h.in (EB_BookList_Entry, EB_BookList): New structured types.
+	* eb/ebnet.h (EBNET_MAX_BOOK_TITLE_LENGTH): Defined.
+	* eb/ebnet.c (ebnet_get_booklist): New function.
+	* ebinfo/ebinf.c (output_booklist): New function.
+	* ebinfo/ebinf.c (main): Add `--booklist' and `-l' options.
+	* ebinfo/ebinfo.c (output_information, output_multi_information):
+	Return `EB_Error_Code' instead of `int'.
+
+2003-08-09  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/appendix.in: delete `--case' and `--suffix' options.
+	Now ebappendix checks all existing directories and files.
+
+2003-07-30  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* configure.ac, ebstopchk/ebstopchk.c, ebstopchk/Makefile.am:
+	Rename `ebstopchk' to `ebstopcode'.
+
+	* Makefile.am (EXTRA_DIST): Add `misc/ebdump', `misc/ebfixlog' and
+	`misc/eb-index-info'.
+
+2003-07-24  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/bitmap.c (eb_wide_font_xbm_size, eb_wide_font_xpm_size,
+	eb_wide_font_gif_size, eb_wide_font_bmp_size): Fix bugs that they
+	returned size of narrow font.
+
+	* eb/defs.h.in (EB_Search_Context_Struct): Rename `compare_pre' and
+	`compare_hit' to `compare_single' and `compare_group'.
+
+	* eb/match.c: Revise string comparison functions.
+	* eb/word.c (eb_search_word), eb/endword.c (eb_search_endword),
+	eb/exactword.c (eb_search_exactword), eb/keyword.c (eb_search_keyword),
+	eb/multi.c (eb_search_multi): Likewise.
+	eb/search.c (eb_hit_list_word, eb_hit_list_keyword,
+	eb_hit_list_multi): Likewise.
+
 2003-07-19  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
 
-	* Version 3.3.4.
+	* eb/narwfont.c (eb_open_narrow_font_file): Fix a bug that it
+	cannot open a font file in EB/EBG/EBXA/S-EBXA/EBXA-C.
 
 	* eb/subbook.c (eb_load_subbook_indexes): Fix a bug in word search
 	that EB Library sometimes cannot have found words.
 	* eb/match.c (eb_match_word_latin, eb_match_word_jis, 
 	eb_exact_match_word_latin, eb_exact_match_word_jis): Ditto. 
+	
+2003-07-11  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/ebnet.c (ebnet_read): Output a log message upon return.
+
+2003-07-03  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
 
 	* eb/book.c (misleaded_book_table):
 	Add "Japanese-English-Spanish Jiten (YRRS-060)".
 
-2003-06-09  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+2003-06-11  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
 
-	* Version 3.3.3.
+	* Version 4.0beta0.
 
-	* configure.ac (AC_INIT): Set version to 3.3.3.
-	* configure.ac (LIBEB_VERSION_INFO): Set version to 7:3:1.
+	* eb/multiplex.c (ebnet_connect_socket): Fix a bug that it tries to
+	connect with an empty address.
+
+2003-06-07  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/defs.h.in (EB_Font_Struct): Add `glyphs'.
+	* eb/narwfont.c (eb_load_narrow_font): Split it into
+	eb_open_narrow_font_file() and eb_load_narrow_font_header().
+	* eb/narwfont.c (eb_load_narrow_font_glyphs): New function.
+	* eb/font.c (eb_load_fonts): Renamed to eb_load_font_headers().
+	Don't call eb_set_font().
+	* eb/font.c (eb_set_font, eb_narrow_character_bitmap_jis,
+	eb_narrow_character_bitmap_latin): Load font glyph data to memory.
 
 	* eb/narwfont.c (eb_narrow_font_size2): Add missing `break' statements
 	in a `switch' block.
 
-	* eb/font.c (eb_unset_font): Fix file descriptor leak.
+2003-06-05  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* configure.ac (AC_INIT): Set version to 4.0beta0.
+
+	* eb/appendix.c (eb_initialize_appendix, eb_bind_appendix,
+	eb_finalize_appendix): Add ebnet supprt codes.
+	* eb/ebnet.c (ebnet_bind_appendix, ebnet_finalize_appendix):
+	New functions.
+	* eb/defs.h.in (EB_Appendix_Struct): Add `ebnet_file'.
+
+2003-05-22  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/ebnet.c, eb/multiplex.c: Implement automatic reconnection.
+
+	* eb/multiplex.c (hello_hook, bye_hook): They are now static variables
+	in this file.
+	* eb/multiplex.c (ebnet_set_hello_hook, ebnet_set_bye_hook):
+	New functions.
+	* eb/multiplex.c (ebnet_initialize): 
+	Renamed to `ebnet_initialize_multiplex'.
+	* eb/ebnet.c (ebnet_initialize): New function.
+	* eb/multiplex.c (ebnet_mark_as_lost_sync): 
+	Renamed to `ebnet_set_lost_sync'.
+
+2003-05-12  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/font.c (eb_load_fonts): Load 8x16 and 16x16 fonts only for
+	efficiency.
+
+2003-05-07  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* m4/Makefile.am (EXTRA_DIST): Add `herrno.m4', `in6addr.m4',
+	`sockaddrin6.m4' and `sockinttypes.m4'.
+	* configure.ac (AC_CHECK_LIB): Check resolv, bind, nsl and socket 
+	libraries.
+
+2003-05-06  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* configure.ac (AC_INIT): Set version to 4.0alpha0.
+	* configure.ac (LIBEB_VERSION_INFO): Set to `8:0:0'.
+	* configure.ac (EB_VERSION_MAJOR, EB_VERSION_MINOR):
+	Set EB_VERSION_MAJOR to `4' and EB_VERSION_MINOR to `0'.
+	
+2003-05-05  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* configure.ac (AC_ARG_ENABLE): Add `--enable-ipv6' option for 
+	ebnet support.
+	* configure.ac (AC_REPLACE_FUNCS): Add `strtol'.
+	* configure.ac (AC_TYPE_IN_PORT_T, AC_TYPE_SA_FAMILY_T, 
+	AC_TYPE_SOCKLEN_T, AC_STRUCT_IN6_ADDR, AC_STRUCT_SOCKADDR_IN6,
+	AC_STRUCT_SOCKADDR_STORAGE, AC_DECL_IN6ADDR_ANY,
+	AC_DECL_IN6ADDR_LOOPBACK): Added for ebnet support.
+	* configure.ac (AC_CHECK_FUNCS): Add getaddrinfo(), getnameinfo()
+	and gai_strerror() for ebnet support.
+	* eb/Makefile.am (dist_libeb_la_SOURCES): Add `ebnet.c',
+	`multiplex.c', `linebuf.c', `urlparts.c', `getaddrinfo.c' 
+	and `dummyin6.c' for ebnet support.
+	* configure.ac (noinst_HEADERS): Add `dummyin6.h', `ebnet.h',
+	`getaddrinfo.h', `linebuf.h' and `urlparts.h' for ebnet support.
+	* eb/build-pre.h (addrinfo, getaddrinfo, freeaddrinfo, getnameinfo,
+	gai_strerror, in6addr_any, in6addr_loopback): Define if missing.
+	* eb/erro.c, eb/error.h (EB_ERR_EBNET_UNSUPPORTED,
+	EB_ERR_EBNET_FAIL_CONNECT, EB_ERR_EBNET_SERVER_BUSY, 
+	EB_ERR_EBNET_NO_PERMISSION): Add the error codes.
+	* eb/build-post.h.in, eb/zio.c (is_ebnet_url): Defined.
+
+	* eb/eb.c (eb_initialize_library, eb_finalize_library): Add ebnet
+	support codes.
+	* eb/book.c (eb_initialize_book, eb_bind, eb_finalize_book): Ditto.
+	* eb/zio.c (eb_read_raw): Ditto.
+	* eb/zio.c (eb_open_raw, eb_close_raw, eb_lseek_raw): New functions.
+	Any other functions in eb/zio.c must not call open(), close(),
+	lseek() or read() directly.
+
+	* eb/ebzip.c (main): Complain if book path is ebnet URL.
+
+2003-04-26  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/build-post.h.in (EB_MAX_RELATIVE_PATH_LENGTH): Defined.
+
+2003-03-29  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* configure.ac (AC_REPLACE_FUNCS): Add strtol.c.
+	* libebutils/strtol.c: New file.
+
+	* configure.ac (AC_CONFIG_FILES): Add `ebstopchk/Makefile'.
+	* Makefile.am (SUBDIRS): Add `ebstopchk'.
+	* ebstopchk/ebstopchk.c, ebstopchk/Makefile.am: New files.
+	* po-ebutils/Makefile.in (POTFILES):
+	Add `$(top_srcdir)/ebstopchk/ebstopchk.c'.
 
 2003-03-05  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
 

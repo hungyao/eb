@@ -25,7 +25,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#if defined(__STDC__) || defined(WIN32)
+#if defined(__STDC__) || defined(MSVC)
 #include <stdarg.h>
 #else
 #include <varargs.h>
@@ -75,11 +75,11 @@
 #endif /* HAVE_NDIR_H */
 #endif /* not HAVE_DIRENT_H */
 
-#if TIME_WITH_SYS_TIME
+#ifdef TIME_WITH_SYS_TIME
 #include <sys/time.h>
 #include <time.h>
 #else
-#if HAVE_SYS_TIME_H
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #else
 #include <time.h>
@@ -113,17 +113,17 @@
  */
 #ifndef HAVE_MEMCPY
 #define memcpy(d, s, n) bcopy((s), (d), (n))
-#ifdef __STDC__
+#ifdef PROTOTYPES
 void *memchr(const void *, int, size_t);
 int memcmp(const void *, const void *, size_t);
 void *memmove(void *, const void *, size_t);
 void *memset(void *, int, size_t);
-#else /* not __STDC__ */
+#else
 char *memchr();
 int memcmp();
 char *memmove();
 char *memset();
-#endif /* not __STDC__ */
+#endif
 #endif
 
 /*
@@ -172,21 +172,23 @@ char *memset();
 /*
  * Character type tests and conversions.
  */
-#define isdigit(c) ('0' <= (c) && (c) <= '9')
-#define isupper(c) ('A' <= (c) && (c) <= 'Z')
-#define islower(c) ('a' <= (c) && (c) <= 'z')
-#define isalpha(c) (isupper(c) || islower(c))
-#define isalnum(c) (isupper(c) || islower(c) || isdigit(c))
-#define isxdigit(c) \
- (isdigit(c) || ('A' <= (c) && (c) <= 'F') || ('a' <= (c) && (c) <= 'f'))
-#define toupper(c) (('a' <= (c) && (c) <= 'z') ? (c) - 0x20 : (c))
-#define tolower(c) (('A' <= (c) && (c) <= 'Z') ? (c) + 0x20 : (c))
+#define ASCII_ISDIGIT(c) ('0' <= (c) && (c) <= '9')
+#define ASCII_ISUPPER(c) ('A' <= (c) && (c) <= 'Z')
+#define ASCII_ISLOWER(c) ('a' <= (c) && (c) <= 'z')
+#define ASCII_ISALPHA(c) \
+ (ASCII_ISUPPER(c) || ASCII_ISLOWER(c))
+#define ASCII_ISALNUM(c) \
+ (ASCII_ISUPPER(c) || ASCII_ISLOWER(c) || ASCII_ISDIGIT(c))
+#define ASCII_ISXDIGIT(c) \
+ (ASCII_ISDIGIT(c) || ('A' <= (c) && (c) <= 'F') || ('a' <= (c) && (c) <= 'f'))
+#define ASCII_TOUPPER(c) (('a' <= (c) && (c) <= 'z') ? (c) - 0x20 : (c))
+#define ASCII_TOLOWER(c) (('A' <= (c) && (c) <= 'Z') ? (c) + 0x20 : (c))
 
 /*
  * For (void *).
  */
 #ifndef VOID
-#ifdef __STDC__
+#if defined(__STDC__) || defined(__cplusplus)
 #define VOID void
 #else
 #define VOID char
@@ -216,12 +218,12 @@ char *memset();
  * Trick for function protypes.
  */
 #ifndef EB_P
-#if defined(__STDC__) || defined(__cplusplus) || defined(WIN32)
+#ifdef PROTOTYPES
 #define EB_P(p) p
-#else /* not (__STDC__ && __cplusplus && WIN32) */
-#define EB_P(p) ()
-#endif /* not (__STDC__ && __cplusplus && WIN32) */
-#endif /* EB_P */
+#else
+#define EB_P(p)
+#endif
+#endif
 
 /*
  * Fake missing function names.
@@ -233,6 +235,28 @@ char *memset();
 #ifndef HAVE_STRCASECMP
 #define strcasecmp eb_strcasecmp
 #define strncasecmp eb_strncasecmp
+#endif
+
+#ifndef HAVE_GETADDRINFO
+#define addrinfo ebnet_addrinfo
+#define getaddrinfo ebnet_getaddrinfo
+#define freeaddrinfo ebnet_freeaddrinfo
+#endif
+
+#ifndef HAVE_GETNAMEINFO
+#define getnameinfo ebnet_getnameinfo
+#endif
+
+#ifndef HAVE_GAI_STRERROR
+#define gai_strerror ebnet_gai_strerror
+#endif
+
+#ifndef IN6ADDR_ANY_DECLARED
+#define in6addr_any ebnet_in6addr_any
+#endif
+
+#ifndef IN6ADDR_LOOPBACK_DECLARED
+#define in6addr_loopback ebnet_in6addr_loopback
 #endif
 
 #endif /* EB_BUILD_PRE_H */
