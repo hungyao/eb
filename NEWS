@@ -1,33 +1,3 @@
-Major changes in release 4.0.
-
-* Refine EB_BookList APIs.
-* Add two error codes: EB_ERR_UNBOUND_BOOKLIST and EB_ERR_NO_SUCH_BOOK.
-* Rename `eb3.m4' to `eb4.m4'.
-* Add `--ebnet-ebnet' option to `cofigure'.
-* Install `eb/flags.h' which is automatically included by `eb/defs.h'.
-* Fix some serious and minor bugs.
-
-Major changes in release 4.0beta3.
-
-* Support for Japanese encodings other than EUC-JP.
-* Add some Windows support codes.
-  Use `eb-win32' package to build EB Library on Windows.
-* Add `--text-position' (-p) option to `ebstopcode'.
-
-Major changes in release 4.0beta2.
-
-* Fix serious bugs in search methods.
-
-Major changes in release 4.0beta1.
-
-* Rename `ebstopchk' to `ebstopcode'.
-  Also rename its option name from `--stop-code' to `--code'.
-* Delete `--case' and `--suffix' options of `ebappendix'.
-* Add Japanese edition of `ebappendix' document.
-* Add `--book-list' option to `ebinfo'.
-* Add `ebdump' and `ebfixlog' to the `misc' sub-directory.
-* Fix some bugs.
-
 Major changes in release 4.0beta0.
 
 * Support for remote access.

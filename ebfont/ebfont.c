@@ -66,14 +66,14 @@
 #include "ebutils.h"
 
 #ifndef HAVE_STRCASECMP
-#ifdef PROTOTYPES
+#ifdef __STDC__
 int strcasecmp(const char *, const char *);
 int strncasecmp(const char *, const char *, size_t);
-#else
+#else /* not __STDC__ */
 int strcasecmp()
 int strncasecmp();
-#endif
-#endif
+#endif /* not __STDC__ */
+#endif /* not HAVE_STRCASECMP */
 
 #ifndef HAVE_STRCHR
 #define strchr index
@@ -85,12 +85,12 @@ int strncasecmp();
 #endif
 
 #ifndef HAVE_STRERROR
-#ifdef PROTOTYPES
+#ifdef __STDC__
 char *strerror(int);
-#else
+#else /* not __STDC__ */
 char *strerror();
-#endif
-#endif
+#endif /* not __STDC__ */
+#endif /* HAVE_STRERROR */
 
 /*
  * The maximum length of path name.
@@ -107,12 +107,12 @@ char *strerror();
  * Trick for function protypes.
  */
 #ifndef EB_P
-#ifdef PROTOTYPES
+#ifdef __STDC__
 #define EB_P(p) p
-#else
-#define EB_P(p)
-#endif
-#endif
+#else /* not __STDC__ */
+#define EB_P(p) ()
+#endif /* not __STDC__ */
+#endif /* EB_P */
 
 /*
  * Tricks for gettext.
@@ -223,6 +223,19 @@ static int image_count = 0;
 
 #define MAX_LENGTH_FONT_NAME		2
 #define MAX_LENGTH_STRING		255
+
+/*
+ * Character type tests and conversions.
+ */
+#define isdigit(c) ('0' <= (c) && (c) <= '9')
+#define isupper(c) ('A' <= (c) && (c) <= 'Z')
+#define islower(c) ('a' <= (c) && (c) <= 'z')
+#define isalpha(c) (isupper(c) || islower(c))
+#define isalnum(c) (isupper(c) || islower(c) || isdigit(c))
+#define isxdigit(c) \
+ (isdigit(c) || ('A' <= (c) && (c) <= 'F') || ('a' <= (c) && (c) <= 'f'))
+#define toupper(c) (('a' <= (c) && (c) <= 'z') ? (c) - 0x20 : (c))
+#define tolower(c) (('A' <= (c) && (c) <= 'Z') ? (c) + 0x20 : (c))
 
 /*
  * Unexported functions.

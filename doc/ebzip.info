@@ -1,5 +1,4 @@
-これは ./ebzip.info、./ebzip.texi より makeinfo バージョン 4.5
-によって作成されました。
+This is ebzip.info, produced by makeinfo version 4.2 from ebzip.texi.
 
 INFO-DIR-SECTION CD-ROM Book Utilities
 START-INFO-DIR-ENTRY
@@ -28,13 +27,13 @@ translation approved by Free Software Foundation, Inc.
 
 File: ebzip.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 
-   This is edition 4.0, for EB Library version 4.0.
+   This is edition 4.0beta0, for EB Library version 4.0beta0.
 
 * Menu:
 
 * Introduction::                Introduction.
 * Action and Command Name::     Action and Command Name.
-* Invoke ebzip::                Invoke `ebzip'.
+* Invoking ebzip::              Invoking `ebzip'.
 * Compression::                 About the Compression Action.
 * Uncompression::               About the Uncompression Action.
 * Information::                 About the Information Action.
@@ -102,10 +101,10 @@ Though `ebzip' is free software, your books may not be free.  If the
 publishers of your CD-ROM don't permit to copy the book onto a hard
 disk (nor other strage devices), please give up compress the book.
 
-   This is edition 4.0, for EB Library version 4.0.
+   This is edition 4.0beta0, for EB Library version 4.0beta0.
 
 
-File: ebzip.info,  Node: Action and Command Name,  Next: Invoke ebzip,  Prev: Introduction,  Up: Top
+File: ebzip.info,  Node: Action and Command Name,  Next: Invoking ebzip,  Prev: Introduction,  Up: Top
 
 Action and Command Name
 ***********************
@@ -151,10 +150,10 @@ is the action of all the lines:
      ebzipinfo --uncompress
 
 
-File: ebzip.info,  Node: Invoke ebzip,  Next: Compression,  Prev: Action and Command Name,  Up: Top
+File: ebzip.info,  Node: Invoking ebzip,  Next: Compression,  Prev: Action and Command Name,  Up: Top
 
-Invoke `ebzip'
-**************
+Invoking `ebzip'
+****************
 
    Its usual way to invoke `ebzip', `ebunzip' and `ebzipinfo' are as
 follows:
@@ -164,7 +163,7 @@ follows:
      % ebzipinfo BOOK-PATH
 
 BOOK-PATH points to the top directory of a CD-ROM book where the file
-`catalog' or `catalogs' resides.  `ebzip' compresses a book at
+`CATALOG' or `CATALOGS' resides.  `ebzip' compresses a book at
 BOOK-PATH, `ebunzip' uncompresses a book at BOOK-PATH, and `ebzipinfo'
 outputs information about a book at BOOK-PATH.
 
@@ -185,7 +184,7 @@ access identifier.
      ebzip: ebnet is not supported
 
 
-File: ebzip.info,  Node: Compression,  Next: Uncompression,  Prev: Invoke ebzip,  Up: Top
+File: ebzip.info,  Node: Compression,  Next: Uncompression,  Prev: Invoking ebzip,  Up: Top
 
 Compression
 ***********
@@ -299,8 +298,8 @@ same, but the suffix `.ebz' is added to the compressed files under
      /dict/italian/start.ebz
 
 The intermediate directories, `/dict/german', `/dict/french' and
-`/dict/italian', are created by `ebzip' if missing.  `catalog' and
-`catalogs' are simply copied to the output directory.  `ebzip' ignores
+`/dict/italian', are created by `ebzip' if missing.  `CATALOG' and
+`CATALOGS' are simply copied to the output directory.  `ebzip' ignores
 files and directories not supported by EB Library (i.e. not compressed
 or copied to the output directory).
 
@@ -373,8 +372,8 @@ and what their directory names are.
        narrow font characters:
        wide font characters: 0xa321 -- 0xa27e
 
-(*Note Invoke `ebinfo': (ebinfo)Invoke ebinfo, for more details about
-the `ebinfo' command).
+(*Note Invoking `ebinfo': (ebinfo)Invoking ebinfo, for more details
+about the `ebinfo' command).
 In this example, there are three subbooks in the book, and their
 directory names are `english', `french' and `german'.  By the
 following, you can compress `english' and `french':
@@ -390,7 +389,7 @@ Files in the rest subbooks (`german' in this example) are not
 compressed nor copied, so that the compression procedure for the book
 is incompleted at this point.  In order to use the book, you must
 compress the rest subbooks in a further operation, or deletes the rest
-subbooks from a subbook list in the `catalog(s)' file by using the
+subbooks from a subbook list in the `CATALOG(S)' file by using the
 `ebrefile' command (*Note Combination with `ebzip':
 (ebrefile)Combination with ebzip, for more details).  You can compress
 subbooks with different compression levels (e.g. compress `english' and
@@ -738,7 +737,6 @@ long as they are unique.
 
      (*Note Compression::, for more details).
 
-
 
 File: ebzip.info,  Node: Comparision Result,  Next: Compressed File Format,  Prev: Summary of Options,  Up: Top
 
@@ -980,7 +978,7 @@ fields.
 
 `zip mode (4 bits of the most significant bit side)'
      This identifies the compression mode.  In EB Library version
-     4.0, only 1 (0001 in binary digits) can be prescribed as this
+     4.0beta0, only 1 (0001 in binary digits) can be prescribed as this
      version.
 
 `compression level (4 bits of the least-significant-bit side)'
@@ -1017,32 +1015,32 @@ significant byte first.
 
 
 Tag Table:
-Node: Top1060
-Node: Introduction2743
-Node: Action and Command Name4124
-Node: Invoke ebzip5732
-Node: Compression6660
-Node: Compression Example 17263
-Node: Compression Example 28865
-Node: Compression Level10468
-Node: Test11058
-Node: Partial Compression11404
-Node: Overwrite Old Files14263
-Node: Compress Compressed Book15009
-Node: Uncompression15829
-Node: Uncompression Example16267
-Node: Options for Uncompression17825
-Node: Uncompress Compressed Book19006
-Node: Information19736
-Node: Information Example20123
-Node: Options for Information20776
-Node: Delete a Book21319
-Node: Summary of Options21617
-Node: Comparision Result25117
-Node: Compressed File Format27581
-Node: Format Overview28006
-Node: Data Part28862
-Node: Index Part31626
-Node: Header Part33953
+Node: Top1042
+Node: Introduction2737
+Node: Action and Command Name4128
+Node: Invoking ebzip5738
+Node: Compression6672
+Node: Compression Example 17277
+Node: Compression Example 28879
+Node: Compression Level10482
+Node: Test11072
+Node: Partial Compression11418
+Node: Overwrite Old Files14281
+Node: Compress Compressed Book15027
+Node: Uncompression15847
+Node: Uncompression Example16285
+Node: Options for Uncompression17843
+Node: Uncompress Compressed Book19024
+Node: Information19754
+Node: Information Example20141
+Node: Options for Information20794
+Node: Delete a Book21337
+Node: Summary of Options21635
+Node: Comparision Result25134
+Node: Compressed File Format27598
+Node: Format Overview28023
+Node: Data Part28879
+Node: Index Part31643
+Node: Header Part33970
 
 End Tag Table

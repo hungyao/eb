@@ -76,7 +76,6 @@
 /*
  * Unexported functions.
  */
-static int ebnet_parse_booklist_entry EB_P((const char *, char *, char *));
 static int ebnet_send_quit EB_P((int));
 static int ebnet_parse_url EB_P((const char *, char *, in_port_t *, char *,
     char *));
@@ -90,168 +89,8 @@ static int write_string_all EB_P((int, int, const char *));
 void
 ebnet_initialize()
 {
-#ifdef WINSOCK
-    WSADATA wsa_data;
-
-    WSAStartup(MAKEWORD(2, 2), &wsa_data);
-#endif
     ebnet_initialize_multiplex();
     ebnet_set_bye_hook(ebnet_send_quit);
-}
-
-
-/*
- * Get a book list from a server.
- */
-EB_Error_Code
-ebnet_bind_booklist(booklist, url)
-    EB_BookList *booklist;
-    const char *url;
-{
-    EB_Error_Code error_code;
-    char host[NI_MAXHOST];
-    in_port_t port;
-    char book_name[EBNET_MAX_BOOK_NAME_LENGTH + 1];
-    char book_title[EBNET_MAX_BOOK_TITLE_LENGTH + 1];
-    char url_path[EB_MAX_RELATIVE_PATH_LENGTH + 1];
-    Line_Buffer line_buffer;
-    char line[EBNET_MAX_LINE_LENGTH + 1];
-    int ebnet_file = -1;
-    ssize_t read_result;
-    int lost_sync;
-    int retry_count = 0;
-
-    LOG(("in: ebnet_bind_booklist(url=%s)", url));
-
-  retry:
-    lost_sync = 0;
-    initialize_line_buffer(&line_buffer);
-    set_line_buffer_timeout(&line_buffer, EBNET_TIMEOUT_SECONDS);
-
-    /*
-     * Parse URL.
-     */
-    if (ebnet_parse_url(url, host, &port, book_name, url_path) < 0
-	|| *book_name != '\0') {
-	error_code = EB_ERR_BAD_FILE_NAME;
-	goto failed;
-    }
-
-    /*
-     * Establish a connection.
-     */
-    ebnet_file = ebnet_connect_socket(host, port, PF_UNSPEC);
-    if (ebnet_file < 0) {
-	error_code = EB_ERR_EBNET_FAIL_CONNECT;
-	goto failed;
-    }
-
-    /*
-     * Request BOOKLIST.
-     */
-    bind_file_to_line_buffer(&line_buffer, ebnet_file);
-    sprintf(line, "BOOKLIST %s\r\n", book_name);
-    if (write_string_all(ebnet_file, EBNET_TIMEOUT_SECONDS, line) <= 0) {
-	error_code = EB_ERR_EBNET_FAIL_CONNECT;
-	lost_sync = 1;
-	goto failed;
-    }
-    read_result = read_line_buffer(&line_buffer, line, sizeof(line));
-    if (read_result < 0 || read_result == sizeof(line) || *line != '!') {
-	lost_sync = 1;
-	error_code = EB_ERR_EBNET_FAIL_CONNECT;
-	goto failed;
-    }
-    if (strncasecmp(line, "!OK;", 4) != 0) {
-	error_code = EB_ERR_EBNET_FAIL_CONNECT;
-	goto failed;
-    }
-
-    /*
-     * Get a list.
-     */
-    for (;;) {
-	read_result = read_line_buffer(&line_buffer, line, sizeof(line));
-	if (read_result < 0 || read_result == sizeof(line)) {
-	    lost_sync = 1;
-	    error_code = EB_ERR_EBNET_FAIL_CONNECT;
-	    goto failed;
-	}
-	if (*line == '\0')
-	    break;
-	if (ebnet_parse_booklist_entry(line, book_name, book_title) < 0) {
-	    lost_sync = 1;
-	    error_code = EB_ERR_EBNET_FAIL_CONNECT;
-	    goto failed;
-	}
-	error_code = eb_booklist_add_book(booklist, book_name, book_title);
-	if (error_code != EB_SUCCESS)
-	    goto failed;
-    }
-
-    ebnet_disconnect_socket(ebnet_file);
-    finalize_line_buffer(&line_buffer);
-    LOG(("out: ebnet_bind_booklist() = %s", eb_error_string(EB_SUCCESS)));
-    return EB_SUCCESS;
-
-    /*
-     * An error occurs...
-     */
-  failed:
-    finalize_line_buffer(&line_buffer);
-    if (0 <= ebnet_file) {
-	if (lost_sync) {
-	    shutdown(ebnet_file, SHUT_RDWR);
-	    ebnet_set_lost_sync(ebnet_file);
-	}
-	ebnet_disconnect_socket(ebnet_file);
-	ebnet_file = -1;
-	if (lost_sync && retry_count < EBNET_MAX_RETRY_COUNT) {
-	    retry_count++;
-	    goto retry;
-	}
-    }
-    LOG(("out: ebnet_bind_booklist() = %s", eb_error_string(error_code)));
-    return error_code;
-}
-
-
-static int
-ebnet_parse_booklist_entry(line, book_name, book_title)
-    const char *line;
-    char *book_name;
-    char *book_title;
-{
-    const char *space;
-    size_t book_name_length;
-    size_t book_title_length;
-    char *p;
-
-    space = strchr(line, ' ');
-    if (space == NULL)
-	return -1;
-    book_name_length = space - line;
-    book_title_length = strlen(space + 1);
-
-    if (book_name_length == 0
-	|| EBNET_MAX_BOOK_NAME_LENGTH < book_name_length)
-	return -1;
-    if (book_title_length == 0
-	|| EBNET_MAX_BOOK_TITLE_LENGTH < book_title_length)
-	return -1;
-
-    memcpy(book_name, line, book_name_length);
-    *(book_name + book_name_length) = '\0';
-    memcpy(book_title, space + 1, book_title_length);
-    *(book_title + book_title_length) = '\0';
-
-    for (p = book_name; *p != '\0'; p++) {
-	if (!ASCII_ISLOWER(*p) && !ASCII_ISDIGIT(*p)
-	    && *p != '_' && *p != '-' && *p != '.')
-	    return -1;
-    }
-
-    return 0;
 }
 
 
@@ -284,8 +123,7 @@ ebnet_bind(book, url)
     /*
      * Parse URL.
      */
-    if (ebnet_parse_url(url, host, &port, book_name, url_path) < 0
-	|| *book_name == '\0') {
+    if (ebnet_parse_url(url, host, &port, book_name, url_path) < 0) {
 	error_code = EB_ERR_BAD_FILE_NAME;
 	goto failed;
     }
@@ -382,8 +220,7 @@ ebnet_bind_appendix(appendix, url)
     /*
      * Parse URL.
      */
-    if (ebnet_parse_url(url, host, &port, appendix_name, url_path) < 0
-	|| *appendix_name == '\0') {
+    if (ebnet_parse_url(url, host, &port, appendix_name, url_path) < 0) {
 	error_code = EB_ERR_BAD_FILE_NAME;
 	goto failed;
     }
@@ -514,10 +351,8 @@ ebnet_open(url)
     /*
      * Parse URL.
      */
-    if (ebnet_parse_url(url, host, &port, book_name, url_path) < 0
-	|| *book_name == '\0') {
+    if (ebnet_parse_url(url, host, &port, book_name, url_path) < 0)
 	goto failed;
-    }
 
     /*
      * Connect with a server.
@@ -649,7 +484,7 @@ ebnet_lseek(file, offset, whence)
  */
 ssize_t
 ebnet_read(file, buffer, length)
-    int *file;
+    int file;
     char *buffer;
     size_t length;
 {
@@ -664,7 +499,7 @@ ebnet_read(file, buffer, length)
     int lost_sync;
     int retry_count = 0;
 
-    LOG(("in: ebnet_read(*file=%d, length=%ld)", *file, (long)length));
+    LOG(("in: ebnet_read(file=%d, length=%ld)", file, (long)length));
 
     if (length == 0) {
 	LOG(("out: ebnet_read() = %ld", (long)0));
@@ -678,16 +513,16 @@ ebnet_read(file, buffer, length)
     /*
      * Request READ.
      */
-    book_name = ebnet_get_book_name(*file);
-    url_path = ebnet_get_file_path(*file);
-    offset = ebnet_get_offset(*file);
+    book_name = ebnet_get_book_name(file);
+    url_path = ebnet_get_file_path(file);
+    offset = ebnet_get_offset(file);
     if (book_name == NULL || url_path == NULL || offset < 0)
 	goto failed;
 
-    bind_file_to_line_buffer(&line_buffer, *file);
+    bind_file_to_line_buffer(&line_buffer, file);
     sprintf(line, "READ %s /%s %ld %ld\r\n", book_name, url_path,
 	(long)offset, (long)length);
-    if (write_string_all(*file, EBNET_TIMEOUT_SECONDS, line) <= 0) {
+    if (write_string_all(file, EBNET_TIMEOUT_SECONDS, line) <= 0) {
 	lost_sync = 1;
 	goto failed;
     }
@@ -711,7 +546,7 @@ ebnet_read(file, buffer, length)
 	    lost_sync = 1;
 	    goto failed;
 	} else if (strcmp(line + 1, "-1") == 0) {
-	    ebnet_set_offset(*file, offset + received_length);
+	    ebnet_set_offset(file, offset + received_length);
 	    goto failed;
 	} else if (strcmp(line + 1, "0") == 0) {
 	    break;
@@ -731,9 +566,8 @@ ebnet_read(file, buffer, length)
 	received_length += chunk_length;
     }
 
-    ebnet_set_offset(*file, offset + received_length);
+    ebnet_set_offset(file, offset + received_length);
     finalize_line_buffer(&line_buffer);
-    LOG(("out: ebnet_read(*file=%d) = %ld", *file, (long)received_length));
     return received_length;
 
     /*
@@ -742,18 +576,15 @@ ebnet_read(file, buffer, length)
   failed:
     finalize_line_buffer(&line_buffer);
     if (lost_sync) {
-	shutdown(*file, SHUT_RDWR);
-	ebnet_set_lost_sync(*file);
-	if (retry_count < EBNET_MAX_RETRY_COUNT) {
-	    int new_file = ebnet_reconnect_socket(*file);
-	    if (0 <= new_file) {
-		*file = new_file;
-		retry_count++;
-		goto retry;
-	    }
+	shutdown(file, SHUT_RDWR);
+	ebnet_set_lost_sync(file);
+	if (retry_count < EBNET_MAX_RETRY_COUNT
+	    && 0 <= ebnet_reconnect_socket(file)) {
+	    retry_count++;
+	    goto retry;
 	}
     }
-    LOG(("out: ebnet_read(*file=%d) = %ld", *file, (long)-1));
+    LOG(("out: ebnet_read() = %ld", (long)-1));
     return -1;
 }
 
@@ -786,10 +617,8 @@ ebnet_fix_directory_name(url, directory_name)
     /*
      * Parse URL.
      */
-    if (ebnet_parse_url(url, host, &port, book_name, url_path) < 0
-	|| *book_name == '\0') {
+    if (ebnet_parse_url(url, host, &port, book_name, url_path) < 0)
 	goto failed;
-    }
 
     /*
      * Connect with a server.
@@ -878,10 +707,8 @@ ebnet_find_file_name(url, target_file_name, found_file_name)
     /*
      * Parse URL.
      */
-    if (ebnet_parse_url(url, host, &port, book_name, url_path) < 0
-	|| *book_name == '\0') {
+    if (ebnet_parse_url(url, host, &port, book_name, url_path) < 0)
 	goto failed;
-    }
 
     /*
      * Connect with a server.
@@ -967,10 +794,11 @@ ebnet_canonicalize_url(url)
     char book_name[EBNET_MAX_BOOK_NAME_LENGTH + 1];
     char url_path[EB_MAX_RELATIVE_PATH_LENGTH + 1];
 
-    if (ebnet_parse_url(url, host, &port, book_name, url_path) < 0
-	|| *book_name == '\0') {
+    if (ebnet_parse_url(url, host, &port, book_name, url_path) < 0)
 	return EB_ERR_BAD_FILE_NAME;
-    }
+
+    if (*url_path != '\0' && strcmp(url_path, "/") != 0)
+	return EB_ERR_BAD_FILE_NAME;
 
     /*
      * "ebnet://[<host>]:<port>/<book_name>" must not exceed
@@ -1016,6 +844,8 @@ ebnet_parse_url(url, host, port, book_name, file_path)
     const char *slash;
     size_t book_name_length;
 
+    LOG(("in: ebnet_parse_url(url=%s)", url));
+
     *host = '\0';
     *port = 0;
     *book_name = '\0';
@@ -1049,7 +879,7 @@ ebnet_parse_url(url, host, port, book_name, file_path)
 	port_part = EBNET_DEFAULT_PORT;
 
     for (port_part_p = port_part; *port_part_p != '\0'; port_part_p++) {
-	if (!ASCII_ISDIGIT(*port_part_p))
+	if (!isdigit(*port_part_p))
 	    goto failed;
     }
     *port = atoi(port_part);
@@ -1058,32 +888,33 @@ ebnet_parse_url(url, host, port, book_name, file_path)
      * Check path.
      */
     path_part = url_parts_path(&parts);
-    if (path_part == NULL || *path_part == '\0') {
-	*book_name = '\0';
-	*file_path = '\0';
-    } else {
-	slash = strchr(path_part + 1, '/');
-	if (slash == NULL) {
-	    book_name_length = strlen(path_part + 1);
-	    if (EBNET_MAX_BOOK_NAME_LENGTH < book_name_length)
-		goto failed;
-	    strcpy(book_name, path_part + 1);
-	    *file_path = '\0';
-	} else {
-	    book_name_length = slash - (path_part + 1);
-	    if (book_name_length == 0
-		|| EBNET_MAX_BOOK_NAME_LENGTH < book_name_length)
-		goto failed;
-	    memcpy(book_name, path_part + 1, book_name_length);
-	    *(book_name + book_name_length) = '\0';
+    if (path_part == NULL || *path_part == '\0')
+	goto failed;
 
-	    if (EB_MAX_RELATIVE_PATH_LENGTH < strlen(slash + 1))
-		goto failed;
-	    strcpy(file_path, slash + 1);
-	}
+    slash = strchr(path_part + 1, '/');
+    if (slash != NULL) {
+	book_name_length = slash - (path_part + 1);
+	if (book_name_length == 0
+	    || EBNET_MAX_BOOK_NAME_LENGTH < book_name_length)
+	    goto failed;
+	memcpy(book_name, path_part + 1, book_name_length);
+	*(book_name + book_name_length) = '\0';
+
+	if (EB_MAX_RELATIVE_PATH_LENGTH < strlen(slash))
+	    goto failed;
+	strcpy(file_path, slash + 1);
+    } else {
+	book_name_length = strlen(path_part + 1);
+	if (book_name_length == 0
+	    || EBNET_MAX_BOOK_NAME_LENGTH < book_name_length)
+	    goto failed;
+	strcpy(book_name, path_part + 1);
+	*file_path = '\0';
     }
 
     url_parts_finalize(&parts);
+    LOG(("out: ebnet_parse_url(host=%s, port=%d, book=%s, path=%s) = %d",
+	host, *port, book_name, file_path, 0));
     return 0;
 
     /*
@@ -1095,6 +926,7 @@ ebnet_parse_url(url, host, port, book_name, file_path)
     *book_name = '\0';
     *file_path = '\0';
     url_parts_finalize(&parts);
+    LOG(("out: ebnet_parse_url() = %d", -1));
     return -1;
 }
 
@@ -1111,12 +943,12 @@ is_integer(string)
 
     if (*s == '-')
 	s++;
-    if (!ASCII_ISDIGIT(*s))
+    if (!isdigit(*s))
 	return 0;
     s++;
 
     while (*s != '\0') {
-	if (!ASCII_ISDIGIT(*s))
+	if (!isdigit(*s))
 	    return 0;
 	s++;
     }

@@ -25,10 +25,10 @@
 /*
  * Function declarations.
  */
-#ifdef PROTOTYPES
+#ifdef __STDC__
 mode_t get_umask(void);
-#else
+#else /* not __STDC__ */
 mode_t get_umask();
-#endif
+#endif  /* not __STDC__ */
 
 #endif /* not GETUMASK_H */

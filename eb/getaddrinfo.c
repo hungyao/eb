@@ -28,8 +28,8 @@
 
 /*
  * This program provides getaddrinfo() and getnameinfo() described in
- * RFC2133, 2553 and 3493.  These functions are mainly used for IPv6
- * application to resolve hostname or address.
+ * RFC2553.  These functions are mainly used for IPv6 application to
+ * resolve hostname or address.
  * 
  * This program is designed to be working on traditional IPv4 systems
  * which don't have those functions.  Therefore, this implementation
@@ -109,20 +109,20 @@
 
 #ifndef HAVE_MEMCPY
 #define memcpy(d, s, n) bcopy((s), (d), (n))
-#ifdef PROTOTYPES
+#ifdef __STDC__
 void *memchr(const void *, int, size_t);
 int memcmp(const void *, const void *, size_t);
 void *memmove(void *, const void *, size_t);
 void *memset(void *, int, size_t);
-#else
+#else /* not __STDC__ */
 char *memchr();
 int memcmp();
 char *memmove();
 char *memset();
-#endif
-#endif
+#endif /* not __STDC__ */
+#endif /* not HAVE_MEMCPY */
 
-#if !defined(H_ERRNO_DECLARED) && !defined(WINSOCK)
+#ifndef H_ERRNO_DECLARED
 extern int h_errno;
 #endif
 
@@ -198,7 +198,7 @@ static pthread_mutex_t gai_mutex = PTHREAD_MUTEX_INITIALIZER;
 /*
  * Declaration of static functions.
  */
-#ifdef PROTOTYPES
+#ifdef __STDC__
 static int is_integer(const char *);
 static int is_address(const char *);
 static int itoa_length(int);
@@ -491,11 +491,7 @@ getaddrinfo(nodename, servname, hints, res)
     *res = head_res;
 
   end:
-#ifndef WINSOCK
     h_errno = saved_h_errno;
-#else
-    WSASetLastError(saved_h_errno);
-#endif
 #ifdef ENABLE_PTHREAD
     pthread_mutex_unlock(&gai_mutex);
 #endif
@@ -588,11 +584,7 @@ getnameinfo(sa, salen, node, nodelen, serv, servlen, flags)
     }
 
   end:
-#ifndef WINSOCK
     h_errno = saved_h_errno;
-#else
-    WSASetLastError(saved_h_errno);
-#endif
 #ifdef ENABLE_PTHREAD
     pthread_mutex_unlock(&gai_mutex);
 #endif

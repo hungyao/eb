@@ -4,7 +4,7 @@
 @settitle EB Library
 @c %** end of header
 
-@include version-ebzip.texi
+@include ebzip-ver.texi
 
 @dircategory CD-ROM Book Utilities
 @direntry
@@ -191,7 +191,7 @@ CD-ROM 書籍の出版社がハードディスク (および他の補助記憶装置) に書籍を
 @noindent
 @code{ebunzip} という名前で起動された場合は、伸長を行います。
 @code{ebzipinfo} という名前で起動された場合、情報出力を行います。
-それ以外の場合は、圧縮を行います。
+それ以外の場合は、オプションで動作モードを指定しないと圧縮を行います。
 
 コマンドラインオプションでも、動作モードを決定することができます。
 @samp{--compress} (@samp{-z}) で圧縮、@samp{--uncompress} (@samp{-u}) 
@@ -233,7 +233,7 @@ ebzip: ebnet には対応していません。
 
 @noindent
 @var{書籍へのパス} には、CD-ROM 書籍のトップディレクトリ、つまり 
-@file{catalog} または @file{catalogs} ファイルが存在するディレクトリを
+@file{CATALOG} または @file{CATALOGS} ファイルが存在するディレクトリを
 指定します。
 複数のパスを書くことはできませんが、以下のように、パスの指定を省くことは
 できます。
@@ -405,7 +405,7 @@ CD-ROM 書籍がすでに @file{/dict} にコピーされているものの、まだ圧縮
 @noindent
 中間のディレクトリ @file{/dict/german}、@file{/dict/french}、
 @file{/dict/italian} は、もし無ければ @code{ebzip} によって作成されます。
-@file{catalog} と @file{catalogs} は、出力側のディレクトリにコピー
+@file{CATALOG} と @file{CATALOGS} は、出力側のディレクトリにコピー
 されます。
 EB ライブラリが対応していないファイル、ディレクトリについては、
 @code{ebzip} は無視します (圧縮もコピーもしません)。
@@ -516,7 +516,7 @@ EB ライブラリが対応していないファイル、ディレクトリについては、
 されることもありませんので、この時点ではまだこの書籍に対する圧縮の作業は
 完了していません。
 この書籍を使用するためには、さらなる操作を行って残りの副本を圧縮するか、
-@code{ebrefile} コマンドを使って残りの副本を @file{catalog(s)} ファイル
+@code{ebrefile} コマンドを使って残りの副本を @file{CATALOG(S)} ファイル
 の副本登録リストから削除しなくてはなりません (詳しくは
 @pxref{Combination with ebzip, , @code{ebzip} との連携, ebrefile-ja, ebrefile-ja})。
 
@@ -1025,7 +1025,7 @@ CPU の種類、オペレーティングシステム、ファイルシステムに依存しません。
 圧縮ファイルを伸長することによって、元のファイルを復元できます。
 
 @item
-6 つの圧縮レベルがあります。@*
+4 つの圧縮レベルがあります。@*
 伸長の速さか圧縮率の良さの、いずれかを選ぶことができます。
 @end itemize
 
@@ -1070,8 +1070,8 @@ CPU の種類、オペレーティングシステム、ファイルシステムに依存しません。
 @item 1           @tab   4096 バイト
 @item 2           @tab   8192 バイト
 @item 3           @tab  16384 バイト
-@item 4           @tab  32768 バイト
-@item 5           @tab  65536 バイト
+@item 3           @tab  32768 バイト
+@item 3           @tab  65536 バイト
 @end multitable
 
 @noindent

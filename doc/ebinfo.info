@@ -1,5 +1,4 @@
-これは ./ebinfo.info、./ebinfo.texi より makeinfo バージョン 4.5
-によって作成されました。
+This is ebinfo.info, produced by makeinfo version 4.2 from ebinfo.texi.
 
 INFO-DIR-SECTION CD-ROM Book Utilities
 START-INFO-DIR-ENTRY
@@ -28,18 +27,17 @@ translation approved by Free Software Foundation, Inc.
 
 File: ebinfo.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 
-   This is edition 4.0, for EB Library version 4.0.
+   This is edition 4.0beta0, for EB Library version 4.0beta0.
 
 * Menu:
 
 * Introduction::                Introduction.
-* Invoke ebinfo::               Invoke `ebinfo'
+* Invoking ebinfo::             Invoking `ebinfo'
 * Details about Information::   Details about Information
-* Book list on EBNET server::   Book list on an EBNET server
 * Options to ebinfo::           Options to `ebinfo'
 
 
-File: ebinfo.info,  Node: Introduction,  Next: Invoke ebinfo,  Prev: Top,  Up: Top
+File: ebinfo.info,  Node: Introduction,  Next: Invoking ebinfo,  Prev: Top,  Up: Top
 
 Introduction
 ************
@@ -57,22 +55,20 @@ _without any warranty_; without even the implied warranty of
 merchantability or fitness for a particular purpose.  See the GNU
 General Public License for more details.
 
-   This is edition 4.0, for EB Library version 4.0.
+   This is edition 4.0beta0, for EB Library version 4.0beta0.
 
 
-File: ebinfo.info,  Node: Invoke ebinfo,  Next: Details about Information,  Prev: Introduction,  Up: Top
+File: ebinfo.info,  Node: Invoking ebinfo,  Next: Details about Information,  Prev: Introduction,  Up: Top
 
-Invoke `ebinfo'
-***************
+Invoking `ebinfo'
+*****************
 
    Its usual way to invoke `ebinfo' is as follows:
 
      % ebinfo BOOK-PATH
 
 BOOK-PATH points to the top directory of a CD-ROM book where the file
-`catalog' or `catalogs' resides.  It may be a local path (e.g.
-`/mnt/dict') or a remote access identifier (e.g.
-`ebnet://localhost/dict').  Though you cannot specify two or more
+`CATALOG' or `CATALOGS' resides.  Though you cannot specify two or more
 book-paths, you can omit book-path like as follows:
 
      % ebinfo
@@ -125,7 +121,7 @@ like as follows.
            with candidates: no
 
 
-File: ebinfo.info,  Node: Details about Information,  Next: Book list on EBNET server,  Prev: Invoke ebinfo,  Up: Top
+File: ebinfo.info,  Node: Details about Information,  Next: Options to ebinfo,  Prev: Invoking ebinfo,  Up: Top
 
 Details about Information
 *************************
@@ -180,7 +176,6 @@ search methods:
     graphic
           Graphic search.
 
-
 font sizes:
      A list of sizes which of fonts the subook has.  The list consists
      of a part or all of the four items; 16, 24, 30 and 48.
@@ -191,46 +186,8 @@ narrow font characters:
 wide font characters:
      Range of character numbers of a wide font defined in the subbook.
 
-
 
-File: ebinfo.info,  Node: Book list on EBNET server,  Next: Options to ebinfo,  Prev: Details about Information,  Up: Top
-
-Book list on an EBNET server
-****************************
-
-   Instead of usual output, `ebinfo' can output a list of books that an
-EBNET server provides.  Summary of its command line usage is:
-
-     % ebinfo --book-list REMOTE-SERVER-IDENTIFIER
-
-where REMOTE-SERVER-IDENTIFIER must be a remote access identifier
-without book name.  For example,
-
-     % ebinfo --book-list ebnet://dict.example.com
-     Name             Title
-     encycl           Brown Concise Encyclopedia
-     encycl.app       Brown Concise Encyclopedia (appendix)
-     crossword        Crossword Puzzle Dictionary
-     travel           World Travel Guide
-
-An entry whose name ends with `.app' in the list is an appendix, and
-others are books.  Note that EBNET server doesn't show books and
-appendixes not permitted to be accessed from the client.
-
-     % ebinfo ebnet://dict.example.com/cncyclopedia
-     disc type: EB/EBG/EBXA/EBXA-C/S-EBXA
-     character code: ISO 8859-1
-     the number of subbooks: 1
-     subbook 1:
-       title: Brown Concise Encyclopedia
-       directory: brown
-       search methods: word endword keyword multi menu
-       font sizes: 16 24
-       narrow font characters: 0xa121 -- 0xa452
-       wide font characters: 0xa321 -- 0xa452
-
-
-File: ebinfo.info,  Node: Options to ebinfo,  Prev: Book list on EBNET server,  Up: Top
+File: ebinfo.info,  Node: Options to ebinfo,  Prev: Details about Information,  Up: Top
 
 `ebinfo' Options
 ****************
@@ -244,12 +201,6 @@ long as they are unique.
 `--help'
      Output help message to standard out, then exit.
 
-`-l'
-`--book-list'
-     Suppress normal output; instead output a list of books that an
-     EBNET server provides.  BOOK-PATH command line argument must be a
-     remote access identifer.
-
 `-m'
 `--multi-search'
      Also output information about multi search.
@@ -261,11 +212,10 @@ long as they are unique.
 
 
 Tag Table:
-Node: Top1046
-Node: Introduction1454
-Node: Invoke ebinfo2220
-Node: Details about Information4278
-Node: Book list on EBNET server6013
-Node: Options to ebinfo7369
+Node: Top1028
+Node: Introduction1387
+Node: Invoking ebinfo2165
+Node: Details about Information4123
+Node: Options to ebinfo5850
 
 End Tag Table

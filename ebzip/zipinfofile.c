@@ -19,6 +19,17 @@
 #include "yesno.h"
 
 /*
+ * Trick for function protypes.
+ */
+#ifndef EB_P
+#ifdef __STDC__
+#define EB_P(p) p
+#else /* not __STDC__ */
+#define EB_P(p) ()
+#endif /* not __STDC__ */
+#endif /* EB_P */
+
+/*
  * Tricks for gettext.
  */
 #ifdef ENABLE_NLS

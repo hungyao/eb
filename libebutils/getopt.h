@@ -75,7 +75,7 @@ struct option {
 	int val;
 };
 
-#ifdef PROTOTYPES
+#if defined(__STDC__) || defined(__cplusplus)
 int getopt_long (int, char * const *, const char *,
     const struct option *, int *);
 #else

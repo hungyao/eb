@@ -41,24 +41,22 @@
 /*
  * Character type tests and conversions.
  */
-#define ASCII_ISDIGIT(c) ('0' <= (c) && (c) <= '9')
-#define ASCII_ISUPPER(c) ('A' <= (c) && (c) <= 'Z')
-#define ASCII_ISLOWER(c) ('a' <= (c) && (c) <= 'z')
-#define ASCII_ISALPHA(c) \
- (ASCII_ISUPPER(c) || ASCII_ISLOWER(c))
-#define ASCII_ISALNUM(c) \
- (ASCII_ISUPPER(c) || ASCII_ISLOWER(c) || ASCII_ISDIGIT(c))
-#define ASCII_ISXDIGIT(c) \
- (ASCII_ISDIGIT(c) || ('A' <= (c) && (c) <= 'F') || ('a' <= (c) && (c) <= 'f'))
-#define ASCII_TOUPPER(c) (('a' <= (c) && (c) <= 'z') ? (c) - 0x20 : (c))
-#define ASCII_TOLOWER(c) (('A' <= (c) && (c) <= 'Z') ? (c) + 0x20 : (c))
+#define isdigit(c) ('0' <= (c) && (c) <= '9')
+#define isupper(c) ('A' <= (c) && (c) <= 'Z')
+#define islower(c) ('a' <= (c) && (c) <= 'z')
+#define isalpha(c) (isupper(c) || islower(c))
+#define isalnum(c) (isupper(c) || islower(c) || isdigit(c))
+#define isxdigit(c) \
+ (isdigit(c) || ('A' <= (c) && (c) <= 'F') || ('a' <= (c) && (c) <= 'f'))
+#define toupper(c) (('a' <= (c) && (c) <= 'z') ? (c) - 0x20 : (c))
+#define tolower(c) (('A' <= (c) && (c) <= 'Z') ? (c) + 0x20 : (c))
 
 #include "urlparts.h"
 
 /*
  * Unexported functions.
  */
-#ifdef PROTOTYPES
+#ifdef __STDC__
 static void url_parts_canonicalize_path(char *);
 static void url_parts_expand_hex(char *);
 static void url_parts_convert_to_lower(char *);
@@ -305,7 +303,7 @@ url_parts_parse(parts, url)
 	char *p;
 
 	for (p = url_p; *p != ':'; p++) {
-	    if (!ASCII_ISALNUM(*p) && *p != '+' && *p != '.' && *p != '-')
+	    if (!isalnum(*p) && *p != '+' && *p != '.' && *p != '-')
 		break;
 	}
 	if (*p == ':') {
@@ -633,8 +631,7 @@ url_parts_expand_hex(string)
 	 * Unescape it if the character is not unsafe or reserved.
 	 */
 	if (*source == '%'
-	    && ASCII_ISXDIGIT(*(source + 1))
-	    && ASCII_ISXDIGIT(*(source + 2))) {
+	    && isxdigit(*(source + 1)) && isxdigit(*(source + 2))) {
 	    hex1 = *(source + 1);
 	    hex2 = *(source + 2);
 	    c = 0;
@@ -682,7 +679,7 @@ url_parts_convert_to_lower(string)
     char *p;
 
     for (p = string; *p != '\0'; p++) {
-	if (ASCII_ISUPPER(*p))
+	if (isupper(*p))
 	    *p = 'a' + (*p - 'A');
     }
 }

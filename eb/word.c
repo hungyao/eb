@@ -85,6 +85,11 @@ eb_search_word(book, input_word)
     eb_reset_search_contexts(book);
     context = book->search_contexts;
     context->code = EB_SEARCH_WORD;
+    context->compare_pre = eb_match_canonicalized_word;
+    if (book->character_code == EB_CHARCODE_ISO8859_1)
+	context->compare_hit = eb_match_word_latin;
+    else
+	context->compare_hit = eb_match_word_jis;
 
     /*
      * Make a fixed word and a canonicalized word to search from
@@ -133,23 +138,6 @@ eb_search_word(book, input_word)
     default:
 	error_code = EB_ERR_NO_SUCH_SEARCH;
 	goto failed;
-    }
-
-    /*
-     * Choose comparison functions.
-     */
-    if (book->character_code == EB_CHARCODE_ISO8859_1) {
-	context->compare_pre    = eb_pre_match_word;
-	context->compare_single = eb_match_word;
-	context->compare_group  = eb_match_word;
-    } else if (context->page == book->subbook_current->word_kana.start_page) {
-	context->compare_pre    = eb_pre_match_word;
-	context->compare_single = eb_match_word_kana_single;
-	context->compare_group  = eb_match_word_kana_group;
-    } else {
-	context->compare_pre    = eb_pre_match_word;
-	context->compare_single = eb_match_word;
-	context->compare_group  = eb_match_word_kana_group;
     }
 
     /*

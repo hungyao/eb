@@ -86,45 +86,39 @@ static const char * const error_strings[] = {
     "EB_ERR_NO_TEXT",
 
     /* 40 -- 44 */
-    "EB_ERR_NO_STOPCODE",
-    "EB_ERR_NO_ALT",
     "EB_ERR_NO_CUR_SUB",
     "EB_ERR_NO_CUR_APPSUB",
     "EB_ERR_NO_CUR_FONT",
-
-    /* 45 -- 49 */
     "EB_ERR_NO_CUR_BINARY",
     "EB_ERR_NO_SUCH_SUB",
+
+    /* 45 -- 49 */
     "EB_ERR_NO_SUCH_APPSUB",
     "EB_ERR_NO_SUCH_FONT",
     "EB_ERR_NO_SUCH_CHAR_BMP",
-
-    /* 50 -- 54 */
     "EB_ERR_NO_SUCH_CHAR_TEXT",
     "EB_ERR_NO_SUCH_SEARCH",
+
+    /* 50 -- 54 */
     "EB_ERR_NO_SUCH_HOOK",
     "EB_ERR_NO_SUCH_BINARY",
     "EB_ERR_DIFF_CONTENT",
-
-    /* 55 -- 59 */
     "EB_ERR_NO_PREV_SEARCH",
     "EB_ERR_NO_SUCH_MULTI_ID",
+
+    /* 55 -- 59 */
     "EB_ERR_NO_SUCH_ENTRY_ID",
     "EB_ERR_TOO_MANY_WORDS",
     "EB_ERR_NO_WORD",
-
-    /* 60 -- 64 */
     "EB_ERR_NO_CANDIDATES",
     "EB_ERR_END_OF_CONTENT",
+
+    /* 60 -- 64 */
     "EB_ERR_NO_PREV_SEEK",
     "EB_ERR_EBNET_UNSUPPORTED",
     "EB_ERR_EBNET_FAIL_CONNECT",
-
-    /* 65 -- 69 */
     "EB_ERR_EBNET_SERVER_BUSY",
     "EB_ERR_EBNET_NO_PERMISSION",
-    "EB_ERR_UNBOUND_BOOKLIST",
-    "EB_ERR_NO_SUCH_BOOK",
 
     NULL
 };
@@ -208,45 +202,39 @@ static const char * const error_messages[] = {
     N_("no text file"),
 
     /* 40 -- 44 */
-    N_("no stop-code"),
-    N_("no alternation string"),
     N_("no current subbook"),
     N_("no current appendix subbook"),
     N_("no current font"),
-
-    /* 45 -- 49 */
     N_("no current binary"),
     N_("no such subbook"),
+
+    /* 45 -- 49 */
     N_("no such appendix subbook"),
     N_("no such font"),
     N_("no such character bitmap"),
-
-    /* 50 -- 54 */
     N_("no such character text"),
     N_("no such search method"),
+
+    /* 50 -- 54 */
     N_("no such hook"),
     N_("no such binary"),
     N_("different content type"),
-
-    /* 55 -- 59 */
     N_("no previous search"),
     N_("no such multi search"),
+
+    /* 55 -- 59 */
     N_("no such multi search entry"),
     N_("too many words specified"),
     N_("no word specified"),
-
-    /* 60 -- 64 */
     N_("no candidates"),
     N_("end of content"),
+
+    /* 60 -- 64 */
     N_("no previous seek"),
     N_("ebnet is not supported"),
     N_("failed to connect to an ebnet server"),
-
-    /* 65 -- 69 */
     N_("ebnet server is busy"),
     N_("no access permission"),
-    N_("booklist not bound"),
-    N_("no such book"),
 
     NULL
 };

@@ -114,19 +114,11 @@ eb_search_keyword(book, input_words)
 	 */
 	context = book->search_contexts + word_count;
 	context->code = EB_SEARCH_KEYWORD;
-
-	/*
-	 * Choose comparison functions.
-	 */
-	if (book->character_code == EB_CHARCODE_ISO8859_1) {
-	    context->compare_pre    = eb_pre_match_word;
-	    context->compare_single = eb_match_word;
-	    context->compare_group  = eb_match_word;
-	} else {
-	    context->compare_pre    = eb_pre_match_word;
-	    context->compare_single = eb_match_word;
-	    context->compare_group  = eb_match_word_kana_group;
-	}
+	context->compare_pre = eb_exact_match_canonicalized_word;
+	if (book->character_code == EB_CHARCODE_ISO8859_1)
+	    context->compare_hit = eb_exact_match_word_latin;
+	else
+	    context->compare_hit = eb_exact_match_word_jis;
 	context->page = book->subbook_current->keyword.start_page;
 
 	/*

@@ -26,10 +26,8 @@ extern "C" {
 #include <eb/defs.h>
 #endif
 
-#if defined(__STDC__) || defined(__cplusplus) || defined(MSVC)
+#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
 #endif
 
 /*

@@ -19,7 +19,6 @@
  *   AC_TYPE_MODE_T
  *   AC_HEADER_STDC
  *   AC_HEADER_STAT
- *   AC_HEADER_DIRENT
  */
 
 #ifdef HAVE_CONFIG_H
@@ -29,10 +28,6 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#ifdef HAVE_DIRECT_H
-#include <direct.h>
-#endif
 
 #ifdef  STAT_MACROS_BROKEN
 #ifdef  S_ISREG
@@ -66,13 +61,8 @@ make_missing_directory(path, mode)
     if (stat(path, &status) == 0 && S_ISDIR(status.st_mode))
 	return 0;
 
-#ifndef WIN32
     if (mkdir(path, mode) < 0)
 	return -1;
-#else
-    if (mkdir(path) < 0)
-	return -1;
-#endif
 
     return 0;
 }

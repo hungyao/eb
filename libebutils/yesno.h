@@ -23,10 +23,10 @@
 /*
  * Function declarations.
  */
-#ifdef PROTOTYPES
+#ifdef __STDC__
 int query_y_or_n(const char *);
-#else
+#else /* not __STDC__ */
 int query_y_or_n();
-#endif
+#endif  /* not __STDC__ */
 
 #endif /* not YESNO_H */

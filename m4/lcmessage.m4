@@ -8,13 +8,13 @@
 
 # serial 1
 
-AC_DEFUN([AM_LC_MESSAGES],
+AC_DEFUN(AM_LC_MESSAGES,
   [if test $ac_cv_header_locale_h = yes; then
     AC_CACHE_CHECK([for LC_MESSAGES], am_cv_val_LC_MESSAGES,
       [AC_TRY_LINK([#include <locale.h>], [return LC_MESSAGES],
        am_cv_val_LC_MESSAGES=yes, am_cv_val_LC_MESSAGES=no)])
     if test $am_cv_val_LC_MESSAGES = yes; then
       AC_DEFINE(HAVE_LC_MESSAGES, 1,
-	[Define to 1 if you have the `LC_MESSAGES' locale category])
+	[Define if you have the \`LC_MESSAGES' locale category])
     fi
   fi])

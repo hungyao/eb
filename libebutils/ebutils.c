@@ -42,14 +42,14 @@
 #endif /* HAVE_STRCHR */
 
 #ifndef HAVE_STRCASECMP
-#ifdef PROTOTYPES
+#ifdef __STDC__
 int strcasecmp(const char *, const char *);
 int strncasecmp(const char *, const char *, size_t);
-#else
+#else /* not __STDC__ */
 int strcasecmp();
 int strncasecmp();
-#endif
-#endif
+#endif /* not __STDC__ */
+#endif /* not HAVE_STRCASECMP */
 
 /*
  * The maximum length of path name.
@@ -84,24 +84,15 @@ int strncasecmp();
 /*
  * Character type tests and conversions.
  */
-#define ASCII_ISDIGIT(c) ('0' <= (c) && (c) <= '9')
-#define ASCII_ISUPPER(c) ('A' <= (c) && (c) <= 'Z')
-#define ASCII_ISLOWER(c) ('a' <= (c) && (c) <= 'z')
-#define ASCII_ISALPHA(c) \
- (ASCII_ISUPPER(c) || ASCII_ISLOWER(c))
-#define ASCII_ISALNUM(c) \
- (ASCII_ISUPPER(c) || ASCII_ISLOWER(c) || ASCII_ISDIGIT(c))
-#define ASCII_ISXDIGIT(c) \
- (ASCII_ISDIGIT(c) || ('A' <= (c) && (c) <= 'F') || ('a' <= (c) && (c) <= 'f'))
-#define ASCII_TOUPPER(c) (('a' <= (c) && (c) <= 'z') ? (c) - 0x20 : (c))
-#define ASCII_TOLOWER(c) (('A' <= (c) && (c) <= 'Z') ? (c) + 0x20 : (c))
-
-#ifdef WIN32
-/* a path may contain double-byte chars in SJIS. */
-#include <mbstring.h>
-#define strchr	_mbschr
-#define strrchr	_mbsrchr
-#endif
+#define isdigit(c) ('0' <= (c) && (c) <= '9')
+#define isupper(c) ('A' <= (c) && (c) <= 'Z')
+#define islower(c) ('a' <= (c) && (c) <= 'z')
+#define isalpha(c) (isupper(c) || islower(c))
+#define isalnum(c) (isupper(c) || islower(c) || isdigit(c))
+#define isxdigit(c) \
+ (isdigit(c) || ('A' <= (c) && (c) <= 'F') || ('a' <= (c) && (c) <= 'f'))
+#define toupper(c) (('a' <= (c) && (c) <= 'z') ? (c) - 0x20 : (c))
+#define tolower(c) (('A' <= (c) && (c) <= 'Z') ? (c) + 0x20 : (c))
 
 /*
  * Output ``try ...'' message to standard error.
@@ -164,7 +155,7 @@ parse_subbook_name_argument(invoked_name, argument, name_list, name_count)
 	name_p = name;
 	while (*argument_p != ',' && *argument_p != '\0'
 	    && i < EB_MAX_DIRECTORY_NAME_LENGTH) {
-		*name_p = ASCII_TOLOWER(*argument_p);
+		*name_p = tolower(*argument_p);
 	    i++;
 	    name_p++;
 	    argument_p++;
@@ -287,7 +278,7 @@ canonicalize_path(path)
     /*
      * Eliminate `\' in the tail of the path.
      */
-    if (ASCII_ISALPHA(*path) && *(path + 1) == ':') {
+    if (isalpha(*path) && *(path + 1) == ':') {
 	if (last_backslash != path + 2)
 	    *last_backslash = '\0';
     } else if (*path == '\\' && *(path + 1) == '\\') {

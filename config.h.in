@@ -8,6 +8,9 @@
 /* Define to 1 if using `alloca.c'. */
 #undef C_ALLOCA
 
+/* Define if EB Library is built with pthread support. */
+#undef EBCONF_ENABLE_PTHREAD
+
 /* Define if build with ebnet support */
 #undef ENABLE_EBNET
 
@@ -46,9 +49,6 @@
 /* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
 #undef HAVE_DOPRNT
 
-/* Define to 1 if you have the `dup2' function. */
-#undef HAVE_DUP2
-
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
@@ -67,32 +67,14 @@
 /* Define to 1 if you have the `getpagesize' function. */
 #undef HAVE_GETPAGESIZE
 
-/* Define to 1 if you have the <iconv.h> header file. */
-#undef HAVE_ICONV_H
-
-/* Define to 1 if you have the `iconv_open' function. */
-#undef HAVE_ICONV_OPEN
-
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define to 1 if you have the <langinfo.h> header file. */
-#undef HAVE_LANGINFO_H
-
-/* Define to 1 if you have the `LC_MESSAGES' locale category */
+/* Define if you have the \`LC_MESSAGES' locale category */
 #undef HAVE_LC_MESSAGES
 
 /* Define to 1 if you have the `bind' library (-lbind). */
 #undef HAVE_LIBBIND
-
-/* Define to 1 if you have the <libcharset.h> header file. */
-#undef HAVE_LIBCHARSET_H
-
-/* Define to 1 if you have the `iconv' library (-liconv). */
-#undef HAVE_LIBICONV
-
-/* Define to 1 if you have the `libiconv_open' function. */
-#undef HAVE_LIBICONV_OPEN
 
 /* Define to 1 if you have the `nsl' library (-lnsl). */
 #undef HAVE_LIBNSL
@@ -105,9 +87,6 @@
 
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
-
-/* Define to 1 if you have the `locale_charset' function. */
-#undef HAVE_LOCALE_CHARSET
 
 /* Define to 1 if you have the <locale.h> header file. */
 #undef HAVE_LOCALE_H
@@ -135,9 +114,6 @@
 
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
-
-/* Define to 1 if you have the `nl_langinfo' function. */
-#undef HAVE_NL_LANGINFO
 
 /* Define to 1 if you have the <nl_types.h> header file. */
 #undef HAVE_NL_TYPES_H
@@ -181,17 +157,23 @@
 /* Define to 1 if you have the `strtol' function. */
 #undef HAVE_STRTOL
 
-/* Define to 1 if <netinet/in.h> defines `struct in6_addr' */
+/* Define if <netinet/in.h> defines \`struct in6_addr' */
 #undef HAVE_STRUCT_IN6_ADDR
 
-/* Define to 1 if <netinet/in.h> defines `struct sockaddr_in6' */
+/* Define if <netinet/in.h> defines \`struct sockaddr_in6' */
 #undef HAVE_STRUCT_SOCKADDR_IN6
 
-/* Define to 1 if <netinet/in.h> defines `struct sockaddr_storage' */
+/* Define if <netinet/in.h> defines \`struct sockaddr_storage' */
 #undef HAVE_STRUCT_SOCKADDR_STORAGE
 
-/* Define to 1 if `struct utimbuf' is declared -- usually in <utime.h>. */
+/* Define if \`struct utimbuf' is declared -- usually in <utime.h>. */
 #undef HAVE_STRUCT_UTIMBUF
+
+/* Define to 1 if you have the `syslog' function. */
+#undef HAVE_SYSLOG
+
+/* Define to 1 if you have the <syslog.h> header file. */
+#undef HAVE_SYSLOG_H
 
 /* Define to 1 if you have the <sys/dir.h> header file, and it defines `DIR'.
    */
@@ -225,6 +207,9 @@
 /* Define to 1 if you have the `vprintf' function. */
 #undef HAVE_VPRINTF
 
+/* Define to 1 if you have the `vsyslog' function. */
+#undef HAVE_VSYSLOG
+
 /* Define to 1 if you have the `_getdcwd' function. */
 #undef HAVE__GETDCWD
 
@@ -237,10 +222,10 @@
 /* Define to 1 if you have the `__argz_stringify' function. */
 #undef HAVE___ARGZ_STRINGIFY
 
-/* Define to 1 if `in6addr_any' is declared by <netinet/in.h> */
+/* Define if \`in6addr_any' is declared by <netinet/in.h> */
 #undef IN6ADDR_ANY_DECLARED
 
-/* Define to 1 if `in6addr_loopback' is declared by <netinet/in.h> */
+/* Define if \`in6addr_loopback' is declared by <netinet/in.h> */
 #undef IN6ADDR_LOOPBACK_DECLARED
 
 /* Mailing address */
@@ -264,9 +249,6 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Define to 1 if the C compiler supports function prototypes. */
-#undef PROTOTYPES
-
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE
 
@@ -276,9 +258,9 @@
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
    automatically deduced at run-time.
-	STACK_DIRECTION > 0 => grows toward higher addresses
-	STACK_DIRECTION < 0 => grows toward lower addresses
-	STACK_DIRECTION = 0 => direction of growth unknown */
+        STACK_DIRECTION > 0 => grows toward higher addresses
+        STACK_DIRECTION < 0 => grows toward lower addresses
+        STACK_DIRECTION = 0 => direction of growth unknown */
 #undef STACK_DIRECTION
 
 /* Define to 1 if the `S_IS*' macros in <sys/stat.h> do not work properly. */
@@ -293,27 +275,15 @@
 /* Version number of package */
 #undef VERSION
 
-/* Define to `void' if the C compiler supports (void *). Define to `char'
-   otherwise. */
-#undef VOID
-
-/* Define like PROTOTYPES; this can be used by system headers. */
-#undef __PROTOTYPES
-
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
 
-/* Define to `unsigned char', `unsigned short', `unsigned int' or `unsigned
-   long' according with size of `sin_port' in `struct sockaddr_in', if
-   <sys/types.h>, <sys/socket.h> or <netinet/in.h> does not define
-   `in_port_t'. */
+/* Define to \`int' if <sys/types.h> or <sys/socket.h> does not define. */
 #undef in_port_t
 
-/* Define to `__inline__' or `__inline' if that's what the C compiler
-   calls it, or to nothing if 'inline' is not supported under any name.  */
-#ifndef __cplusplus
+/* Define as `__inline' if that's what the C compiler calls it, or to nothing
+   if it is not supported. */
 #undef inline
-#endif
 
 /* Define to `int' if <sys/types.h> does not define. */
 #undef mode_t
@@ -321,15 +291,13 @@
 /* Define to `long' if <sys/types.h> does not define. */
 #undef off_t
 
-/* Define to `unsigned char', `unsigned short', `unsigned int' or `unsigned
-   long' according with size of `sa_family' in `struct sockaddr', if
-   <sys/types.h> or <sys/socket.h> does not define `sa_family_t'. */
+/* Define to \`int' if <sys/types.h> or <sys/socket.h> does not define. */
 #undef sa_family_t
 
 /* Define to `unsigned' if <sys/types.h> does not define. */
 #undef size_t
 
-/* Define to `int' if <sys/types.h> or <sys/socket.h> does not define. */
+/* Define to \`int' if <sys/types.h> or <sys/socket.h> does not define. */
 #undef socklen_t
 
 /* Define to `int' if <sys/types.h> does not define. */

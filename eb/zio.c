@@ -64,17 +64,17 @@
  */
 #ifndef HAVE_MEMCPY
 #define memcpy(d, s, n) bcopy((s), (d), (n))
-#ifdef PROTOTYPES
+#ifdef __STDC__
 void *memchr(const void *, int, size_t);
 int memcmp(const void *, const void *, size_t);
 void *memmove(void *, const void *, size_t);
 void *memset(void *, int, size_t);
-#else
+#else /* not __STDC__ */
 char *memchr();
 int memcmp();
 char *memmove();
 char *memset();
-#endif
+#endif /* not __STDC__ */
 #endif
 
 /*
@@ -108,7 +108,7 @@ char *memset();
  * Generic pointer type.
  */
 #ifndef VOID
-#if defined(__STDC__) || defined(__cplusplus)
+#ifdef __STDC__
 #define VOID void
 #else
 #define VOID char
@@ -154,13 +154,7 @@ extern void eb_log ZIO_P((const char *, ...));
 /*
  * Test whether the path is URL with the `ebnet' scheme.
  */
-#define is_ebnet_url(p) \
-	(   ((p)[0] == 'E' || (p)[0] == 'e') \
-	 && ((p)[1] == 'B' || (p)[1] == 'b') \
-	 && ((p)[2] == 'N' || (p)[2] == 'n') \
-	 && ((p)[3] == 'E' || (p)[3] == 'e') \
-	 && ((p)[4] == 'T' || (p)[4] == 't') \
-	 && (p)[5] == ':' && (p)[6] == '/' && (p)[7] == '/')
+#define is_ebnet_url(path) (strncasecmp((path), "ebnet://", 8) == 0)
 
 /*
  * Size of a page (The term `page' means `block' in JIS X 4081).
@@ -2151,7 +2145,7 @@ zio_read_raw(zio, buffer, length)
 	 * Read from a remote server.
 	 */
 #ifdef ENABLE_EBNET
-	result = ebnet_read(&zio->file, buffer, length);
+	result = ebnet_read(zio->file, buffer, length);
 #else
 	result = -1;
 #endif

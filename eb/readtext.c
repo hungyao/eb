@@ -1398,8 +1398,7 @@ text_max_length=%ld, forward=%d)",
     }
 
     LOG(("out: eb_read_text_internal(text_length=%ld) = %s",
-	(text_length == NULL) ? 0L : (long)*text_length,
-	eb_error_string(EB_SUCCESS)));
+	(long)*text_length, eb_error_string(EB_SUCCESS)));
     pthread_mutex_unlock(&cache_mutex);
 
     return EB_SUCCESS;

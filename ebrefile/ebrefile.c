@@ -59,17 +59,17 @@
 
 #ifndef HAVE_MEMCPY
 #define memcpy(d, s, n) bcopy((s), (d), (n))
-#ifdef PROTOTYPES
+#ifdef __STDC__
 void *memchr(const void *, int, size_t);
 int memcmp(const void *, const void *, size_t);
 void *memmove(void *, const void *, size_t);
 void *memset(void *, int, size_t);
-#else
+#else /* not __STDC__ */
 char *memchr();
 int memcmp();
 char *memmove();
 char *memset();
-#endif
+#endif /* not __STDC__ */
 #endif
 
 #ifndef HAVE_STRCHR
@@ -78,14 +78,14 @@ char *memset();
 #endif /* HAVE_STRCHR */
 
 #ifndef HAVE_STRCASECMP
-#ifdef PROTOTYPES
+#ifdef __STDC__
 int strcasecmp(const char *, const char *);
 int strncasecmp(const char *, const char *, size_t);
-#else
+#else /* not __STDC__ */
 int strcasecmp()
 int strncasecmp();
-#endif
-#endif
+#endif /* not __STDC__ */
+#endif /* not HAVE_STRCASECMP */
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -146,12 +146,12 @@ int strncasecmp();
  * Trick for function protypes.
  */
 #ifndef EB_P
-#ifdef PROTOTYPES
+#ifdef __STDC__
 #define EB_P(p) p
-#else
-#define EB_P(p)
-#endif
-#endif
+#else /* not __STDC__ */
+#define EB_P(p) ()
+#endif /* not __STDC__ */
+#endif /* EB_P */
 
 /*
  * Tricks for gettext.
@@ -170,6 +170,19 @@ int strncasecmp();
 
 #define DEFAULT_BOOK_DIRECTORY		"."
 #define DEFAULT_OUTPUT_DIRECTORY	"."
+
+/*
+ * Character type tests and conversions.
+ */
+#define isdigit(c) ('0' <= (c) && (c) <= '9')
+#define isupper(c) ('A' <= (c) && (c) <= 'Z')
+#define islower(c) ('a' <= (c) && (c) <= 'z')
+#define isalpha(c) (isupper(c) || islower(c))
+#define isalnum(c) (isupper(c) || islower(c) || isdigit(c))
+#define isxdigit(c) \
+ (isdigit(c) || ('A' <= (c) && (c) <= 'F') || ('a' <= (c) && (c) <= 'f'))
+#define toupper(c) (('a' <= (c) && (c) <= 'z') ? (c) - 0x20 : (c))
+#define tolower(c) (('A' <= (c) && (c) <= 'Z') ? (c) + 0x20 : (c))
 
 /*
  * Unexported functions.

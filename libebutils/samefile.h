@@ -23,10 +23,10 @@
 /*
  * Function declarations.
  */
-#ifdef PROTOTYPES
+#ifdef __STDC__
 int is_same_file(const char *, const char *);
-#else
+#else /* not __STDC__ */
 int is_same_file();
-#endif
+#endif  /* not __STDC__ */
 
 #endif /* not SAMEFILE_H */

@@ -250,10 +250,6 @@ static const char * const misleaded_book_table[] = {
 
     /* Nichi-Ei-Futsu Jiten (YRRS-059) */
     "#E#N#G!?#J#A#N!J!\\#F#R#E!K",
-
-    /* Japanese-English-Spanish Jiten (YRRS-060) */
-    "#E#N#G!?#J#A#N!J!\\#S#P#A!K",
-
     NULL
 };
 
