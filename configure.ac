@@ -1,15 +1,14 @@
 dnl *
 dnl * Process this file with autoconf to produce a configure script.
 dnl *
-AC_INIT
-AC_CONFIG_SRCDIR(eb/eb.c)
-AC_PREREQ(2.52)
-AM_INIT_AUTOMAKE(eb, 3.1)
+AC_INIT(eb/eb.c)
+AC_PREREQ(2.49)
+AM_INIT_AUTOMAKE(eb, 3.1beta0)
 
 dnl *
 dnl * Library version info.
 dnl *
-LIBEB_VERSION_INFO=5:0:0
+LIBEB_VERSION_INFO=4:2:0
 AC_SUBST(LIBEB_VERSION_INFO)
 
 dnl *
@@ -40,25 +39,10 @@ dnl *
 eb_GNU_GETTEXT
 
 dnl *
-dnl * --enable-debug option.
-dnl *
-AC_ARG_ENABLE(debug,
-AC_HELP_STRING([--enable-debug], [enable debug code [[no]]]),
-[case "${enableval}" in
-   yes) ENABLE_DEBUG=yes  ;;
-   no)  ENABLE_DEBUG=no ;;
-   *)   AC_MSG_ERROR(invalid argument to --enable-debug) ;;
-esac], ENABLE_DEBUG=no)
-
-if test $ENABLE_DEBUG = yes ; then
-    AC_DEFINE(ENABLE_DEBUG, 1, [Define if enabling debug codes.])
-fi
-
-dnl *
 dnl * --enable-pthread option.
 dnl *
 AC_ARG_ENABLE(pthread,
-AC_HELP_STRING([--enable-pthread], [build pthread safe libraries [[no]]]),
+[  --enable-pthread       build pthread safe libraries [[no]]],
 [case "${enableval}" in
    yes) ENABLE_PTHREAD=yes  ;;
    no)  ENABLE_PTHREAD=no ;;
@@ -69,24 +53,24 @@ dnl *
 dnl * --with-pthread-cppflags option.
 dnl *
 AC_ARG_WITH(pthread-cppflags,
-AC_HELP_STRING([--with-pthread-cppflags=FLAGS],
-    [additional CPPFLAGS for pthread support]),
+[  --with-pthread-cppflags=FLAGS
+                          additional CPPFLAGS for pthread support],
 [PTHREAD_CPPFLAGS="${withval}"], [PTHREAD_CPPFLAGS=''])
 
 dnl *
 dnl * --with-pthread-cflags option.
 dnl *
 AC_ARG_WITH(pthread-cflags,
-AC_HELP_STRING([--with-pthread-cflags=FLAGS], 
-    [additional CFLAGS for pthread support]),
+[  --with-pthread-cflags=FLAGS
+                          additional CFLAGS for pthread support],
 [PTHREAD_CFLAGS="${withval}"], [PTHREAD_CFLAGS=''])
 
 dnl *
 dnl * --with-pthread-ldflags option.
 dnl *
 AC_ARG_WITH(pthread-ldflags,
-AC_HELP_STRING([--with-pthread-ldflags=FLAGS],
-    [additional LDFLAGS for pthread support]),
+[  --with-pthread-ldflags=FLAGS
+                          additional LDFLAGS for pthread support],
 [PTHREAD_LDFLAGS="${withval}"], [PTHREAD_LDFLAGS=''])
 
 dnl *
@@ -131,7 +115,7 @@ dnl *
 dnl * --with-included-zlib option.
 dnl *
 AC_ARG_WITH(included-zlib,
-AC_HELP_STRING([--with-included-zlib], [use zlib included here]),
+[  --with-included-zlib    use zlib included here],
 [case "${withval}" in
    yes|no) included_zlib=${withval} ;;
    *)   AC_MSG_ERROR(invalid argument to --with-included-zlib) ;;
@@ -141,7 +125,8 @@ dnl *
 dnl * --with-zlib-includes option.
 dnl *
 AC_ARG_WITH(zlib-includes,
-AC_HELP_STRING([--with-zlib-includes=DIR], [zlib include files are in DIR]),
+[  --with-zlib-includes=DIR
+                          zlib include files are in DIR],
 [z_includedir="${withval}"], [z_includedir=''])
 
 if test "X$z_includedir" != X ; then
@@ -154,7 +139,8 @@ dnl *
 dnl * --with-zlib-libraries option.
 dnl *
 AC_ARG_WITH(zlib-libraries,
-AC_HELP_STRING([--with-zlib-libraries=DIR], [zlib library files are in DIR]),
+[  --with-zlib-libraries=DIR
+                          zlib library files are in DIR],
 [z_libdir="${withval}"], [z_libdir=''])
 
 if test "X$z_libdir" != X ; then
@@ -218,8 +204,8 @@ AC_HEADER_STDC
 AC_HEADER_STAT
 AC_HEADER_TIME
 AC_HEADER_DIRENT
-AC_CHECK_HEADERS(direct.h fcntl.h limits.h memory.h pthread.h stdlib.h \
-	string.h syslog.h unistd.h utime.h sys/utime.h)
+AC_CHECK_HEADERS(direct.h fcntl.h limits.h memory.h stdlib.h string.h \
+	syslog.h unistd.h utime.h)
 
 dnl * 
 dnl * Structures.
@@ -290,8 +276,7 @@ dnl *
 dnl * Output Files.
 dnl * 
 AM_CONFIG_HEADER(config.h)
-AC_CONFIG_FILES([Makefile eb/Makefile libebutils/Makefile ebappendix/Makefile
-    ebfont/Makefile ebinfo/Makefile ebrefile/Makefile ebzip/Makefile
-    doc/Makefile doc-ja/Makefile po-eb/Makefile po-ebutils/Makefile
-    m4/Makefile])
-AC_OUTPUT
+AC_OUTPUT(Makefile eb/Makefile libebutils/Makefile ebappendix/Makefile \
+	ebfont/Makefile ebinfo/Makefile ebrefile/Makefile ebzip/Makefile \
+	doc/Makefile doc-ja/Makefile po-eb/Makefile po-ebutils/Makefile \
+	m4/Makefile)

@@ -13,10 +13,12 @@
  * GNU General Public License for more details.
  */
 
-#include "build-pre.h"
+#include "ebconfig.h"
+
 #include "eb.h"
 #include "error.h"
-#include "build-post.h"
+#include "internal.h"
+
 
 /*
  * Examine whether the current subbook in `book' supports `ENDWORD SEARCH'
@@ -26,8 +28,10 @@ int
 eb_have_endword_search(book)
     EB_Book *book;
 {
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_have_endword_search(book=%d)", (int)book->code));
 
     /*
      * Current subbook must have been set.
@@ -43,7 +47,9 @@ eb_have_endword_search(book)
 	&& book->subbook_current->endword_kana.start_page == 0)
 	goto failed;
 
-    LOG(("out: eb_have_endword_search() = %d", 1));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
 
     return 1;
@@ -52,7 +58,6 @@ eb_have_endword_search(book)
      * An error occurs...
      */
   failed:
-    LOG(("out: eb_have_endword_search() = %d", 0));
     eb_unlock(&book->lock);
     return 0;
 }
@@ -70,9 +75,10 @@ eb_search_endword(book, input_word)
     EB_Word_Code word_code;
     EB_Search_Context *context;
 
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_search_endword(book=%d, input_word=%s)", (int)book->code,
-	eb_quoted_string(input_word)));
 
     /*
      * Current subbook must have been set.
@@ -85,7 +91,6 @@ eb_search_endword(book, input_word)
     /*
      * Initialize search context.
      */
-    eb_reset_search_contexts(book);
     context = book->search_contexts;
     context->code = EB_SEARCH_ENDWORD;
     context->compare_pre = eb_match_canonicalized_word;
@@ -150,7 +155,9 @@ eb_search_endword(book, input_word)
     if (error_code != EB_SUCCESS)
 	goto failed;
 
-    LOG(("out: eb_search_endword() = %s", eb_error_string(EB_SUCCESS)));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
 
     return EB_SUCCESS;
@@ -159,8 +166,7 @@ eb_search_endword(book, input_word)
      * An error occurs...
      */
   failed:
-    eb_reset_search_contexts(book);
-    LOG(("out: eb_search_endword() = %s", eb_error_string(error_code)));
+    book->search_contexts->code = EB_SEARCH_NONE;
     eb_unlock(&book->lock);
     return error_code;
 }

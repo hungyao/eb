@@ -32,8 +32,7 @@ dnl *
 dnl * --with-eb-conf option.
 dnl *
 AC_ARG_WITH(eb-conf,
-AC_HELP_STRING([--with-eb-conf=FILE],
-    [eb.conf file is FILE [[SYSCONFDIR/eb.conf]]]),
+[  --with-eb-conf=FILE     eb.conf file is FILE [[default=SYSCONFDIR/eb.conf]]],
 [ebconf="${withval}"], [ebconf=$sysconfdir/eb.conf])
 if test X$prefix = XNONE ; then
    PREFIX=$ac_default_prefix

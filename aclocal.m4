@@ -1,6 +1,6 @@
-# ./aclocal.m4 generated automatically by aclocal 1.5
+# ./aclocal.m4 generated automatically by aclocal 1.4h
 
-# Copyright 1996, 1997, 1998, 1999, 2000, 2001
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
 # Free Software Foundation, Inc.
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -65,15 +65,6 @@ AC_DEFINE_UNQUOTED(VERSION, "$VERSION", [Version number of package])])
 ifdef([m4_pattern_allow],
       [m4_pattern_allow([^AM_[A-Z]+FLAGS])])dnl
 
-# Autoconf 2.50 always computes EXEEXT.  However we need to be
-# compatible with 2.13, for now.  So we always define EXEEXT, but we
-# don't compute it.
-AC_SUBST(EXEEXT)
-# Similar for OBJEXT -- only we only use OBJEXT if the user actually
-# requests that it be used.  This is a bit dumb.
-: ${OBJEXT=o}
-AC_SUBST(OBJEXT)
-
 # Some tools Automake needs.
 AC_REQUIRE([AM_SANITY_CHECK])dnl
 AC_REQUIRE([AC_ARG_PROGRAM])dnl
@@ -83,7 +74,7 @@ AM_MISSING_PROG(AUTOMAKE, automake)
 AM_MISSING_PROG(AUTOHEADER, autoheader)
 AM_MISSING_PROG(MAKEINFO, makeinfo)
 AM_MISSING_PROG(AMTAR, tar)
-AM_PROG_INSTALL_SH
+AM_MISSING_INSTALL_SH
 AM_PROG_INSTALL_STRIP
 # We need awk for the "check" target.  The system "awk" is bad on
 # some platforms.
@@ -92,13 +83,13 @@ AC_REQUIRE([AC_PROG_MAKE_SET])dnl
 AC_REQUIRE([AM_DEP_TRACK])dnl
 AC_REQUIRE([AM_SET_DEPDIR])dnl
 AC_PROVIDE_IFELSE([AC_PROG_][CC],
-                  [_AM_DEPENDENCIES(CC)],
+                  [AM_DEPENDENCIES(CC)],
                   [define([AC_PROG_][CC],
-                          defn([AC_PROG_][CC])[_AM_DEPENDENCIES(CC)])])dnl
+                          defn([AC_PROG_][CC])[AM_DEPENDENCIES(CC)])])dnl
 AC_PROVIDE_IFELSE([AC_PROG_][CXX],
-                  [_AM_DEPENDENCIES(CXX)],
+                  [AM_DEPENDENCIES(CXX)],
                   [define([AC_PROG_][CXX],
-                          defn([AC_PROG_][CXX])[_AM_DEPENDENCIES(CXX)])])dnl
+                          defn([AC_PROG_][CXX])[AM_DEPENDENCIES(CXX)])])dnl
 ])
 
 #
@@ -159,13 +150,32 @@ $1=${$1-"${am_missing_run}$2"}
 AC_SUBST($1)])
 
 
+# AM_MISSING_INSTALL_SH
+# ---------------------
+# Like AM_MISSING_PROG, but only looks for install-sh.
+AC_DEFUN([AM_MISSING_INSTALL_SH],
+[AC_REQUIRE([AM_MISSING_HAS_RUN])
+if test -z "$install_sh"; then
+   for install_sh in "$ac_aux_dir/install-sh" \
+                     "$ac_aux_dir/install.sh" \
+                     "${am_missing_run}${ac_auxdir}/install-sh";
+   do
+     test -f "$install_sh" && break
+   done
+   # FIXME: an evil hack: we remove the SHELL invocation from
+   # install_sh because automake adds it back in.  Sigh.
+   install_sh=`echo $install_sh | sed -e 's/\${SHELL}//'`
+fi
+AC_SUBST(install_sh)])
+
+
 # AM_MISSING_HAS_RUN
 # ------------------
 # Define MISSING if not defined so far and test if it supports --run.
 # If it does, set am_missing_run to use it, otherwise, to nothing.
 AC_DEFUN([AM_MISSING_HAS_RUN],
-[AC_REQUIRE([AM_AUX_DIR_EXPAND])dnl
-test x"${MISSING+set}" = xset || MISSING="\${SHELL} $am_aux_dir/missing"
+[test x"${MISSING+set}" = xset ||
+  MISSING="\${SHELL} `CDPATH=:; cd $ac_aux_dir && pwd`/missing"
 # Use eval to expand $SHELL
 if eval "$MISSING --run true"; then
   am_missing_run="$MISSING --run "
@@ -179,55 +189,26 @@ fi
 # AM_AUX_DIR_EXPAND
 
 # For projects using AC_CONFIG_AUX_DIR([foo]), Autoconf sets
-# $ac_aux_dir to `$srcdir/foo'.  In other projects, it is set to
-# `$srcdir', `$srcdir/..', or `$srcdir/../..'.
+# $ac_aux_dir to ${srcdir}/foo.  In other projects, it is set to `.'.
+# Of course, Automake must honor this variable whenever it call a tool
+# from the auxiliary directory.  The problem is that $srcdir (hence
+# $ac_aux_dir) can be either an absolute path or a path relative to
+# $top_srcdir or absolute, this depends on how configure is run.  This
+# is pretty anoying since it makes $ac_aux_dir quite unusable in
+# subdirectories: on the top source directory, any form will work
+# fine, but in subdirectories relative pat needs to be adapted.
+# - calling $top_srcidr/$ac_aux_dir/missing would success if $srcdir is
+#   relative, but fail if $srcdir is absolute
+# - conversly, calling $ax_aux_dir/missing would fail if $srcdir is
+#   absolute, and success on relative paths.
 #
-# Of course, Automake must honor this variable whenever it calls a
-# tool from the auxiliary directory.  The problem is that $srcdir (and
-# therefore $ac_aux_dir as well) can be either absolute or relative,
-# depending on how configure is run.  This is pretty annoying, since
-# it makes $ac_aux_dir quite unusable in subdirectories: in the top
-# source directory, any form will work fine, but in subdirectories a
-# relative path needs to be adjusted first.
-#
-# $ac_aux_dir/missing
-#    fails when called from a subdirectory if $ac_aux_dir is relative
-# $top_srcdir/$ac_aux_dir/missing
-#    fails if $ac_aux_dir is absolute,
-#    fails when called from a subdirectory in a VPATH build with
-#          a relative $ac_aux_dir
-#
-# The reason of the latter failure is that $top_srcdir and $ac_aux_dir
-# are both prefixed by $srcdir.  In an in-source build this is usually
-# harmless because $srcdir is `.', but things will broke when you
-# start a VPATH build or use an absolute $srcdir.
-#
-# So we could use something similar to $top_srcdir/$ac_aux_dir/missing,
-# iff we strip the leading $srcdir from $ac_aux_dir.  That would be:
-#   am_aux_dir='\$(top_srcdir)/'`expr "$ac_aux_dir" : "$srcdir//*\(.*\)"`
-# and then we would define $MISSING as
-#   MISSING="\${SHELL} $am_aux_dir/missing"
-# This will work as long as MISSING is not called from configure, because
-# unfortunately $(top_srcdir) has no meaning in configure.
-# However there are other variables, like CC, which are often used in
-# configure, and could therefore not use this "fixed" $ac_aux_dir.
-#
-# Another solution, used here, is to always expand $ac_aux_dir to an
-# absolute PATH.  The drawback is that using absolute paths prevent a
-# configured tree to be moved without reconfiguration.
+# Consequently, we define and use $am_aux_dir, the "always absolute"
+# version of $ac_aux_dir.
 
 AC_DEFUN([AM_AUX_DIR_EXPAND], [
 # expand $ac_aux_dir to an absolute path
 am_aux_dir=`CDPATH=:; cd $ac_aux_dir && pwd`
 ])
-
-# AM_PROG_INSTALL_SH
-# ------------------
-# Define $install_sh.
-AC_DEFUN([AM_PROG_INSTALL_SH],
-[AC_REQUIRE([AM_AUX_DIR_EXPAND])dnl
-install_sh=${install_sh-"$am_aux_dir/install-sh"}
-AC_SUBST(install_sh)])
 
 # One issue with vendor `install' (even GNU) is that you can't
 # specify the program used to strip binaries.  This is especially
@@ -237,13 +218,12 @@ AC_SUBST(install_sh)])
 # always use install-sh in `make install-strip', and initialize
 # STRIPPROG with the value of the STRIP variable (set by the user).
 AC_DEFUN([AM_PROG_INSTALL_STRIP],
-[AC_REQUIRE([AM_PROG_INSTALL_SH])dnl
-INSTALL_STRIP_PROGRAM="\${SHELL} \$(install_sh) -c -s"
+[AC_REQUIRE([AM_MISSING_INSTALL_SH])dnl
+_am_dirpart="`echo $install_sh | sed -e 's,//*[[^/]]*$,,'`"
+INSTALL_STRIP_PROGRAM="\${SHELL} \`CDPATH=: && cd $_am_dirpart && pwd\`/install-sh -c -s"
 AC_SUBST([INSTALL_STRIP_PROGRAM])])
 
-# serial 4						-*- Autoconf -*-
-
-
+# serial 3
 
 # There are a few dirty hacks below to avoid letting `AC_PROG_CC' be
 # written in clear, in which case automake, when reading aclocal.m4,
@@ -251,29 +231,36 @@ AC_SUBST([INSTALL_STRIP_PROGRAM])])
 # C support machinery.  Also note that it means that autoscan, seeing
 # CC etc. in the Makefile, will ask for an AC_PROG_CC use...
 
-
-
-# _AM_DEPENDENCIES(NAME)
+# AM_DEPENDENCIES(NAME)
 # ---------------------
 # See how the compiler implements dependency checking.
 # NAME is "CC", "CXX" or "OBJC".
 # We try a few techniques and use that to set a single cache variable.
-#
-# We don't AC_REQUIRE the corresponding AC_PROG_CC since the latter was
-# modified to invoke _AM_DEPENDENCIES(CC); we would have a circular
-# dependency, and given that the user is not expected to run this macro,
-# just rely on AC_PROG_CC.
-AC_DEFUN([_AM_DEPENDENCIES],
+AC_DEFUN([AM_DEPENDENCIES],
 [AC_REQUIRE([AM_SET_DEPDIR])dnl
 AC_REQUIRE([AM_OUTPUT_DEPENDENCY_COMMANDS])dnl
-AC_REQUIRE([AM_MAKE_INCLUDE])dnl
-AC_REQUIRE([AM_DEP_TRACK])dnl
+am_compiler_list=
+ifelse([$1], CC,
+       [AC_REQUIRE([AC_PROG_][CC])dnl
+AC_REQUIRE([AC_PROG_][CPP])
+depcc="$CC"
+depcpp="$CPP"],
+       [$1], CXX, [AC_REQUIRE([AC_PROG_][CXX])dnl
+AC_REQUIRE([AC_PROG_][CXXCPP])
+depcc="$CXX"
+depcpp="$CXXCPP"],
+       [$1], OBJC, [am_compiler_list='gcc3 gcc'
+depcc="$OBJC"
+depcpp=""],
+       [$1], GCJ,  [am_compiler_list='gcc3 gcc'
+depcc="$GCJ"
+depcpp=""],
+       [AC_REQUIRE([AC_PROG_][$1])dnl
+depcc="$$1"
+depcpp=""])
 
-ifelse([$1], CC,   [depcc="$CC"   am_compiler_list=],
-       [$1], CXX,  [depcc="$CXX"  am_compiler_list=],
-       [$1], OBJC, [depcc="$OBJC" am_compiler_list='gcc3 gcc']
-       [$1], GCJ,  [depcc="$GCJ"  am_compiler_list='gcc3 gcc'],
-                   [depcc="$$1"   am_compiler_list=])
+AC_REQUIRE([AM_MAKE_INCLUDE])
+AC_REQUIRE([AM_DEP_TRACK])
 
 AC_CACHE_CHECK([dependency style of $depcc],
                [am_cv_$1_dependencies_compiler_type],
@@ -283,15 +270,15 @@ AC_CACHE_CHECK([dependency style of $depcc],
   # instance it was reported that on HP-UX the gcc test will end up
   # making a dummy file named `D' -- because `-MD' means `put the output
   # in D'.
-  mkdir conftest.dir
+  mkdir confdir
   # Copy depcomp to subdir because otherwise we won't find it if we're
   # using a relative directory.
-  cp "$am_depcomp" conftest.dir
-  cd conftest.dir
+  cp "$am_depcomp" confdir
+  cd confdir
 
   am_cv_$1_dependencies_compiler_type=none
   if test "$am_compiler_list" = ""; then
-     am_compiler_list=`sed -n ['s/^#*\([a-zA-Z0-9]*\))$/\1/p'] < ./depcomp`
+     am_compiler_list="`sed -n ['s/^#*\([a-zA-Z0-9]*\))$/\1/p'] < ./depcomp`"
   fi
   for depmode in $am_compiler_list; do
     # We need to recreate these files for each test, as the compiler may
@@ -299,9 +286,8 @@ AC_CACHE_CHECK([dependency style of $depcc],
     # This happens at least with the AIX C compiler.
     echo '#include "conftest.h"' > conftest.c
     echo 'int i;' > conftest.h
-    echo "${am__include} ${am__quote}conftest.Po${am__quote}" > confmf
 
-    case $depmode in
+    case "$depmode" in
     nosideeffect)
       # after this tag, mechanisms are not by side-effect, so they'll
       # only be used when explicitly requested
@@ -316,19 +302,18 @@ AC_CACHE_CHECK([dependency style of $depcc],
     # We check with `-c' and `-o' for the sake of the "dashmstdout"
     # mode.  It turns out that the SunPro C++ compiler does not properly
     # handle `-M -o', and we need to detect this.
-    if depmode=$depmode \
+    if depmode="$depmode" \
        source=conftest.c object=conftest.o \
        depfile=conftest.Po tmpdepfile=conftest.TPo \
        $SHELL ./depcomp $depcc -c conftest.c -o conftest.o >/dev/null 2>&1 &&
-       grep conftest.h conftest.Po > /dev/null 2>&1 &&
-       ${MAKE-make} -s -f confmf > /dev/null 2>&1; then
-      am_cv_$1_dependencies_compiler_type=$depmode
+       grep conftest.h conftest.Po > /dev/null 2>&1; then
+      am_cv_$1_dependencies_compiler_type="$depmode"
       break
     fi
   done
 
   cd ..
-  rm -rf conftest.dir
+  rm -rf confdir
 else
   am_cv_$1_dependencies_compiler_type=none
 fi
@@ -341,17 +326,16 @@ AC_SUBST([$1DEPMODE])
 # AM_SET_DEPDIR
 # -------------
 # Choose a directory name for dependency files.
-# This macro is AC_REQUIREd in _AM_DEPENDENCIES
+# This macro is AC_REQUIREd in AM_DEPENDENCIES
 AC_DEFUN([AM_SET_DEPDIR],
-[rm -f .deps 2>/dev/null
-mkdir .deps 2>/dev/null
-if test -d .deps; then
+[if test -d .deps || mkdir .deps 2> /dev/null || test -d .deps; then
   DEPDIR=.deps
+  # We redirect because .deps might already exist and be populated.
+  # In this situation we don't want to see an error.
+  rmdir .deps > /dev/null 2>&1
 else
-  # MS-DOS does not allow filenames that begin with a dot.
   DEPDIR=_deps
 fi
-rmdir .deps 2>/dev/null
 AC_SUBST(DEPDIR)
 ])
 
@@ -434,8 +418,8 @@ doit:
 END
 # If we don't find an include directive, just comment out the code.
 AC_MSG_CHECKING([for style of include used by $am_make])
-am__include='#'
-am__quote=
+_am_include='#'
+_am_quote=
 _am_result=none
 # First try GNU make style include.
 echo "include confinc" > confmf
@@ -445,21 +429,21 @@ echo "include confinc" > confmf
 # be invoked under some other name (usually "gmake"), in which
 # case it prints its new name instead of `make'.
 if test "`$am_make -s -f confmf 2> /dev/null | fgrep -v 'ing directory'`" = "done"; then
-   am__include=include
-   am__quote=
+   _am_include=include
+   _am_quote=
    _am_result=GNU
 fi
 # Now try BSD make style include.
-if test "$am__include" = "#"; then
+if test "$_am_include" = "#"; then
    echo '.include "confinc"' > confmf
    if test "`$am_make -s -f confmf 2> /dev/null`" = "done"; then
-      am__include=.include
-      am__quote='"'
+      _am_include=.include
+      _am_quote='"'
       _am_result=BSD
    fi
 fi
-AC_SUBST(am__include)
-AC_SUBST(am__quote)
+AC_SUBST(_am_include)
+AC_SUBST(_am_quote)
 AC_MSG_RESULT($_am_result)
 rm -f confinc confmf
 ])
@@ -3852,39 +3836,39 @@ strdup __argz_count __argz_stringify __argz_next])
   dnl * --enable-nls option
   dnl * 
   AC_ARG_ENABLE(nls,
-    AC_HELP_STRING([--enable-nls], [Native Language Support [[yes]]]),
+    [  --enable-nls           Native Language Support [[yes]]],
     ENABLE_NLS=$enableval, ENABLE_NLS=auto)
 
   dnl * 
   dnl * --with-gettext-includes option
   dnl * 
   AC_ARG_WITH(gettext-includes,
-    AC_HELP_STRING([--with-gettext-includes=DIR],
-      [gettext include files are in DIR]),
+  [  --with-gettext-includes=DIR
+                          gettext include files are in DIR],
   [gettext_includes="-I${withval}"], [gettext_includes=''])
 
   dnl * 
   dnl * --with-gettext-libraries option
   dnl * 
   AC_ARG_WITH(gettext-libraries,
-    AC_HELP_STRING([--with-gettext-libraries=DIR],
-      [gettext library files are in DIR]),
+  [  --with-gettext-libraries=DIR
+                          gettext library files are in DIR],
   [gettext_libraries="-L${withval}"], [gettext_libraries=''])
 
   dnl * 
   dnl * --with-iconv-includes option
   dnl * 
   AC_ARG_WITH(iconv-includes,
-    AC_HELP_STRING([--with-iconv-includes=DIR],
-      [iconv include files are in DIR]),
+  [  --with-iconv-includes=DIR
+                          iconv include files are in DIR],
   [iconv_includes="-I${withval}"], [iconv_includes=''])
 
   dnl * 
   dnl * --with-iconv-libraries option
   dnl * 
   AC_ARG_WITH(iconv-libraries,
-    AC_HELP_STRING([--with-iconv-libraries=DIR],
-      [iconv library files are in DIR]),
+  [  --with-iconv-libraries=DIR
+                          iconv library files are in DIR],
   [iconv_libraries="-L${withval}"], [iconv_libraries=''])
 
   AC_MSG_CHECKING([for NLS support])
@@ -4134,9 +4118,9 @@ AC_DEFUN(AM_LC_MESSAGES,
     fi
   fi])
 
-dnl * 
-dnl * Check for struct utimbuf (taken from GNU fileutils 3.16).
-dnl * 
+#
+# Check for struct utimbuf (taken from GNU fileutils 3.16).
+#
 AC_DEFUN(AC_STRUCT_UTIMBUF,
 [AC_HEADER_TIME
 AC_CHECK_HEADERS(utime.h)
@@ -4179,58 +4163,20 @@ AC_DEFUN(AC_TYPE_SSIZE_T,
 AC_PREREQ([2.12])
 
 AC_DEFUN([AM_CONFIG_HEADER],
-[ifdef([AC_FOREACH],dnl
-	 [dnl init our file count if it isn't already
-	 m4_ifndef([_AM_Config_Header_Index], m4_define([_AM_Config_Header_Index], [0]))
-	 dnl prepare to store our destination file list for use in config.status
-	 AC_FOREACH([_AM_File], [$1],
-		    [m4_pushdef([_AM_Dest], m4_patsubst(_AM_File, [:.*]))
-		    m4_define([_AM_Config_Header_Index], m4_incr(_AM_Config_Header_Index))
-		    dnl and add it to the list of files AC keeps track of, along
-		    dnl with our hook
-		    AC_CONFIG_HEADERS(_AM_File,
-dnl COMMANDS, [, INIT-CMDS]
-[# update the timestamp
-echo timestamp >"AS_ESCAPE(_AM_DIRNAME(]_AM_Dest[))/stamp-h]_AM_Config_Header_Index["
-][$2]m4_ifval([$3], [, [$3]]))dnl AC_CONFIG_HEADERS
-		    m4_popdef([_AM_Dest])])],dnl
 [AC_CONFIG_HEADER([$1])
   AC_OUTPUT_COMMANDS(
    ifelse(patsubst([$1], [[^ ]], []),
 	  [],
 	  [test -z "$CONFIG_HEADERS" || echo timestamp >dnl
-	   patsubst([$1], [^\([^:]*/\)?.*], [\1])stamp-h]),dnl
-[am_indx=1
-for am_file in $1; do
-  case " \$CONFIG_HEADERS " in
-  *" \$am_file "*)
-    am_dir=\`echo \$am_file |sed 's%:.*%%;s%[^/]*\$%%'\`
-    if test -n "\$am_dir"; then
-      am_tmpdir=\`echo \$am_dir |sed 's%^\(/*\).*\$%\1%'\`
-      for am_subdir in \`echo \$am_dir |sed 's%/% %'\`; do
-        am_tmpdir=\$am_tmpdir\$am_subdir/
-        if test ! -d \$am_tmpdir; then
-          mkdir \$am_tmpdir
-        fi
-      done
-    fi
-    echo timestamp > "\$am_dir"stamp-h\$am_indx
-    ;;
-  esac
-  am_indx=\`expr \$am_indx + 1\`
-done])
-])]) # AM_CONFIG_HEADER
-
-# _AM_DIRNAME(PATH)
-# -----------------
-# Like AS_DIRNAME, only do it during macro expansion
-AC_DEFUN([_AM_DIRNAME],
-       [m4_if(m4_regexp([$1], [^.*[^/]//*[^/][^/]*/*$]), -1,
-	      m4_if(m4_regexp([$1], [^//\([^/]\|$\)]), -1,
-		    m4_if(m4_regexp([$1], [^/.*]), -1,
-			  [.],
-			  m4_patsubst([$1], [^\(/\).*], [\1])),
-		    m4_patsubst([$1], [^\(//\)\([^/].*\|$\)], [\1])),
-	      m4_patsubst([$1], [^\(.*[^/]\)//*[^/][^/]*/*$], [\1]))[]dnl
-]) # _AM_DIRNAME
+	   patsubst([$1], [^\([^:]*/\)?.*], [\1])stamp-h]),
+  [am_indx=1
+  for am_file in $1; do
+    case " $CONFIG_HEADERS " in
+    *" $am_file "*)
+      echo timestamp > `echo $am_file | sed 's%:.*%%;s%[^/]*$%%'`stamp-h$am_indx
+      ;;
+    esac
+    am_indx=\`expr \$am_indx + 1\`
+  done])
+])
 

@@ -13,41 +13,28 @@
  * GNU General Public License for more details.
  */
 
-#include "build-pre.h"
+#include "ebconfig.h"
+
 #include "eb.h"
 #include "error.h"
 #include "appendix.h"
-#include "build-post.h"
-
-/*
- * Appendix ID counter.
- */
-static EB_Book_Code appendix_counter = 0;
-
-/*
- * Mutex for `appendix_counter'.
- */
-#ifdef ENABLE_PTHREAD
-static pthread_mutex_t appendix_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
-#endif
+#include "internal.h"
 
 /*
  * Unexported functions.
  */
-static EB_Error_Code eb_load_appendix_catalog EB_P((EB_Appendix *));
+static EB_Error_Code eb_initialize_appendix_catalog EB_P((EB_Appendix *));
 
 
 /*
- * Initialize alternation text cache in `appendix'.
+ * Clear alternation text cache in `appendix'.
  */
 void
-eb_initialize_alt_caches(appendix)
+eb_initialize_alt_cache(appendix)
     EB_Appendix *appendix;
 {
     EB_Alternation_Cache *p;
     int i;
-
-    LOG(("in: eb_initialize_alt_caches(appendix=%d)", (int)appendix->code));
 
     for (i = 0, p = appendix->narrow_cache;
 	 i < EB_MAX_ALTERNATION_CACHE; i++, p++)
@@ -55,21 +42,6 @@ eb_initialize_alt_caches(appendix)
     for (i = 0, p = appendix->wide_cache;
 	 i < EB_MAX_ALTERNATION_CACHE; i++, p++)
 	p->character_number = -1;
-
-    LOG(("out: eb_initialize_alt_caches()"));
-}
-
-
-/*
- * Finalize alternation text cache in `appendix'.
- */
-void
-eb_finalize_alt_caches(appendix)
-    EB_Appendix *appendix;
-{
-    LOG(("in+out: eb_finalize_alt_caches(appendix=%d)", (int)appendix->code));
-
-    /* nothing to be done */
 }
 
 
@@ -80,19 +52,11 @@ void
 eb_initialize_appendix(appendix)
     EB_Appendix *appendix;
 {
-    LOG(("in: eb_initialize_appendix()"));
-
-    appendix->code = EB_BOOK_NONE;
-    appendix->path = NULL;
-    appendix->path_length = 0;
-    appendix->disc_code = EB_DISC_INVALID;
-    appendix->subbook_count = 0;
-    appendix->subbooks = NULL;
-    appendix->subbook_current = NULL;
     eb_initialize_lock(&appendix->lock);
-    eb_initialize_alt_caches(appendix);
-
-    LOG(("out: eb_initialize_appendix()"));
+    appendix->path = NULL;
+    appendix->subbook_current = NULL;
+    appendix->subbooks = NULL;
+    eb_initialize_alt_cache(appendix);
 }
 
 
@@ -103,29 +67,28 @@ void
 eb_finalize_appendix(appendix)
     EB_Appendix *appendix;
 {
-    LOG(("in: eb_finalize_appendix(appendix=%d)", (int)appendix->code));
+    int i;
 
-    appendix->code = EB_BOOK_NONE;
-
-    if (appendix->path != NULL) {
-	free(appendix->path);
-	appendix->path = NULL;
-    }
-    appendix->path_length = 0;
-
-    appendix->disc_code = EB_DISC_INVALID;
-
+    /*
+     * Dispose memories and unset struct members.
+     */
+    eb_unset_appendix_subbook(appendix);
     if (appendix->subbooks != NULL) {
-	eb_finalize_appendix_subbooks(appendix);
-	free(appendix->subbooks);
-	appendix->subbooks = NULL;
-	appendix->subbook_count = 0;
-    }
-    appendix->subbook_current = NULL;
-    eb_finalize_lock(&appendix->lock);
-    eb_finalize_alt_caches(appendix);
+	for (i = 0; i < appendix->subbook_count; i++)
+	    zio_finalize(&(appendix->subbooks + i)->zio);
 
-    LOG(("out: eb_finalize_appendix()"));
+	free(appendix->subbooks);
+    }
+
+    if (appendix->path != NULL)
+	free(appendix->path);
+
+    appendix->path = NULL;
+    appendix->subbook_current = NULL;
+    appendix->subbooks = NULL;
+
+    eb_initialize_alt_cache(appendix);
+    eb_finalize_lock(&appendix->lock);
 }
 
 
@@ -137,11 +100,7 @@ eb_suspend_appendix(appendix)
     EB_Appendix *appendix;
 {
     eb_lock(&appendix->lock);
-    LOG(("in: eb_suspend_appendix(appendix=%d)", (int)appendix->code));
-
     eb_unset_appendix_subbook(appendix);
-
-    LOG(("out: eb_suspend_appendix()"));
     eb_unlock(&appendix->lock);
 }
 
@@ -157,23 +116,16 @@ eb_bind_appendix(appendix, path)
     EB_Error_Code error_code;
     char temporary_path[PATH_MAX + 1];
 
+    /*
+     * Lock the appendix.
+     */
     eb_lock(&appendix->lock);
-    LOG(("in: eb_bind_appendix(path=%s)", path));
 
     /*
      * Reset structure members in the appendix.
      */
-    if (appendix->path != NULL) {
-	eb_finalize_appendix(appendix);
-	eb_initialize_appendix(appendix);
-    }
-
-    /*
-     * Assign a book code.
-     */
-    pthread_mutex_lock(&appendix_counter_mutex);
-    appendix->code = appendix_counter++;
-    pthread_mutex_unlock(&appendix_counter_mutex);
+    eb_finalize_appendix(appendix);
+    eb_initialize_appendix(appendix);
 
     /*
      * Set path of the appendix.
@@ -206,12 +158,13 @@ eb_bind_appendix(appendix, path)
     /*
      * Read information from the catalog file.
      */
-    error_code = eb_load_appendix_catalog(appendix);
+    error_code = eb_initialize_appendix_catalog(appendix);
     if (error_code != EB_SUCCESS)
 	goto failed;
 
-    LOG(("out: eb_bind_appendix(appendix=%d) = %s", (int)appendix->code,
-	eb_error_string(EB_SUCCESS)));
+    /*
+     * Unlock the appendix.
+     */
     eb_unlock(&appendix->lock);
 
     return EB_SUCCESS;
@@ -221,7 +174,6 @@ eb_bind_appendix(appendix, path)
      */
   failed:
     eb_finalize_appendix(appendix);
-    LOG(("out: eb_bind_appendix() = %s", eb_error_string(error_code)));
     eb_unlock(&appendix->lock);
     return error_code;
 }
@@ -232,7 +184,7 @@ eb_bind_appendix(appendix, path)
  * Return EB_SUCCESS, if it succeeds, error-code ohtherwise.
  */
 static EB_Error_Code
-eb_load_appendix_catalog(appendix)
+eb_initialize_appendix_catalog(appendix)
     EB_Appendix *appendix;
 {
     EB_Error_Code error_code;
@@ -246,8 +198,6 @@ eb_load_appendix_catalog(appendix)
     Zio zio;
     Zio_Code zio_code;
     int i;
-
-    LOG(("in: eb_load_appendix_catalog(appendix=%d)", (int)appendix->code));
 
     zio_initialize(&zio);
 
@@ -290,8 +240,8 @@ eb_load_appendix_catalog(appendix)
     appendix->subbook_count = eb_uint2(buffer);
     if (EB_MAX_SUBBOOKS < appendix->subbook_count)
 	appendix->subbook_count = EB_MAX_SUBBOOKS;
-    if (appendix->subbook_count == 0) {
-	error_code = EB_ERR_UNEXP_CATAPP;
+    if (EB_MAX_SUBBOOKS == 0) {
+	appendix->subbook_count = EB_ERR_UNEXP_CATAPP;
 	goto failed;
     }
 
@@ -304,7 +254,6 @@ eb_load_appendix_catalog(appendix)
 	error_code = EB_ERR_MEMORY_EXHAUSTED;
 	goto failed;
     }
-    eb_initialize_appendix_subbooks(appendix);
 
     /*
      * Read subbook information.
@@ -329,6 +278,10 @@ eb_load_appendix_catalog(appendix)
 	if (space != NULL)
 	    *space = '\0';
 	eb_fix_directory_name(appendix->path, subbook->directory_name);
+
+	subbook->initialized = 0;
+	subbook->code = i;
+	zio_initialize(&subbook->zio);
     }
 
     /*
@@ -336,8 +289,6 @@ eb_load_appendix_catalog(appendix)
      */
     zio_close(&zio);
     zio_finalize(&zio);
-    LOG(("out: eb_load_appendix_catalog() = %s", eb_error_string(EB_SUCCESS)));
-
     return EB_SUCCESS;
 
     /*
@@ -350,7 +301,6 @@ eb_load_appendix_catalog(appendix)
 	free(appendix->subbooks);
 	appendix->subbooks = NULL;
     }
-    LOG(("out: eb_load_appendix_catalog() = %s", eb_error_string(error_code)));
     return error_code;
 }
 
@@ -362,17 +312,30 @@ int
 eb_is_appendix_bound(appendix)
     EB_Appendix *appendix;
 {
-    int is_bound;
-
+    /*
+     * Lock the appendix.
+     */
     eb_lock(&appendix->lock);
-    LOG(("in: eb_is_appendix_bound(appendix=%d)", (int)appendix->code));
 
-    is_bound = (appendix->path != NULL);
+    /*
+     * Examine whether the appendix is bound.
+     */
+    if (appendix->path == NULL)
+	goto failed;
 
-    LOG(("out: eb_is_appendix_bound() = %d", is_bound));
+    /*
+     * Unlock the appendix.
+     */
     eb_unlock(&appendix->lock);
 
-    return is_bound;
+    return 1;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    eb_unlock(&appendix->lock);
+    return 0;
 }
 
 
@@ -386,8 +349,10 @@ eb_appendix_path(appendix, path)
 {
     EB_Error_Code error_code;
 
+    /*
+     * Lock the appendix.
+     */
     eb_lock(&appendix->lock);
-    LOG(("in: eb_appendix_path(appendix=%d)", (int)appendix->code));
 
     /*
      * Check for the current status.
@@ -402,8 +367,9 @@ eb_appendix_path(appendix, path)
      */
     strcpy(path, appendix->path);
 
-    LOG(("out: eb_appendix_path(path=%s) = %s",
-	path, eb_error_string(EB_SUCCESS)));
+    /*
+     * Unlock the appendix.
+     */
     eb_unlock(&appendix->lock);
 
     return EB_SUCCESS;
@@ -413,7 +379,6 @@ eb_appendix_path(appendix, path)
      */
   failed:
     *path = '\0';
-    LOG(("out: eb_appendix_path() = %s", eb_error_string(error_code)));
     eb_unlock(&appendix->lock);
     return error_code;
 }

@@ -13,13 +13,105 @@
  * GNU General Public License for more details.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
+
+#if defined(STDC_HEADERS) || defined(HAVE_STRING_H)
+#include <string.h>
+#if !defined(STDC_HEADERS) && defined(HAVE_MEMORY_H)
+#include <memory.h>
+#endif /* not STDC_HEADERS and HAVE_MEMORY_H */
+#else /* not STDC_HEADERS and not HAVE_STRING_H */
+#include <strings.h>
+#endif /* not STDC_HEADERS and not HAVE_STRING_H */
+
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#else
+#include <sys/file.h>
+#endif
+
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
+#ifdef HAVE_UTIME_H
+#include <utime.h>
+#endif
+
+#ifdef ENABLE_NLS
+#ifdef HAVE_LOCALE_H
+#include <locale.h>
+#endif
+#include <libintl.h>
+#endif
+
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
+/*
+ * Whence parameter for lseek().
+ */
+#ifndef SEEK_SET
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+#endif
+
+/*
+ * stat macros.
+ */
+#ifdef  STAT_MACROS_BROKEN
+#ifdef  S_ISREG
+#undef  S_ISREG
+#endif
+#ifdef  S_ISDIR
+#undef  S_ISDIR
+#endif
+#endif  /* STAT_MACROS_BROKEN */
+
+#ifndef S_ISREG
+#define S_ISREG(m)   (((m) & S_IFMT) == S_IFREG)
+#endif
+#ifndef S_ISDIR
+#define S_ISDIR(m)   (((m) & S_IFMT) == S_IFDIR)
+#endif
+
+/*
+ * The maximum length of path name.
+ */
+#ifndef PATH_MAX
+#ifdef MAXPATHLEN
+#define PATH_MAX        MAXPATHLEN
+#else /* not MAXPATHLEN */
+#define PATH_MAX        1024
+#endif /* not MAXPATHLEN */
+#endif /* not PATH_MAX */
+
 #include "eb.h"
-#include "build-post.h"
+#include "internal.h"
 
-#include "ebzip.h"
-
+#include "ebutils.h"
 #include "samefile.h"
 #include "yesno.h"
+
+#include "ebzip.h"
 
 /*
  * Trick for function protypes.
@@ -48,46 +140,15 @@
 #endif
 
 /*
- * Unexported functions.
- */
-static int ebzip_zipinfo_file_internal EB_P((const char *, Zio_Code, int));
-
-
-/*
- * Output status of a file `in_file_name'.
- * For START file, use ebzip_zipinfo_start_file() instead.
+ * Output status of a file `file_name'.
+ * It outputs status of the existed file nearest to the beginning of
+ * the list.
  * If it succeeds, 0 is returned.  Otherwise -1 is returned.
  */
 int
 ebzip_zipinfo_file(in_file_name, in_zio_code)
     const char *in_file_name;
     Zio_Code in_zio_code;
-{
-    return ebzip_zipinfo_file_internal(in_file_name, in_zio_code, 0);
-}
-
-/*
- * Output status of START file `in_file_name'.
- * If it succeeds, 0 is returned.  Otherwise -1 is returned.
- */
-int
-ebzip_zipinfo_start_file(in_file_name, in_zio_code, index_page)
-    const char *in_file_name;
-    Zio_Code in_zio_code;
-    int index_page;
-{
-    return ebzip_zipinfo_file_internal(in_file_name, in_zio_code, index_page);
-}
-
-/*
- * Output status of a file `file_name'.
- * If it succeeds, 0 is returned.  Otherwise -1 is returned.
- */
-static int
-ebzip_zipinfo_file_internal(in_file_name, in_zio_code, index_page)
-    const char *in_file_name;
-    Zio_Code in_zio_code;
-    int index_page;
 {
     Zio in_zio;
     int in_file = -1;
@@ -102,7 +163,6 @@ ebzip_zipinfo_file_internal(in_file_name, in_zio_code, index_page)
     /*
      * Open the file.
      */
-    zio_initialize(&in_zio);
     if (stat(in_file_name, &in_status) == 0 && S_ISREG(in_status.st_mode))
 	in_file = zio_open(&in_zio, in_file_name, in_zio_code);
 
@@ -110,19 +170,6 @@ ebzip_zipinfo_file_internal(in_file_name, in_zio_code, index_page)
 	fprintf(stderr, _("%s: failed to open the file, %s: %s\n"),
 	    invoked_name, strerror(errno), in_file_name);
 	goto failed;
-    }
-    if (in_zio_code == ZIO_SEBXA) {
-	off_t index_location;
-	off_t index_base;
-	off_t zio_start_location;
-	off_t zio_end_location;
-
-	if (get_sebxa_indexes(in_file_name, index_page, &index_location,
-	    &index_base, &zio_start_location, &zio_end_location) < 0) {
-	    goto failed;
-	}
-	zio_set_sebxa_mode(&in_zio, index_location, index_base,
-	    zio_start_location, zio_end_location);
     }
 
     /*
@@ -147,8 +194,6 @@ ebzip_zipinfo_file_internal(in_file_name, in_zio_code, index_page)
 	}
 	if (in_zio.code == ZIO_EBZIP1)
 	    printf(_("ebzip level %d compression)\n"), in_zio.zip_level);
-	else if (in_zio.code == ZIO_SEBXA)
-	    printf(_("S-EBXA compression)\n"));
 	else
 	    printf(_("EPWING compression)\n"));
     }

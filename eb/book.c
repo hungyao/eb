@@ -13,30 +13,31 @@
  * GNU General Public License for more details.
  */
 
-#include "build-pre.h"
+#include "ebconfig.h"
+
 #include "eb.h"
 #include "error.h"
+#include "internal.h"
 #include "font.h"
-#include "build-post.h"
 
 /*
  * Book ID counter.
  */
-static EB_Book_Code book_counter = 0;
+static EB_Book_Code counter = 0;
 
 /*
- * Mutex for `book_counter'.
+ * Mutex for `counter'.
  */
 #ifdef ENABLE_PTHREAD
-static pthread_mutex_t book_counter_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t counter_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 /*
  * Unexported functions.
  */
 static void eb_fix_misleaded_book EB_P((EB_Book *));
-static EB_Error_Code eb_load_catalog EB_P((EB_Book *));
-static void eb_load_language EB_P((EB_Book *));
+static EB_Error_Code eb_initialize_catalog EB_P((EB_Book *));
+static void eb_initialize_language EB_P((EB_Book *));
 
 /*
  * Initialize `book'.
@@ -45,23 +46,15 @@ void
 eb_initialize_book(book)
     EB_Book *book;
 {
-    LOG(("in: eb_initialize_book()"));
-
-    book->code = EB_BOOK_NONE;
-    book->disc_code = EB_DISC_INVALID;
-    book->version = 0;
-    book->character_code = EB_CHARCODE_INVALID;
-    book->path = NULL;
-    book->path_length = 0;
-    book->subbooks = NULL;
-    book->subbook_current = NULL;
-    eb_initialize_text_context(book);
-    eb_initialize_binary_context(book);
-    eb_initialize_search_contexts(book);
-    eb_initialize_binary_context(book);
     eb_initialize_lock(&book->lock);
-
-    LOG(("out: eb_initialize_book()"));
+    pthread_mutex_lock(&counter_mutex);
+    book->code = counter++;
+    pthread_mutex_unlock(&counter_mutex);
+    book->path = NULL;
+    book->subbook_current = NULL;
+    book->subbooks = NULL;
+    book->text_context.unprocessed = NULL;
+    book->text_context.unprocessed_size = 0;
 }
 
 
@@ -76,24 +69,17 @@ eb_bind(book, path)
     EB_Error_Code error_code;
     char temporary_path[PATH_MAX + 1];
 
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_bind(path=%s)", path));
 
     /*
-     * Clear the book if the book has already been bound.
+     * Clear the book.
      */
-    if (book->path != NULL) {
-	eb_finalize_book(book);
-	eb_initialize_book(book);
-    }
+    eb_finalize_book(book);
+    eb_initialize_book(book);
 
-    /*
-     * Assign a book code.
-     */
-    pthread_mutex_lock(&book_counter_mutex);
-    book->code = book_counter++;
-    pthread_mutex_unlock(&book_counter_mutex);
-    
     /*
      * Set the path of the book.
      * The length of the file name "<path>/subdir/subsubdir/file.ebz;1" must
@@ -126,18 +112,20 @@ eb_bind(book, path)
      * Read information from the `LANGUAGE' file.
      * If failed to initialize, JIS X 0208 is assumed.
      */
-    eb_load_language(book);
+    eb_initialize_language(book);
 
     /*
      * Read information from the `CATALOG(S)' file.
      */
-    error_code = eb_load_catalog(book);
+    error_code = eb_initialize_catalog(book);
     if (error_code != EB_SUCCESS)
 	goto failed;
-
-    LOG(("out: eb_bind(book=%d) = %s", (int)book->code,
-	eb_error_string(EB_SUCCESS)));
+    
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
+
     return EB_SUCCESS;
 
     /*
@@ -145,7 +133,6 @@ eb_bind(book, path)
      */
   failed:
     eb_finalize_book(book);
-    LOG(("out: eb_bind() = %s", eb_error_string(error_code)));
     eb_unlock(&book->lock);
     return error_code;
 }
@@ -159,11 +146,7 @@ eb_suspend(book)
     EB_Book *book;
 {
     eb_lock(&book->lock);
-    LOG(("in: eb_suspend(book=%d)", (int)book->code));
-
     eb_unset_subbook(book);
-
-    LOG(("out: eb_suspend()"));
     eb_unlock(&book->lock);
 }
 
@@ -175,35 +158,47 @@ void
 eb_finalize_book(book)
     EB_Book *book;
 {
-    LOG(("in: eb_finalize_book(book=%d)", (int)book->code));
+    EB_Subbook *subbook;
+    int i;
 
+    /*
+     * Dispose memories and unset struct members.
+     */
     eb_unset_subbook(book);
+
+    if (book->subbooks != NULL) {
+	for (i = 0, subbook = book->subbooks; i < book->subbook_count;
+	     i++, subbook++) {
+	    zio_finalize(&subbook->text_zio);
+	    zio_finalize(&subbook->graphic_zio);
+	    zio_finalize(&subbook->sound_zio);
+
+	    zio_finalize(&subbook->narrow_fonts[EB_FONT_16].zio);
+	    zio_finalize(&subbook->narrow_fonts[EB_FONT_24].zio);
+	    zio_finalize(&subbook->narrow_fonts[EB_FONT_30].zio);
+	    zio_finalize(&subbook->narrow_fonts[EB_FONT_48].zio);
+
+	    zio_finalize(&subbook->wide_fonts[EB_FONT_16].zio);
+	    zio_finalize(&subbook->wide_fonts[EB_FONT_24].zio);
+	    zio_finalize(&subbook->wide_fonts[EB_FONT_30].zio);
+	    zio_finalize(&subbook->wide_fonts[EB_FONT_48].zio);
+	}
+	free(book->subbooks);
+    }
 
     if (book->path != NULL)
 	free(book->path);
 
-    book->code = EB_BOOK_NONE;
-    book->disc_code = EB_DISC_INVALID;
-    book->version = 0;
-    book->character_code = EB_CHARCODE_INVALID;
+    if (book->text_context.unprocessed != NULL)
+	free(book->text_context.unprocessed);
+
     book->path = NULL;
-    book->path_length = 0;
-
-    if (book->subbooks != NULL) {
-	eb_finalize_subbooks(book);
-	free(book->subbooks);
-	book->subbooks = NULL;
-    }
-
     book->subbook_current = NULL;
-    eb_finalize_text_context(book);
-    eb_finalize_binary_context(book);
-    eb_finalize_search_contexts(book);
-    eb_finalize_binary_context(book);
-    eb_finalize_lock(&book->lock);
-    eb_finalize_lock(&book->lock);
+    book->subbooks = NULL;
+    book->text_context.unprocessed = NULL;
+    book->text_context.unprocessed_size = 0;
 
-    LOG(("out: eb_finalize_book()"));
+    eb_finalize_lock(&book->lock);
 }
 
 
@@ -239,8 +234,6 @@ eb_fix_misleaded_book(book)
     EB_Subbook *subbook;
     int i;
 
-    LOG(("in: eb_fix_misleaded_book(book=%d)", (int)book->code));
-
     for (misleaded = misleaded_book_table; *misleaded != NULL; misleaded++) {
 	if (strcmp(book->subbooks->title, *misleaded) == 0) {
 	    book->character_code = EB_CHARCODE_JISX0208;
@@ -251,8 +244,6 @@ eb_fix_misleaded_book(book)
 	    break;
 	}
     }
-
-    LOG(("out: eb_fix_misleaded_book()"));
 }
 
 /*
@@ -260,7 +251,7 @@ eb_fix_misleaded_book(book)
  * Return EB_SUCCESS if it succeeds, error-code otherwise.
  */
 static EB_Error_Code
-eb_load_catalog(book)
+eb_initialize_catalog(book)
     EB_Book *book;
 {
     EB_Error_Code error_code;
@@ -274,8 +265,6 @@ eb_load_catalog(book)
     Zio zio;
     Zio_Code zio_code;
     int i;
-
-    LOG(("in: eb_load_catalog(book=%d)", (int)book->code));
 
     zio_initialize(&zio);
 
@@ -315,9 +304,7 @@ eb_load_catalog(book)
 	error_code = EB_ERR_FAIL_READ_CAT;
 	goto failed;
     }
-
     book->subbook_count = eb_uint2(buffer);
-    LOG(("aux: eb_load_catalog: subbook_count=%d", book->subbook_count));
     if (EB_MAX_SUBBOOKS < book->subbook_count)
 	book->subbook_count = EB_MAX_SUBBOOKS;
     if (book->subbook_count == 0) {
@@ -340,7 +327,6 @@ eb_load_catalog(book)
 	error_code = EB_ERR_MEMORY_EXHAUSTED;
 	goto failed;
     }
-    eb_initialize_subbooks(book);
 
     /*
      * Read information about subbook.
@@ -384,6 +370,37 @@ eb_load_catalog(book)
 	subbook->title[title_size] = '\0';
 	if (book->character_code != EB_CHARCODE_ISO8859_1)
 	    eb_jisx0208_to_euc(subbook->title, subbook->title);
+
+	/*
+	 * Initialize font availability information.
+	 */
+	subbook->narrow_fonts[EB_FONT_16].font_code = EB_FONT_INVALID;
+	subbook->narrow_fonts[EB_FONT_24].font_code = EB_FONT_INVALID;
+	subbook->narrow_fonts[EB_FONT_30].font_code = EB_FONT_INVALID;
+	subbook->narrow_fonts[EB_FONT_48].font_code = EB_FONT_INVALID;
+
+	subbook->wide_fonts[EB_FONT_16].font_code = EB_FONT_INVALID;
+	subbook->wide_fonts[EB_FONT_24].font_code = EB_FONT_INVALID;
+	subbook->wide_fonts[EB_FONT_30].font_code = EB_FONT_INVALID;
+	subbook->wide_fonts[EB_FONT_48].font_code = EB_FONT_INVALID;
+
+	/*
+	 * Initiazlie file managers.
+	 */
+	zio_initialize(&subbook->text_zio);
+	zio_initialize(&subbook->graphic_zio);
+	zio_initialize(&subbook->sound_zio);
+	zio_initialize(&subbook->movie_zio);
+
+	zio_initialize(&subbook->narrow_fonts[EB_FONT_16].zio);
+	zio_initialize(&subbook->narrow_fonts[EB_FONT_24].zio);
+	zio_initialize(&subbook->narrow_fonts[EB_FONT_30].zio);
+	zio_initialize(&subbook->narrow_fonts[EB_FONT_48].zio);
+
+	zio_initialize(&subbook->wide_fonts[EB_FONT_16].zio);
+	zio_initialize(&subbook->wide_fonts[EB_FONT_24].zio);
+	zio_initialize(&subbook->wide_fonts[EB_FONT_30].zio);
+	zio_initialize(&subbook->wide_fonts[EB_FONT_48].zio);
 
 	/*
 	 * If the book is EPWING, get font file names.
@@ -454,7 +471,6 @@ eb_load_catalog(book)
      * Fix chachacter-code of the book.
      */
     eb_fix_misleaded_book(book);
-    LOG(("out: eb_load_catalog() = %s", eb_error_string(EB_SUCCESS)));
 
     return EB_SUCCESS;
 
@@ -468,7 +484,6 @@ eb_load_catalog(book)
 	free(book->subbooks);
 	book->subbooks = NULL;
     }
-    LOG(("out: eb_load_catalog() = %s", eb_error_string(error_code)));
     return error_code;
 }
 
@@ -477,7 +492,7 @@ eb_load_catalog(book)
  * Read information from the `LANGUAGE' file in `book'.
  */
 static void
-eb_load_language(book)
+eb_initialize_language(book)
     EB_Book *book;
 {
     Zio zio;
@@ -485,8 +500,6 @@ eb_load_language(book)
     char language_path_name[PATH_MAX + 1];
     char language_file_name[EB_MAX_FILE_NAME_LENGTH + 1];
     char buffer[16];
-
-    LOG(("in: eb_load_language(book=%d)", (int)book->code));
 
     zio_initialize(&zio);
     book->character_code = EB_CHARCODE_JISX0208;
@@ -519,8 +532,6 @@ eb_load_language(book)
     }
 
     zio_close(&zio);
-    LOG(("out: eb_load_language()"));
-
     return;
 
     /*
@@ -528,7 +539,6 @@ eb_load_language(book)
      */
   failed:
     zio_close(&zio);
-    LOG(("out: eb_load_language()"));
 }
 
 
@@ -539,20 +549,30 @@ int
 eb_is_bound(book)
     EB_Book *book;
 {
-    int is_bound;
-
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_is_bound(book=%d)", (int)book->code));
 
     /*
      * Check for the current status.
      */
-    is_bound = (book->path != NULL);
+    if (book->path == NULL)
+	goto failed;
 
-    LOG(("out: eb_is_bound() = %d", is_bound));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
 
-    return is_bound;
+    return 1;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    eb_unlock(&book->lock);
+    return 0;
 }
 
 
@@ -566,8 +586,10 @@ eb_path(book, path)
 {
     EB_Error_Code error_code;
 
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_path(book=%d)", (int)book->code));
 
     /*
      * Check for the current status.
@@ -582,7 +604,9 @@ eb_path(book, path)
      */
     strcpy(path, book->path);
 
-    LOG(("out: eb_path(path=%s) = %s", path, eb_error_string(EB_SUCCESS)));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
 
     return EB_SUCCESS;
@@ -592,7 +616,6 @@ eb_path(book, path)
      */
   failed:
     *path = '\0';
-    LOG(("out: eb_path() = %s", eb_error_string(error_code)));
     eb_unlock(&book->lock);
     return error_code;
 }
@@ -608,8 +631,10 @@ eb_disc_type(book, disc_code)
 {
     EB_Error_Code error_code;
 
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_disc_type(book=%d)", (int)book->code));
 
     /*
      * Check for the current status.
@@ -624,8 +649,9 @@ eb_disc_type(book, disc_code)
      */
     *disc_code = book->disc_code;
 
-    LOG(("out: eb_disc_type(disc_code=%d) = %s", (int)*disc_code,
-	eb_error_string(EB_SUCCESS)));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
 
     return EB_SUCCESS;
@@ -635,7 +661,6 @@ eb_disc_type(book, disc_code)
      */
   failed:
     *disc_code = EB_DISC_INVALID;
-    LOG(("out: eb_disc_type() = %s", eb_error_string(error_code)));
     eb_unlock(&book->lock);
     return error_code;
 }
@@ -651,8 +676,10 @@ eb_character_code(book, character_code)
 {
     EB_Error_Code error_code;
 
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_character_code(book=%d)", (int)book->code));
 
     /*
      * Check for the current status.
@@ -667,8 +694,9 @@ eb_character_code(book, character_code)
      */
     *character_code = book->character_code;
 
-    LOG(("out: eb_character_code(character_code=%d) = %s",
-	(int)*character_code, eb_error_string(EB_SUCCESS)));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
 
     return EB_SUCCESS;
@@ -678,7 +706,6 @@ eb_character_code(book, character_code)
      */
   failed:
     *character_code = EB_CHARCODE_INVALID;
-    LOG(("out: eb_character_code() = %s", eb_error_string(error_code)));
     eb_unlock(&book->lock);
     return error_code;
 }

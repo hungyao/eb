@@ -13,15 +13,109 @@
  * GNU General Public License for more details.
  */
 
-#include "eb.h"
-#include "build-post.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
-#include "ebzip.h"
+#include <stdio.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
+
+#if defined(STDC_HEADERS) || defined(HAVE_STRING_H)
+#include <string.h>
+#if !defined(STDC_HEADERS) && defined(HAVE_MEMORY_H)
+#include <memory.h>
+#endif /* not STDC_HEADERS and HAVE_MEMORY_H */
+#else /* not STDC_HEADERS and not HAVE_STRING_H */
+#include <strings.h>
+#endif /* not STDC_HEADERS and not HAVE_STRING_H */
+
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#else
+#include <sys/file.h>
+#endif
+
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
+#ifdef HAVE_UTIME_H
+#include <utime.h>
+#endif
+
+#ifdef ENABLE_NLS
+#ifdef HAVE_LOCALE_H
+#include <locale.h>
+#endif
+#include <libintl.h>
+#endif
+
+#include <zlib.h>
+
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
+/*
+ * Whence parameter for lseek().
+ */
+#ifndef SEEK_SET
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+#endif
+
+/*
+ * stat macros.
+ */
+#ifdef  STAT_MACROS_BROKEN
+#ifdef  S_ISREG
+#undef  S_ISREG
+#endif
+#ifdef  S_ISDIR
+#undef  S_ISDIR
+#endif
+#endif  /* STAT_MACROS_BROKEN */
+
+#ifndef S_ISREG
+#define S_ISREG(m)   (((m) & S_IFMT) == S_IFREG)
+#endif
+#ifndef S_ISDIR
+#define S_ISDIR(m)   (((m) & S_IFMT) == S_IFDIR)
+#endif
+
+/*
+ * The maximum length of path name.
+ */
+#ifndef PATH_MAX
+#ifdef MAXPATHLEN
+#define PATH_MAX        MAXPATHLEN
+#else /* not MAXPATHLEN */
+#define PATH_MAX        1024
+#endif /* not MAXPATHLEN */
+#endif /* not PATH_MAX */
+
+#include "eb.h"
+#include "internal.h"
 
 #include "getumask.h"
 #include "makedir.h"
 #include "samefile.h"
 #include "yesno.h"
+
+#include "ebzip.h"
+#include "ebutils.h"
 
 /*
  * Trick for function protypes.
@@ -58,15 +152,13 @@ static int trap_file = -1;
 /*
  * Unexported function.
  */
-static int ebzip_unzip_file_internal EB_P((const char *, const char *,
-    Zio_Code, int));
 static RETSIGTYPE trap EB_P((int));
 
 
 /*
  * Uncompress a file `in_file_name'.
- * For START file, use ebzip_unzip_start_file() instead.
- * If it succeeds, 0 is returned.  Otherwise -1 is returned.
+ * It uncompresses the existed file nearest to the beginning of the
+ * list.  If it succeeds, 0 is returned.  Otherwise -1 is returned.
  */
 int
 ebzip_unzip_file(out_file_name, in_file_name, in_zio_code)
@@ -74,41 +166,11 @@ ebzip_unzip_file(out_file_name, in_file_name, in_zio_code)
     const char *in_file_name;
     Zio_Code in_zio_code;
 {
-    return ebzip_unzip_file_internal(out_file_name, in_file_name,
-	in_zio_code, 0);
-}
-
-/*
- * Uncompress START file `in_file_name'.
- * If it succeeds, 0 is returned.  Otherwise -1 is returned.
- */
-int
-ebzip_unzip_start_file(out_file_name, in_file_name, in_zio_code, index_page)
-    const char *out_file_name;
-    const char *in_file_name;
-    Zio_Code in_zio_code;
-    int index_page;
-{
-    return ebzip_unzip_file_internal(out_file_name, in_file_name,
-	in_zio_code, index_page);
-}
-
-/*
- * Internal function for ebzip_unzip_file() and ebzip_unzip_sebxa_start().
- * If it succeeds, 0 is returned.  Otherwise -1 is returned.
- */
-static int
-ebzip_unzip_file_internal(out_file_name, in_file_name, in_zio_code, index_page)
-    const char *out_file_name;
-    const char *in_file_name;
-    Zio_Code in_zio_code;
-    int index_page;
-{
     Zio in_zio;
     unsigned char *buffer = NULL;
     size_t total_length;
     int out_file = -1;
-    ssize_t length;
+    size_t length;
     struct stat in_status, out_status;
     unsigned int crc = 1;
     int information_interval;
@@ -199,20 +261,6 @@ ebzip_unzip_file_internal(out_file_name, in_file_name, in_zio_code, index_page)
 	    invoked_name, strerror(errno), in_file_name);
 	goto failed;
     }
-    if (in_zio_code == ZIO_SEBXA) {
-	off_t index_location;
-	off_t index_base;
-	off_t zio_start_location;
-	off_t zio_end_location;
-
-	if (get_sebxa_indexes(in_file_name, index_page, &index_location,
-	    &index_base, &zio_start_location, &zio_end_location) < 0) {
-	    goto failed;
-	}
-	zio_set_sebxa_mode(&in_zio, index_location, index_base,
-	    zio_start_location, zio_end_location);
-    }
-
     if (!ebzip_test_flag) {
 	trap_file_name = out_file_name;
 #ifdef SIGHUP
@@ -248,10 +296,11 @@ ebzip_unzip_file_internal(out_file_name, in_file_name, in_zio_code, index_page)
     total_slices = (in_zio.file_size + in_zio.slice_size - 1)
 	/ in_zio.slice_size;
     information_interval = EBZIP_PROGRESS_INTERVAL_FACTOR;
-
     for (i = 0; i < total_slices; i++) {
 	/*
-	 * Read a slice.
+	 * Read the slice from `file' and unzip it, if it is zipped.
+	 * We assumes the slice is not compressed if its length is
+	 * equal to `slice_size'.
 	 */
 	if (zio_lseek(&in_zio, total_length, SEEK_SET) < 0) {
 	    fprintf(stderr, _("%s: failed to seek the file, %s: %s\n"),
@@ -359,7 +408,7 @@ ebzip_unzip_file_internal(out_file_name, in_file_name, in_zio_code, index_page)
      * Set owner, group, permission, atime and mtime of `out_file'.
      * We ignore return values of `chown', `chmod' and `utime'.
      */
-#if defined(HAVE_UTIME) && defined(HAVE_STRUCT_UTIMBUF)
+#if defined(HAVE_UTIME)
     if (!ebzip_test_flag) {
 	struct utimbuf utim;
 

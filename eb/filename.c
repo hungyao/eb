@@ -13,19 +13,11 @@
  * GNU General Public License for more details.
  */
 
-#include "build-pre.h"
+#include "ebconfig.h"
+
 #include "eb.h"
 #include "error.h"
-#include "build-post.h"
-
-#ifdef WIN32
-/* a path may contain double-byte chars in SJIS. */
-#ifdef HAVE_MBSTRING_H /* keep Cygwin out. */
-#include <mbstring.h>
-#define strchr	_mbschr
-#define strrchr	_mbsrchr
-#endif /* HAVE_MBSTRING_H */
-#endif /* WIN32 */
+#include "internal.h"
 
 
 #ifndef DOS_FILE_PATH
@@ -40,7 +32,7 @@ eb_canonicalize_path_name(path_name)
 {
     char cwd[PATH_MAX + 1];
     char temporary_path_name[PATH_MAX + 1];
-    char *last_slash;
+    size_t path_name_length;
 
     if (*path_name != '/') {
 	/*
@@ -59,9 +51,9 @@ eb_canonicalize_path_name(path_name)
      * Unless `path_name' is "/", eliminate `/' in the tail of the
      * path name.
      */
-    last_slash = strrchr(path_name, '/');
-    if (last_slash != path_name && *(last_slash + 1) == '\0')
-	*last_slash = '\0';
+    path_name_length = strlen(path_name);
+    if (1 < path_name_length && *(path_name + path_name_length - 1) == '/')
+	*(path_name + path_name_length - 1) = '\0';
 
     return EB_SUCCESS;
 }
@@ -82,19 +74,7 @@ eb_canonicalize_path_name(path_name)
 {
     char cwd[PATH_MAX + 1];
     char temporary_path_name[PATH_MAX + 1];
-    char *slash;
-    char *last_backslash;
-
-    /*
-     * Replace `/' with `\\'.
-     */
-    slash = path_name;
-    for (;;) {
-	slash = strchr(slash, '/');
-	if (slash == NULL)
-	    break;
-	*slash++ = '\\';
-    }
+    size_t path_name_length;
 
     if (*path_name == '\\' && *(path_name + 1) == '\\') {
 	/*
@@ -102,7 +82,7 @@ eb_canonicalize_path_name(path_name)
 	 */
     } else if (isalpha(*path_name) && *(path_name + 1) == ':') {
 	/*
-	 * `path_name' has a drive letter.
+	 * `path_name' is has a drive letter.
 	 * Nothing to be done if it is an absolute path.
 	 */
 	if (*(path_name + 2) != '\\') {
@@ -151,11 +131,10 @@ eb_canonicalize_path_name(path_name)
      * Unless `path_name' is "?:\\", eliminate `\\' in the tail of the
      * path name.
      */
-    if (isalpha(*path_name)) {
-	last_backslash = strrchr(path_name + 2, '\\');
-	if (last_backslash != path_name + 2)
-	    *last_backslash = '\0';
-    }
+    path_name_length = strlen(path_name);
+    if (3 < path_name_length && *(path_name + path_name_length - 1) == '\\')
+	*(path_name + path_name_length - 1) = '\0';
+
     return EB_SUCCESS;
 }
 
@@ -248,10 +227,10 @@ eb_fix_directory_name2(path, directory_name, sub_directory_name)
     const char *directory_name;
     char *sub_directory_name;
 {
-    char sub_path_name[PATH_MAX + 1];
+    char sub_path[PATH_MAX + 1];
 
-    eb_compose_path_name(path, directory_name, sub_path_name);
-    return eb_fix_directory_name(sub_path_name, sub_directory_name);
+    sprintf(sub_path, F_("%s/%s", "%s\\%s"), path, directory_name);
+    return eb_fix_directory_name(sub_path, sub_directory_name);
 }
 
 
@@ -270,11 +249,7 @@ eb_fix_path_name_suffix(path_name, suffix)
     char *dot;
     char *semicolon;
 
-#ifndef DOS_FILE_PATH
-    base_name = strrchr(path_name, '/');
-#else
-    base_name = strrchr(path_name, '\\');
-#endif
+    base_name = strrchr(path_name, F_('/', '\\'));
     if (base_name == NULL)
 	base_name = path_name;
     else
@@ -437,7 +412,9 @@ eb_find_file_name2(path_name, sub_directory_name, target_file_name,
 {
     char sub_path_name[PATH_MAX + 1];
 
-    eb_compose_path_name(path_name, sub_directory_name, sub_path_name);
+    sprintf(sub_path_name, F_("%s/%s", "%s\\%s"),
+	path_name, sub_directory_name);
+
     return eb_find_file_name(sub_path_name, target_file_name, found_file_name);
 }
 
@@ -453,8 +430,9 @@ eb_find_file_name3(path_name, sub_directory_name, sub2_directory_name,
 {
     char sub2_path_name[PATH_MAX + 1];
 
-    eb_compose_path_name2(path_name, sub_directory_name, sub2_directory_name,
-	sub2_path_name);
+    sprintf(sub2_path_name, F_("%s/%s/%s", "%s\\%s\\%s"),
+	path_name, sub_directory_name, sub2_directory_name);
+
     return eb_find_file_name(sub2_path_name, target_file_name,
 	found_file_name);
 }
@@ -471,19 +449,8 @@ eb_compose_path_name(path_name, file_name, composed_path_name)
     const char *file_name;
     char *composed_path_name;
 {
-#ifndef DOS_FILE_PATH
-    if (strcmp(path_name, "/") == 0) {
-	sprintf(composed_path_name, "%s%s", path_name, file_name);
-    } else {
-	sprintf(composed_path_name, "%s/%s", path_name, file_name);
-    }
-#else
-    if (isalpha(*path_name) && strcmp(path_name + 1, ":\\") == 0) {
-	sprintf(composed_path_name, "%s%s", path_name, file_name);
-    } else {
-	sprintf(composed_path_name, "%s\\%s", path_name, file_name);
-    }
-#endif
+    sprintf(composed_path_name, F_("%s/%s", "%s\\%s"),
+	path_name, file_name);
 }
 
 
@@ -500,23 +467,8 @@ eb_compose_path_name2(path_name, sub_directory_name, file_name,
     const char *file_name;
     char *composed_path_name;
 {
-#ifndef DOS_FILE_PATH
-    if (strcmp(path_name, "/") == 0) {
-	sprintf(composed_path_name, "%s%s/%s",
-	    path_name, sub_directory_name, file_name);
-    } else {
-	sprintf(composed_path_name, "%s/%s/%s",
-	    path_name, sub_directory_name, file_name);
-    }
-#else
-    if (isalpha(*path_name) && strcmp(path_name + 1, ":\\") == 0) {
-	sprintf(composed_path_name, "%s%s\\%s", 
-	    path_name, sub_directory_name, file_name);
-    } else {
-	sprintf(composed_path_name, "%s\\%s\\%s",
-	    path_name, sub_directory_name, file_name);
-    }
-#endif
+    sprintf(composed_path_name, F_("%s/%s/%s", "%s\\%s\\%s"),
+	path_name, sub_directory_name, file_name);
 }
 
 
@@ -534,23 +486,8 @@ eb_compose_path_name3(path_name, sub_directory_name, sub2_directory_name,
     const char *file_name;
     char *composed_path_name;
 {
-#ifndef DOS_FILE_PATH
-    if (strcmp(path_name, "/") == 0) {
-	sprintf(composed_path_name, "%s%s/%s/%s",
-	    path_name, sub_directory_name, sub2_directory_name, file_name);
-    } else {
-	sprintf(composed_path_name, "%s/%s/%s/%s",
-	    path_name, sub_directory_name, sub2_directory_name, file_name);
-    }
-#else
-    if (isalpha(*path_name) && strcmp(path_name + 1, ":\\") == 0) {
-	sprintf(composed_path_name, "%s%s\\%s\\%s", 
-	    path_name, sub_directory_name, sub2_directory_name, file_name);
-    } else {
-	sprintf(composed_path_name, "%s\\%s\\%s\\%s",
-	    path_name, sub_directory_name, sub2_directory_name, file_name);
-    }
-#endif
+    sprintf(composed_path_name, F_("%s/%s/%s/%s", "%s\\%s\\%s\\%s"),
+	path_name, sub_directory_name, sub2_directory_name, file_name);
 }
 
 

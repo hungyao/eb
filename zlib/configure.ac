@@ -1,9 +1,8 @@
 dnl *
 dnl * Process this file with autoconf to produce a configure script.
 dnl *
-AC_INIT
-AC_CONFIG_SRCDIR(zlib.h)
-AC_PREREQ(2.52)
+AC_INIT(zlib.h)
+AC_PREREQ(2.49)
 AM_INIT_AUTOMAKE(zlib, 1.1.3-lt)
 
 dnl *
@@ -46,5 +45,4 @@ AC_TYPE_SIZE_T
 dnl * 
 dnl * Output Files.
 dnl * 
-AC_CONFIG_FILES(Makefile)
-AC_OUTPUT
+AC_OUTPUT(Makefile)

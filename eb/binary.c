@@ -13,11 +13,12 @@
  * GNU General Public License for more details.
  */
 
-#include "build-pre.h"
+#include "ebconfig.h"
+
 #include "eb.h"
 #include "error.h"
+#include "internal.h"
 #include "binary.h"
-#include "build-post.h"
 
 static EB_Error_Code eb_read_binary_generic EB_P((EB_Book *, size_t,
     char *, ssize_t *));
@@ -32,48 +33,13 @@ static EB_Error_Code eb_read_binary_gray_graphic EB_P((EB_Book *, size_t,
  * Initialize binary context of `book'.
  */
 void
-eb_initialize_binary_context(book)
+eb_initialize_binary(book)
     EB_Book *book;
 {
-    LOG(("in: eb_initialize_binary_context(book=%d)", (int)book->code));
-
+    eb_lock(&book->lock);
     book->binary_context.code = EB_BINARY_INVALID;
     book->binary_context.zio = NULL;
-    book->binary_context.location = -1;
-    book->binary_context.size = 0;
-    book->binary_context.cache_length = 0;
-    book->binary_context.cache_offset = 0;
-    book->binary_context.width = 0;
-
-    LOG(("out: eb_initialize_binary_context()"));
-}
-
-
-/*
- * Finalize binary context of `book'.
- */
-void
-eb_finalize_binary_context(book)
-    EB_Book *book;
-{
-    LOG(("in+out: eb_finalize_binary_context(book=%d)", (int)book->code));
-
-    /* nothing to be done */
-}
-
-
-/*
- * Reset binary context of `book'.
- */
-void
-eb_reset_binary_context(book)
-    EB_Book *book;
-{
-    LOG(("in: eb_reset_binary_context(book=%d)", (int)book->code));
-
-    eb_initialize_binary_context(book);
-
-    LOG(("out: eb_reset_binary_context()"));
+    eb_unlock(&book->lock);
 }
 
 
@@ -150,12 +116,10 @@ eb_set_binary_mono_graphic(book, position, width, height)
     size_t data_size;
     size_t file_size;
 
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_set_binary_mono_graphic(book=%d, position={%d,%d}, \
-width=%d, height=%d)",
-	(int)book->code, position->page, position->offset, width, height));
-
-    eb_reset_binary_context(book);
 
     /*
      * Current subbook must have been set.
@@ -283,10 +247,10 @@ width=%d, height=%d)",
 	goto failed;
     }
 
-    LOG(("out: eb_set_binary_mono_graphic() = %s",
-	eb_error_string(EB_SUCCESS)));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
-
     return EB_SUCCESS;
 
     /*
@@ -294,8 +258,6 @@ width=%d, height=%d)",
      */
   failed:
     eb_unset_binary(book);
-    LOG(("out: eb_set_binary_mono_graphic() = %s",
-	eb_error_string(error_code)));
     eb_unlock(&book->lock);
     return error_code;
 }
@@ -395,12 +357,10 @@ eb_set_binary_gray_graphic(book, position, width, height)
     size_t data_size;
     size_t file_size;
 
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_set_binary_gray_graphic(book=%d, position={%d,%d}, \
-width=%d, height=%d)",
-	(int)book->code, position->page, position->offset, width, height));
-
-    eb_reset_binary_context(book);
 
     /*
      * Current subbook must have been set.
@@ -530,10 +490,10 @@ width=%d, height=%d)",
 	goto failed;
     }
 
-    LOG(("out: eb_set_binary_gray_graphic() = %s",
-	eb_error_string(EB_SUCCESS)));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
-
     return EB_SUCCESS;
 
     /*
@@ -541,8 +501,6 @@ width=%d, height=%d)",
      */
   failed:
     eb_unset_binary(book);
-    LOG(("out: eb_set_binary_gray_graphic() = %s",
-	eb_error_string(error_code)));
     eb_unlock(&book->lock);
     return error_code;
 }
@@ -562,13 +520,10 @@ eb_set_binary_wave(book, start_position, end_position)
     off_t start_location;
     off_t end_location;
 
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_set_binary_wave(book=%d, start_position={%d,%d}, \
-end_position={%d,%d})",
-	(int)book->code, start_position->page, start_position->offset,
-	end_position->page, end_position->offset));
-
-    eb_reset_binary_context(book);
 
     /*
      * Current subbook must have been set.
@@ -685,9 +640,10 @@ end_position={%d,%d})",
 	}
     }
 
-    LOG(("out: eb_set_binary_wave() = %s", eb_error_string(EB_SUCCESS)));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
-
     return EB_SUCCESS;
 
     /*
@@ -695,7 +651,6 @@ end_position={%d,%d})",
      */
   failed:
     eb_unset_binary(book);
-    LOG(("out: eb_set_binary_wave() = %s", eb_error_string(error_code)));
     eb_unlock(&book->lock);
     return error_code;
 }
@@ -718,11 +673,10 @@ eb_set_binary_color_graphic(book, position)
     EB_Binary_Context *context;
     char buffer[EB_COLOR_GRAPHIC_HEADER_LENGTH];
 
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_set_binary_color_graphic(book=%d, position={%d,%d})",
-	(int)book->code, position->page, position->offset));
-
-    eb_reset_binary_context(book);
 
     /*
      * Current subbook must have been set.
@@ -782,10 +736,10 @@ eb_set_binary_color_graphic(book, position)
 	}
     }
 
-    LOG(("out: eb_set_binary_color_graphic() = %s",
-	eb_error_string(EB_SUCCESS)));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
-
     return EB_SUCCESS;
 
     /*
@@ -793,8 +747,6 @@ eb_set_binary_color_graphic(book, position)
      */
   failed:
     eb_unset_binary(book);
-    LOG(("out: eb_set_binary_color_graphic() = %s",
-	eb_error_string(error_code)));
     eb_unlock(&book->lock);
     return error_code;
 }
@@ -818,10 +770,16 @@ eb_set_binary_mpeg(book, argv)
     EB_Subbook *subbook;
     Zio_Code zio_code;
 
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_set_binary_mpeg(book=%d)", (int)book->code));
 
-    eb_reset_binary_context(book);
+    /*
+     * Initialize `movie_zio' again.
+     */
+    zio_finalize(&book->subbook_current->movie_zio);
+    zio_initialize(&book->subbook_current->movie_zio);
 
     /*
      * Current subbook must have been set.
@@ -835,14 +793,8 @@ eb_set_binary_mpeg(book, argv)
     /*
      * Open the movie file and set binary context.
      */
-    if (eb_compose_movie_file_name(argv, movie_file_name) != EB_SUCCESS) {
-	error_code = EB_ERR_NO_SUCH_BINARY;
-	goto failed;
-    }
-    LOG(("aux: eb_set_binary_mpeg(): movie_file_name=%s", movie_file_name));
-
     if (eb_find_file_name3(book->path, subbook->directory_name, 
-	subbook->movie_directory_name, movie_file_name, movie_path_name)
+	subbook->movie_directory_name, movie_file_name, movie_file_name)
 	!= EB_SUCCESS) {
 	error_code = EB_ERR_NO_SUCH_BINARY;
 	goto failed;
@@ -865,9 +817,10 @@ eb_set_binary_mpeg(book, argv)
     book->binary_context.cache_length = 0;
     book->binary_context.cache_offset = 0;
 
-    LOG(("out: eb_set_binary_mpeg() = %s", eb_error_string(EB_SUCCESS)));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
-
     return EB_SUCCESS;
 
     /*
@@ -875,7 +828,6 @@ eb_set_binary_mpeg(book, argv)
      */
   failed:
     eb_unset_binary(book);
-    LOG(("out: eb_set_binary_mpeg() = %s", eb_error_string(error_code)));
     eb_unlock(&book->lock);
     return error_code;
 }
@@ -894,9 +846,10 @@ eb_read_binary(book, binary_max_length, binary, binary_length)
 {
     EB_Error_Code error_code;
 
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_read_binary(book=%d, binary_max_length=%ld)",
-	(int)book->code, (long)binary_max_length));
 
     /*
      * Current subbook must have been set.
@@ -936,8 +889,9 @@ eb_read_binary(book, binary_max_length, binary, binary_length)
     if (error_code != EB_SUCCESS)
 	goto failed;
 
-    LOG(("out: eb_read_binary(binary_length=%ld) = %s", (long)*binary_length,
-	eb_error_string(EB_SUCCESS)));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
 
     return EB_SUCCESS;
@@ -946,10 +900,9 @@ eb_read_binary(book, binary_max_length, binary, binary_length)
      * An error occurs...
      */
   failed:
-    *binary_length = -1;
     eb_unset_binary(book);
-    LOG(("out: eb_read_binary() = %s", eb_error_string(EB_SUCCESS)));
     eb_unlock(&book->lock);
+    *binary_length = -1;
     return error_code;
 }
 
@@ -966,13 +919,9 @@ eb_read_binary_generic(book, binary_max_length, binary, binary_length)
     char *binary;
     ssize_t *binary_length;
 {
-    EB_Error_Code error_code;
     EB_Binary_Context *context;
     char *binary_p = binary;
     size_t read_length = 0;
-
-    LOG(("in: eb_read_binary_generic(book=%d, binary_max_length=%ld)",
-	(int)book->code, (long)binary_max_length));
 
     *binary_length = 0;
     context = &book->binary_context;
@@ -981,14 +930,14 @@ eb_read_binary_generic(book, binary_max_length, binary, binary_length)
      * Return immediately if `binary_max_length' is 0.
      */
     if (binary_max_length == 0)
-	goto succeeded;
+	return EB_SUCCESS;
 
     /*
      * Read binary data if it is remained.
      * If context->size is 0, the binary data size is unknown.
      */
     if (0 < context->size && context->size <= context->offset)
-	goto succeeded;
+	return EB_SUCCESS;
 
     if (context->size == 0)
 	read_length = binary_max_length - *binary_length;
@@ -998,26 +947,13 @@ eb_read_binary_generic(book, binary_max_length, binary, binary_length)
     else
 	read_length = context->size - context->offset;
 
-    if (zio_read(context->zio, binary_p, read_length) != read_length) {
-	error_code = EB_ERR_FAIL_READ_BINARY;
-	goto failed;
-    }
+    if (zio_read(context->zio, binary_p, read_length) != read_length)
+	return EB_ERR_FAIL_READ_BINARY;
 
     *binary_length += read_length;
     context->offset += read_length;
 
-  succeeded:
-    LOG(("out: eb_read_binary_generic(binary_length=%ld) = %s",
-	(long)*binary_length, eb_error_string(EB_SUCCESS)));
-
     return EB_SUCCESS;
-
-    /*
-     * An error occurs...
-     */
-  failed:
-    LOG(("out: eb_read_binary_generic() = %s", eb_error_string(error_code)));
-    return error_code;
 }
 
 
@@ -1036,9 +972,6 @@ eb_read_binary_wave(book, binary_max_length, binary, binary_length)
     char *binary_p = binary;
     size_t copy_length = 0;
 
-    LOG(("in: eb_read_binary_wave(book=%d, binary_max_length=%ld)",
-	(int)book->code, (long)binary_max_length));
-
     *binary_length = 0;
     context = &book->binary_context;
 
@@ -1046,7 +979,7 @@ eb_read_binary_wave(book, binary_max_length, binary, binary_length)
      * Return immediately if `binary_max_length' is 0.
      */
     if (binary_max_length == 0)
-	goto succeeded;
+	return EB_SUCCESS;
 
     /*
      * Copy cached data (header part) to `binary' if exists.
@@ -1066,26 +999,13 @@ eb_read_binary_wave(book, binary_max_length, binary, binary_length)
 	    context->cache_length = 0;	
 
 	if (binary_max_length <= *binary_length)
-	    goto succeeded;
+	    return EB_SUCCESS;
     }
 
     error_code = eb_read_binary_generic(book, binary_max_length - copy_length,
 	binary_p, binary_length);
-    if (error_code !=EB_SUCCESS)
-	goto failed;
     *binary_length += copy_length;
 
-  succeeded:
-    LOG(("out: eb_read_binary_wave(binary_length=%ld) = %s",
-	(long)*binary_length, eb_error_string(EB_SUCCESS)));
-
-    return EB_SUCCESS;
-
-    /*
-     * An error occurs...
-     */
-  failed:
-    LOG(("out: eb_read_binary_wave() = %s", eb_error_string(error_code)));
     return error_code;
 }
 
@@ -1101,16 +1021,12 @@ eb_read_binary_mono_graphic(book, binary_max_length, binary, binary_length)
     char *binary;
     ssize_t *binary_length;
 {
-    EB_Error_Code error_code;
     EB_Binary_Context *context;
     unsigned char *binary_p = (unsigned char *)binary;
     size_t copy_length = 0;
     size_t read_length = 0;
     size_t line_length;
     size_t line_pad_length;
-
-    LOG(("in: eb_read_binary_mono_graphic(book=%d, binary_max_length=%ld)",
-	(int)book->code, (long)binary_max_length));
 
     *binary_length = 0;
     context = &book->binary_context;
@@ -1132,7 +1048,7 @@ eb_read_binary_mono_graphic(book, binary_max_length, binary, binary_length)
      * Return immediately if `binary_max_length' is 0.
      */
     if (binary_max_length == 0)
-	goto succeeded;
+	return EB_SUCCESS;
 
     for (;;) {
 	/*
@@ -1155,7 +1071,7 @@ eb_read_binary_mono_graphic(book, binary_max_length, binary, binary_length)
 		context->cache_length = 0;
 
 	    if (binary_max_length <= *binary_length)
-		goto succeeded;
+		return EB_SUCCESS;
 	}
 
 	/*
@@ -1168,23 +1084,18 @@ eb_read_binary_mono_graphic(book, binary_max_length, binary, binary_length)
 	if (binary_max_length - *binary_length < read_length)
 	    read_length = binary_max_length - *binary_length;
 	if (read_length == 0)
-	    goto succeeded;
+	    return EB_SUCCESS;
 
 	/*
 	 * Read binary data.
 	 */
 	if (context->offset != 0
 	    && context->offset % line_length == 0
-	    && zio_lseek(context->zio, (off_t)line_length * -2, SEEK_CUR)
-	    < 0) {
-	    error_code = EB_ERR_FAIL_SEEK_BINARY;
-	    goto failed;
-	}
+	    && zio_lseek(context->zio, (off_t)line_length * -2, SEEK_CUR) < 0)
+		return EB_ERR_FAIL_SEEK_BINARY;
 	if (zio_read(context->zio, (char *)binary_p, read_length)
-	    != read_length) {
-	    error_code = EB_ERR_FAIL_READ_BINARY;
-	    goto failed;
-	}
+	    != read_length)
+	    return EB_ERR_FAIL_READ_BINARY;
 
 	*binary_length += read_length;
 	context->offset += read_length;
@@ -1208,19 +1119,10 @@ eb_read_binary_mono_graphic(book, binary_max_length, binary, binary_length)
 	}
     }
 
-  succeeded:
-    LOG(("out: eb_read_binary_mono_graphic(binary_length=%ld) = %s",
-	(long)*binary_length, eb_error_string(EB_SUCCESS)));
-
-    return EB_SUCCESS;
-
     /*
-     * An error occurs...
+     * Unlock the book.
      */
-  failed:
-    LOG(("out: eb_read_binary_mono_graphic() = %s",
-	eb_error_string(error_code)));
-    return error_code;
+    return EB_SUCCESS;
 }
 
 
@@ -1235,16 +1137,12 @@ eb_read_binary_gray_graphic(book, binary_max_length, binary, binary_length)
     char *binary;
     ssize_t *binary_length;
 {
-    EB_Error_Code error_code;
     EB_Binary_Context *context;
     unsigned char *binary_p = (unsigned char *)binary;
     size_t copy_length = 0;
     size_t read_length = 0;
     size_t line_length;
     size_t line_pad_length;
-
-    LOG(("in: eb_read_binary_gray_graphic(book=%d, binary_max_length=%ld)",
-	(int)book->code, (long)binary_max_length));
 
     *binary_length = 0;
     context = &book->binary_context;
@@ -1266,7 +1164,7 @@ eb_read_binary_gray_graphic(book, binary_max_length, binary, binary_length)
      * Return immediately if `binary_max_length' is 0.
      */
     if (binary_max_length == 0)
-	goto succeeded;
+	return EB_SUCCESS;
 
     for (;;) {
 	/*
@@ -1289,7 +1187,7 @@ eb_read_binary_gray_graphic(book, binary_max_length, binary, binary_length)
 		context->cache_length = 0;
 
 	    if (binary_max_length <= *binary_length)
-		goto succeeded;
+		return EB_SUCCESS;
 	}
 
 	/*
@@ -1302,23 +1200,18 @@ eb_read_binary_gray_graphic(book, binary_max_length, binary, binary_length)
 	if (binary_max_length - *binary_length < read_length)
 	    read_length = binary_max_length - *binary_length;
 	if (read_length == 0)
-	    goto succeeded;
+	    return EB_SUCCESS;
 
 	/*
 	 * Read binary data.
 	 */
 	if (context->offset != 0
 	    && context->offset % line_length == 0
-	    && zio_lseek(context->zio, (off_t)line_length * -2, SEEK_CUR)
-	    < 0) {
-		error_code = EB_ERR_FAIL_SEEK_BINARY;
-		goto failed;
-	}
+	    && zio_lseek(context->zio, (off_t)line_length * -2, SEEK_CUR) < 0)
+		return EB_ERR_FAIL_SEEK_BINARY;
 	if (zio_read(context->zio, (char *)binary_p, read_length)
-	    != read_length) {
-	    error_code = EB_ERR_FAIL_READ_BINARY;
-	    goto failed;
-	}
+	    != read_length)
+	    return EB_ERR_FAIL_READ_BINARY;
 
 	*binary_length += read_length;
 	context->offset += read_length;
@@ -1342,19 +1235,10 @@ eb_read_binary_gray_graphic(book, binary_max_length, binary, binary_length)
 	}
     }
 
-  succeeded:
-    LOG(("out: eb_read_binary_gray_graphic(binary_length=%ld) = %s",
-	(long)*binary_length, eb_error_string(EB_SUCCESS)));
-
-    return EB_SUCCESS;
-
     /*
-     * An error occurs...
+     * Unlock the book.
      */
-  failed:
-    LOG(("out: eb_read_binary_gray_graphic() = %s",
-	eb_error_string(error_code)));
-    return error_code;
+    return EB_SUCCESS;
 }
 
 
@@ -1366,11 +1250,8 @@ eb_unset_binary(book)
     EB_Book *book;
 {
     eb_lock(&book->lock);
-    LOG(("in: eb_unset_book(book=%d)", (int)book->code));
-
-    eb_reset_binary_context(book);
-
-    LOG(("out: eb_unset_binary()"));
+    book->binary_context.code = EB_BINARY_INVALID;
+    book->binary_context.zio = NULL;
     eb_unlock(&book->lock);
 }
 

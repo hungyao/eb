@@ -13,10 +13,12 @@
  * GNU General Public License for more details.
  */
 
-#include "build-pre.h"
+#include "ebconfig.h"
+
 #include "eb.h"
 #include "error.h"
-#include "build-post.h"
+#include "internal.h"
+
 
 /*
  * Examine whether the current subbook in `book' have a copyright
@@ -26,8 +28,10 @@ int
 eb_have_copyright(book)
     EB_Book *book;
 {
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_have_copyright(book=%d)", (int)book->code));
 
     /*
      * Check for the current status.
@@ -41,7 +45,9 @@ eb_have_copyright(book)
     if (book->subbook_current->copyright.start_page == 0)
 	goto failed;
 
-    LOG(("out: eb_have_copyright() = %d", 1));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
 
     return 1;
@@ -50,7 +56,6 @@ eb_have_copyright(book)
      * An error occurs...
      */
   failed:
-    LOG(("out: eb_have_copyright() = %d", 0));
     eb_unlock(&book->lock);
     return 0;
 }
@@ -67,8 +72,10 @@ eb_copyright(book, position)
     EB_Error_Code error_code;
     int page;
 
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_copyright(book=%d)", (int)book->code));
 
     /*
      * Check for the current status.
@@ -93,8 +100,9 @@ eb_copyright(book, position)
     position->page = page;
     position->offset = 0;
 
-    LOG(("out: eb_copyright(position={%d,%d}) = %s",
-	position->page, position->offset, eb_error_string(EB_SUCCESS)));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
 
     return EB_SUCCESS;
@@ -103,7 +111,6 @@ eb_copyright(book, position)
      * An error occurs...
      */
   failed:
-    LOG(("out: eb_copyright() = %s", eb_error_string(error_code)));
     eb_unlock(&book->lock);
     return error_code;
 }

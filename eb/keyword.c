@@ -13,10 +13,11 @@
  * GNU General Public License for more details.
  */
 
-#include "build-pre.h"
+#include "ebconfig.h"
+
 #include "eb.h"
 #include "error.h"
-#include "build-post.h"
+#include "internal.h"
 
 /*
  * Examine whether the current subbook in `book' supports `KEYWORD SEARCH'
@@ -26,8 +27,10 @@ int
 eb_have_keyword_search(book)
     EB_Book *book;
 {
+    /*
+     * Lock the book.
+     */
     eb_lock(&book->lock);
-    LOG(("in: eb_have_keyword_search(book=%d)", (int)book->code));
 
     /*
      * Current subbook must have been set.
@@ -38,7 +41,9 @@ eb_have_keyword_search(book)
     if (book->subbook_current->keyword.start_page == 0)
 	goto failed;
 
-    LOG(("out: eb_have_keyword_search() = %d", 1));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
 
     return 1;
@@ -47,7 +52,6 @@ eb_have_keyword_search(book)
      * An error occurs...
      */
   failed:
-    LOG(("out: eb_have_keyword_search() = %d", 0));
     eb_unlock(&book->lock);
     return 0;
 }
@@ -71,13 +75,6 @@ eb_search_keyword(book, input_words)
      * Lock the book.
      */
     eb_lock(&book->lock);
-    LOG(("in: eb_search_keyword(book=%d, input_words=[below])",
-	(int)book->code));
-#ifdef ENABLE_DEBUG
-    for (i = 0; i < EB_MAX_KEYWORDS && input_words[i] != NULL; i++)
-	LOG(("    input_words[%d]=%s", i, eb_quoted_string(input_words[i])));
-    LOG(("    input_words[%d]=NULL", i));
-#endif
 
     /*
      * Current subbook must have been set.
@@ -99,9 +96,7 @@ eb_search_keyword(book, input_words)
      * Attach a search context for each keyword, and pre-search the
      * keywords.
      */
-    eb_reset_search_contexts(book);
     word_count = 0;
-
     for (i = 0; i < EB_MAX_KEYWORDS; i++) {
 	if (input_words[i] == NULL)
 	    break;
@@ -152,7 +147,9 @@ eb_search_keyword(book, input_words)
     for (i = word_count; i < EB_MAX_KEYWORDS; i++)
 	(book->search_contexts + i)->code = EB_SEARCH_NONE;
 
-    LOG(("out: eb_search_keyword() = %s", eb_error_string(EB_SUCCESS)));
+    /*
+     * Unlock the book.
+     */
     eb_unlock(&book->lock);
 
     return EB_SUCCESS;
@@ -161,8 +158,7 @@ eb_search_keyword(book, input_words)
      * An error occurs...
      */
   failed:
-    eb_reset_search_contexts(book);
-    LOG(("out: eb_search_keyword() = %s", eb_error_string(error_code)));
+    book->search_contexts->code = EB_SEARCH_NONE;
     eb_unlock(&book->lock);
     return error_code;
 }

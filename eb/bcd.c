@@ -13,10 +13,11 @@
  * GNU General Public License for more details.
  */
 
-#include "build-pre.h"
+#include "ebconfig.h"
+
 #include "eb.h"
 #include "error.h"
-#include "build-post.h"
+#include "internal.h"
 
 /*
  * Get a BCD (binary coded decimal) packed integer with 2 bytes

@@ -28,11 +28,7 @@ extern "C" {
 #include <eb/zio.h>
 #endif
 
-#if defined(EB_BUILD_LIBRARY) && defined(ENABLE_PTHREAD)
-#define EBCONF_ENABLE_PTHREAD
-#endif
-
-#ifdef EBCONF_ENABLE_PTHREAD
+#ifdef ENABLE_PTHREAD
 #include <pthread.h>
 #endif
 
@@ -40,7 +36,7 @@ extern "C" {
  * Library version.
  */
 #define EB_VERSION_MAJOR		3
-#define EB_VERSION_MINOR		1
+#define EB_VERSION_MINOR		0
 
 /*
  * Disc code
@@ -182,11 +178,11 @@ extern "C" {
  * Trick for function protypes.
  */
 #ifndef EB_P
-#if defined(__STDC__) || defined(__cplusplus) || defined(WIN32)
+#if defined(__STDC__) || defined(__cplusplus)
 #define EB_P(p) p
-#else /* not (__STDC__ && __cplusplus && WIN32) */
+#else /* not __STDC__ && not __cplusplus */
 #define EB_P(p) ()
-#endif /* not (__STDC__ && __cplusplus && WIN32) */
+#endif /* not __STDC__ && not __cplusplus */
 #endif /* EB_P */
 
 /*
@@ -212,7 +208,7 @@ typedef int EB_Binary_Code;
 /*
  * Typedef for Structures.
  */
-#ifdef EBCONF_ENABLE_PTHREAD
+#ifdef ENABLE_PTHREAD
 typedef struct EB_Lock_Struct              EB_Lock;
 #endif
 typedef struct EB_Position_Struct          EB_Position;
@@ -234,7 +230,7 @@ typedef struct EB_Hookset_Struct           EB_Hookset;
 /*
  * Pthreads lock.
  */
-#ifdef EBCONF_ENABLE_PTHREAD
+#ifdef ENABLE_PTHREAD
 struct EB_Lock_Struct {
     /*
      * Lock count.  (For emulating recursive lock).
@@ -251,7 +247,7 @@ struct EB_Lock_Struct {
      */
     pthread_mutex_t entity_mutex;
 };
-#endif /* EBCONF_ENABLE_PTHREAD */
+#endif /* ENABLE_PTHREAD */
 
 /*
  * A pair of page and offset.
@@ -353,11 +349,6 @@ struct EB_Appendix_Subbook_Struct {
  */
 struct EB_Appendix_Struct {
     /*
-     * Book ID.
-     */
-    EB_Book_Code code;
-
-    /*
      * Path of the book.
      */
     char *path;
@@ -390,7 +381,7 @@ struct EB_Appendix_Struct {
     /*
      * Lock.
      */
-#ifdef EBCONF_ENABLE_PTHREAD
+#ifdef ENABLE_PTHREAD
     EB_Lock lock;
 #endif
 
@@ -890,7 +881,7 @@ struct EB_Book_Struct {
     /*
      * Lock.
      */
-#ifdef EBCONF_ENABLE_PTHREAD
+#ifdef ENABLE_PTHREAD
     EB_Lock lock;
 #endif
 };
@@ -939,7 +930,7 @@ struct EB_Hookset_Struct {
     /*
      * Lock.
      */
-#ifdef EBCONF_ENABLE_PTHREAD
+#ifdef ENABLE_PTHREAD
     EB_Lock lock;
 #endif
 };
