@@ -93,7 +93,7 @@ eb_initialize_text_context(book)
     book->text_context.narrow_flag = 0;
     book->text_context.printable_count = 0;
     book->text_context.file_end_flag = 0;
-    book->text_context.text_end_flag = 0;
+    book->text_context.text_status = EB_TEXT_STATUS_CONTINUED;
     book->text_context.skip_code = SKIP_CODE_NONE;
     book->text_context.auto_stop_code = -1;
     book->text_context.candidate[0] = '\0';
@@ -139,7 +139,7 @@ eb_reset_text_context(book)
     book->text_context.narrow_flag = 0;
     book->text_context.printable_count = 0;
     book->text_context.file_end_flag = 0;
-    book->text_context.text_end_flag = 0;
+    book->text_context.text_status = EB_TEXT_STATUS_CONTINUED;
     book->text_context.skip_code = SKIP_CODE_NONE;
     book->text_context.auto_stop_code = -1;
     book->text_context.candidate[0] = '\0';
@@ -616,7 +616,7 @@ text_max_length=%ld, forward=%d)",
     /*
      * Return immediately if text-end-flag has been set.
      */
-    if (context->text_end_flag)
+    if (context->text_status != EB_TEXT_STATUS_CONTINUED)
 	goto succeeded;
 
     /*
@@ -703,7 +703,7 @@ text_max_length=%ld, forward=%d)",
 
 	    case 0x03:
 		/* end of text (don't set `in_step') */
-		context->text_end_flag = 1;
+		context->text_status = EB_TEXT_STATUS_HARD_STOP;
 		if (forward_only) {
 		    error_code = EB_ERR_END_OF_CONTENT;
 		    goto failed;
@@ -749,7 +749,7 @@ text_max_length=%ld, forward=%d)",
 		if (0 < context->printable_count
 		    && context->code == EB_TEXT_TEXT) {
 		    if (eb_is_stop_code(book, appendix, argv[0], argv[1])) {
-			context->text_end_flag = 1;
+			context->text_status = EB_TEXT_STATUS_SOFT_STOP;
 			goto succeeded;
 		    }
 		}
@@ -761,7 +761,7 @@ text_max_length=%ld, forward=%d)",
 		/* newline */
 		in_step = 2;
 		if (context->code == EB_TEXT_HEADING) {
-		    context->text_end_flag = 1;
+		    context->text_status = EB_TEXT_STATUS_SOFT_STOP;
 		    context->location += in_step;
 		    goto succeeded;
 		}
@@ -844,8 +844,25 @@ text_max_length=%ld, forward=%d)",
 		hook = hookset->hooks + EB_HOOK_BEGIN_MPEG;
 		break;
 
+	    case 0x3c:
+		/* beginning of inline color graphic */
+		in_step = 20;
+		if (cache_rest_length < in_step) {
+		    error_code = EB_ERR_UNEXP_TEXT;
+		    goto failed;
+		}
+		argc = 4;
+		argv[1] = eb_uint2(cache_p + 2);
+		argv[2] = eb_bcd4(cache_p + 14);
+		argv[3] = eb_bcd2(cache_p + 18);
+		if (argv[1] >> 8 == 0x00)
+		    hook = hookset->hooks + EB_HOOK_BEGIN_IN_COLOR_BMP;
+		else
+		    hook = hookset->hooks + EB_HOOK_BEGIN_IN_COLOR_JPEG;
+		break;
+
 	    case 0x35: case 0x36: case 0x37: case 0x38: case 0x3a:
-	    case 0x3b: case 0x3c: case 0x3d: case 0x3e: case 0x3f:
+	    case 0x3b: case 0x3d: case 0x3e: case 0x3f:
 		in_step = 2;
 		context->skip_code = eb_uint1(cache_p + 1) + 0x20;
 		break;
@@ -863,7 +880,7 @@ text_max_length=%ld, forward=%d)",
 		if (0 < context->printable_count
 		    && context->code == EB_TEXT_TEXT) {
 		    if (eb_is_stop_code(book, appendix, argv[0], argv[1])) {
-			context->text_end_flag = 1;
+			context->text_status = EB_TEXT_STATUS_SOFT_STOP;
 			goto succeeded;
 		    }
 		}
@@ -1013,6 +1030,16 @@ text_max_length=%ld, forward=%d)",
 		    goto failed;
 		}
 		hook = hookset->hooks + EB_HOOK_END_MPEG;
+		break;
+
+	    case 0x5c:
+		/* end of inline color graphic */
+		in_step = 2;
+		if (cache_rest_length < in_step) {
+		    error_code = EB_ERR_UNEXP_TEXT;
+		    goto failed;
+		}
+		hook = hookset->hooks + EB_HOOK_END_IN_COLOR_GRAPHIC;
 		break;
 
 	    case 0x61:
@@ -1432,9 +1459,12 @@ eb_is_text_stopped(book)
     if (book->subbook_current != NULL) {
 	if (book->text_context.code == EB_TEXT_HEADING
 	    || book->text_context.code == EB_TEXT_TEXT
-	    || book->text_context.code == EB_TEXT_OPTIONAL_TEXT)
-	    is_stopped = (book->text_context.text_end_flag
-		&& book->text_context.unprocessed == NULL);
+	    || book->text_context.code == EB_TEXT_OPTIONAL_TEXT) {
+	    if (book->text_context.text_status != EB_TEXT_STATUS_CONTINUED
+		&& book->text_context.unprocessed == NULL) {
+		is_stopped = 1;
+	    }
+	}
     }
 
     LOG(("out: eb_is_text_stopped() = %d", is_stopped));
@@ -1706,13 +1736,12 @@ eb_forward_text(book, appendix)
 	goto failed;
     }
 
-    /*
-     * if the text-end flag has been set, we simply unset the flag
-     * and returns immediately.
-     */
-    if (book->text_context.text_end_flag) {
-	book->text_context.text_end_flag = 0;
+    if (book->text_context.text_status == EB_TEXT_STATUS_SOFT_STOP) {
+	book->text_context.text_status = EB_TEXT_STATUS_CONTINUED;
 	goto succeeded;
+    } else if (book->text_context.text_status == EB_TEXT_STATUS_HARD_STOP) {
+	error_code = EB_ERR_END_OF_CONTENT;
+	goto failed;
     }
 
     /*
@@ -1757,13 +1786,12 @@ eb_forward_heading(book)
     eb_lock(&book->lock);
     LOG(("in: eb_forward_heading(book=%d)", (int)book->code));
 
-    /*
-     * if the text-end flag has been set, we simply unset the flag
-     * and returns immediately.
-     */
-    if (book->text_context.text_end_flag) {
-	book->text_context.text_end_flag = 0;
+    if (book->text_context.text_status == EB_TEXT_STATUS_SOFT_STOP) {
+	book->text_context.text_status = EB_TEXT_STATUS_CONTINUED;
 	goto succeeded;
+    } else if (book->text_context.text_status == EB_TEXT_STATUS_HARD_STOP) {
+	error_code = EB_ERR_END_OF_CONTENT;
+	goto failed;
     }
 
     /*
@@ -1851,7 +1879,7 @@ eb_backward_text(book, appendix)
      * Forward text to get auto-stop-code and location where the current
      * text stops.
      */
-    if (book->text_context.text_end_flag) {
+    if (book->text_context.text_status != EB_TEXT_STATUS_CONTINUED) {
 	forward_location = book->text_context.location;
     } else {
 	memcpy(&saved_context, &book->text_context, sizeof(EB_Text_Context));

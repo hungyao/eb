@@ -1,3 +1,167 @@
+2003-02-07  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Version 3.3.
+
+	* configure.ac (AC_INIT): Set VERSION to 3.3.
+
+2003-02-01  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/binary.c (eb_read_binary_generic): Fix a bug that it cannot
+	read an MPEG file correctly.
+
+2003-01-12  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Version 3.3beta3.
+
+	* doc-ja/Makefile.am (eb-ver.texi, stamp-eb): Add missing targets.
+	* doc-ja/Makefile.am (EXTRA_DIST): Add `stamp-eb'.
+
+	* eb/multi.c (eb_load_multi_searches): Set index style flags.
+
+	* configure.ac (AC_INIT): Set version to `3.3beta3'.
+
+2002-10-30  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Version 3.3beta2.
+
+	* configure.ac (AC_INIT): Set version to 3.3beta2.
+
+	* eb/bitmap.c (eb_narrow_font_xbm_size, eb_narrow_font_xpm_size,
+	eb_narrow_font_gif_size, eb_narrow_font_bmp_size,
+	eb_wide_font_xbm_size, eb_wide_font_xpm_size,
+	eb_wide_font_gif_size, eb_wide_font_bmp_size): Fix bugs that
+	those functions always return EB_ERR_NO_SUCH_FONT, reported by
+	NISHIKAWA.
+
+	* m4/Makefile.am: Install `eb3.m4' in `$(datadir)/aclocal',
+	rathar than `$(pkgdatadir)', suggested by Takashi NEMOTO.
+
+	* eb/book.c (eb_load_catalog_epwing): Fix minor bugs, reported
+	by Takashi NEMOTO.
+
+2002-10-08  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/subbook.c (eb_load_subbook_indexes): Get index location
+	using `subbook->index_page'.
+
+2002-10-07  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/appsub.c (eb_set_appendix_subbook, eb_set_appendix_subbook_eb,
+	eb_set_appendix_subbook_epwing): Fix error recovery codes.
+	* eb/subbook.c (eb_set_subbook, eb_set_subbook_eb, 
+	eb_set_subbook_epwing): Ditto.
+	* eb/narwfont.c (eb_load_narrow_font): Ditto.
+	* eb/font.c (eb_set_font): Ditto.
+
+2002-10-06  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/defs.h.in (EB_Subbook_Struct): add the `initialized' member.
+	* eb/font.c (eb_initialize_fonts): Reset `font->initialized'.
+	* eb/font.c (eb_load_fonts): New internal function.
+	* eb/narwfont.c (eb_load_narrow_font): Don't complain if it cannot
+	open a font file.  Set `font->initialized' upon success.
+	* eb/subbook.c (eb_set_subbook): Call eb_load_fonts().
+
+	* eb/subbook.c (eb_set_subbook, eb_load_subbook): Set 
+	`subbook->initialized' by eb_set_subbook().
+
+2002-09-28  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Version 3.3beta1.
+
+	* eb/book.c (eb_load_catalog_epwing): Don't complain when it fails
+	to read extended information block.
+
+	* configure.ac (AC_INIT): Set version to `3.3beta1'.
+
+2002-09-26  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* configure.ac (AM_CONFIG_HEADER): Use `AC_CONFIG_HEADER' instead.
+	* configure.ac (AC_CYGWIN, AC_MINGW32): Removed.
+	* configure.ac (AC_INIT, AM_INIT_AUTOMAKE): Package name and version
+	are set with AC_INIT, not AM_INIT_AUTOMAKE.
+
+2002-09-08  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/defs.h.in (EB_Text_Context): Rename `text_end_flag' to
+	`text_status'.
+	* eb/defs.h.in (EB_Text_Status_Code): Define the type and its
+	possible values.
+	* eb/readtext.c (eb_forward_text): Fix a bug that eb_forward_text()
+	doesn't return EB_ERR_END_OF_CONTENT when the current file pointer
+	is at 1f03.
+
+2002-09-05  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/appsub.c (eb_load_appendix_subbook): Fix a bug that the function
+	resets alt-text data for local characters if the appendix doesn't
+	define stop code.
+
+2002-08-30  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/multi.c (eb_multi_label): Generate labels written in ASCII
+	if the book is written in ISO 8859-1.
+
+2002-08-24  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* Version 3.3beta0.
+
+	* configure.ac (AM_INIT_AUTOMAKE): Set version to `3.3beta0'.
+	* configure.ac (EB_VERSION_MINOR): Set to 3.
+	* configure.ac (LIBEB_VERSION_INFO): Set to 7:0:1.
+	
+	* samples/font.c: New sample program.
+	* samples/Makefile.am (noinst_PROGRAMS): Add `font'.
+	* doc-ja/Makefile.am (eb_ja_TEXINFOS): add `font-c.texi'.
+
+2002-08-23  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* decomp, install-sh, mkinstalldirs, missing: Imported from 
+	Automake-1.6.3.
+
+	* eb/text.h: add EB_HOOK_BEGIN_IN_COLOR_BMP and
+	EB_HOOK_BEGIN_IN_COLOR_JPEG.
+	* eb/text.c: support those hooks for handling of inline color graphic.
+
+2002-08-21  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/refile.c (refile_catalog): Fix a bug that extended information
+	blocks of eliminated subbooks are copied to `catalogs.new'.
+
+2002-08-20  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+	* eb/binary.c (eb_set_binary_mono_graphic, eb_set_binary_gray_graphic):
+	Don't read data from `honmong', but `honmon' or `honmon2' when
+	the book is EPWING.
+
+	* eb/defs.h.in (EB_SIZE_EBZIP_HEADER): Removed.
+
+2002-08-17  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
+
+	* eb/defs.h.in (EB_Book_Struct): Delete `version'.
+	* eb/defs.h.in (EB_Subook_Struct): Add `text_hint_zio_code',
+	`graphic_hint_zio_code' and `sound_hint_zio_code'.
+
+	* eb/book.c (eb_load_catalog): Revised.
+	Get text, graphic and sound file names from the `catalogs' file,
+	if the book is EPWING.
+	* eb/subbook.c (eb_set_subbook_epwing): Likewise.
+	* eb/filename.c (eb_find_file_name): `target_file_name' can be
+	equal to `found_file_name'.
+
+	* eb/build-post.h.in (EB_FILE_NAME_START, EB_FILE_NAME_HONMON, 
+	EB_FILE_NAME_APPENDIX, EB_FILE_NAME_FUROKU): Defined.
+	* eb/defs.h.in (EB_SIZE_EB_CATALOG, EB_SIZE_EPWING_CATALOG):
+	Moved to `eb/built-post.h.in'.
+
+	* eb/build-post.h.in (EB_MAX_SEARCH_TITLES): Defined.
+	* eb/defs.h.in (EB_MAX_MULTI_SEARCHES): Change the value from 8 
+	to 10.
+	* eb/defs.h.in (EB_MAX_MULTI_TITLE_LENGTH): Defined.
+	* eb/defs.h.in (EB_Subbook_Struct): Add `search_title_page'.
+	* eb/defs.h.in (EB_Multi_Search_Struct): Add `title'.
+	* eb/multi.c (eb_load_multi_titles, eb_multi_title): New functions.
+	* eb/ebinfo.c (output_multi_information): Also output search titles.
+
 2002-08-16  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
 
 	* Version 3.2.3.
