@@ -51,10 +51,6 @@ char *memset();
 #endif /* not __STDC__ */
 #endif
 
-#ifndef HAVE_MEMMOVE
-#define memmove eb_memmove
-#endif
-
 #ifndef ENABLE_PTHREAD
 #define pthread_mutex_lock(m)
 #define pthread_mutex_unlock(m)
@@ -158,17 +154,18 @@ eb_presearch_word(book, context)
 	/*
 	 * Seek and read a page.
 	 */
-	if (eb_zlseek(&(book->subbook_current->zip), 
+	if (eb_zlseek(&book->subbook_current->text_zip, 
 	    book->subbook_current->text_file,
-	    (context->page - 1) * EB_SIZE_PAGE, SEEK_SET)
-	    < 0) {
+	    (context->page - 1) * EB_SIZE_PAGE, SEEK_SET) < 0) {
 	    cache_book_code = EB_BOOK_NONE;
+	    error_code = EB_ERR_FAIL_SEEK_TEXT;
 	    goto failed;
 	}
-	if (eb_zread(&(book->subbook_current->zip),
+	if (eb_zread(&book->subbook_current->text_zip,
 	    book->subbook_current->text_file, cache_buffer, EB_SIZE_PAGE)
 	    != EB_SIZE_PAGE) {
 	    cache_book_code = EB_BOOK_NONE;
+	    error_code = EB_ERR_FAIL_READ_TEXT;
 	    goto failed;
 	}
 
@@ -461,13 +458,13 @@ eb_hit_list_word(book, context, max_hit_count, hit_list, hit_count)
 	 * muts not update the context!
 	 */
 	if (cache_book_code != book->code || cache_page != context->page) {
-	    if (eb_zlseek(&(book->subbook_current->zip),
+	    if (eb_zlseek(&book->subbook_current->text_zip,
 		book->subbook_current->text_file,
 		(context->page - 1) * EB_SIZE_PAGE, SEEK_SET) < 0) {
 		error_code = EB_ERR_FAIL_SEEK_TEXT;
 		goto failed;
 	    }
-	    if (eb_zread(&(book->subbook_current->zip),
+	    if (eb_zread(&book->subbook_current->text_zip,
 		book->subbook_current->text_file, cache_buffer, EB_SIZE_PAGE)
 		!= EB_SIZE_PAGE) {
 		error_code = EB_ERR_FAIL_READ_TEXT;
@@ -754,7 +751,7 @@ eb_hit_list_keyword(book, context, max_hit_count, hit_list, hit_count)
     memcpy(&text_context, &book->text_context, sizeof(EB_Text_Context));
 
     /*
-     *
+     * Seek text file.
      */
     if (context->in_group_entry && context->comparison_result == 0) {
 	error_code = eb_seek_text(book, &context->keyword_heading);
@@ -783,13 +780,13 @@ eb_hit_list_keyword(book, context, max_hit_count, hit_list, hit_count)
 	 * muts not update the context!
 	 */
 	if (cache_book_code != book->code || cache_page != context->page) {
-	    if (eb_zlseek(&(book->subbook_current->zip),
+	    if (eb_zlseek(&book->subbook_current->text_zip,
 		book->subbook_current->text_file,
 		(context->page - 1) * EB_SIZE_PAGE, SEEK_SET) < 0) {
 		error_code = EB_ERR_FAIL_SEEK_TEXT;
 		goto failed;
 	    }
-	    if (eb_zread(&(book->subbook_current->zip),
+	    if (eb_zread(&book->subbook_current->text_zip,
 		book->subbook_current->text_file, cache_buffer, EB_SIZE_PAGE)
 		!= EB_SIZE_PAGE) {
 		error_code = EB_ERR_FAIL_READ_TEXT;
@@ -1067,7 +1064,7 @@ eb_hit_list_keyword(book, context, max_hit_count, hit_list, hit_count)
     if (error_code == EB_ERR_FAIL_READ_TEXT)
 	cache_book_code = EB_BOOK_NONE;
     *hit_count = 0;
-    memcpy(&(book->text_context), &text_context, sizeof(EB_Text_Context));
+    memcpy(&book->text_context, &text_context, sizeof(EB_Text_Context));
     return error_code;
 }
 
@@ -1111,13 +1108,13 @@ eb_hit_list_multi(book, context, max_hit_count, hit_list, hit_count)
 	 * muts not update the context!
 	 */
 	if (cache_book_code != book->code || cache_page != context->page) {
-	    if (eb_zlseek(&(book->subbook_current->zip),
+	    if (eb_zlseek(&book->subbook_current->text_zip,
 		book->subbook_current->text_file,
 		(context->page - 1) * EB_SIZE_PAGE, SEEK_SET) < 0) {
 		error_code = EB_ERR_FAIL_SEEK_TEXT;
 		goto failed;
 	    }
-	    if (eb_zread(&(book->subbook_current->zip),
+	    if (eb_zread(&book->subbook_current->text_zip,
 		book->subbook_current->text_file, cache_buffer, EB_SIZE_PAGE)
 		!= EB_SIZE_PAGE) {
 		error_code = EB_ERR_FAIL_READ_TEXT;
