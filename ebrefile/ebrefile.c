@@ -57,8 +57,6 @@
 #include <libintl.h>
 #endif
 
-#include <zlib.h>
-
 #include "ebutils.h"
 
 #ifndef HAVE_MEMCPY
@@ -158,10 +156,15 @@ int strncasecmp();
 /*
  * Tricks for gettext.
  */
+#ifdef ENABLE_NLS
 #define _(string) gettext(string)
 #ifdef gettext_noop
 #define N_(string) gettext_noop(string)
 #else
+#define N_(string) (string)
+#endif
+#else
+#define _(string) (string)
 #define N_(string) (string)
 #endif
 
@@ -211,10 +214,6 @@ static struct option long_options[] = {
 const char *program_name = "ebrefile";
 const char *program_version = VERSION;
 const char *invoked_name;
-
-/*
- * A list of subbook names to be compressed/uncompressed.
- */
 
 /*
  * File name to be deleted and file to be closed when signal is received.
