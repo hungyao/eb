@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 98, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,14 +12,20 @@
  * GNU General Public License for more details.
  */
 
-#include "ebconfig.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
 
 /*
  * Compare `word' and `pattern' within `length' characters.
  * 
  * When the word is equal to the pattern, or equal to the beginning of
- * the pattern, 0 is returned.  A positive or negateive integer is
- * returned according as `pattern' is greater or less than `word'.
+ * the pattern, 0 is returned.  Otherwise, an integer less than or 
+ * greater than zero is returned.  The return value is depends on whether
+ * the word is greater or less than the pattern in dictionary order.
  */
 int
 eb_match_word(word, pattern, length)
@@ -56,9 +61,10 @@ eb_match_word(word, pattern, length)
 /*
  * Compare `word' and `pattern' within `length' characters.
  * 
- * When the word is equal to the pattern, 0 is returned.  A positive or
- * negateive integer is returned according as `pattern' is greater or
- * less than `word'.
+ * When the word is equal to the pattern, 0 is returned.
+ * Otherwise, an integer less than or greater than zero is returned.
+ * The return value of the case is depends on whether the word is
+ * greater or less than the pattern in dictionary order.
  */
 int
 eb_match_exactword(word, pattern, length)

@@ -1,6 +1,5 @@
 /*                                                            -*- C -*-
- * Copyright (c) 1997, 98, 99, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 99, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,15 +68,10 @@ int strncasecmp();
 /*
  * Tricks for gettext.
  */
-#ifdef ENABLE_NLS
 #define _(string) gettext(string)
 #ifdef gettext_noop
 #define N_(string) gettext_noop(string)
 #else
-#define N_(string) (string)
-#endif
-#else
-#define _(string) (string)       
 #define N_(string) (string)
 #endif
 
@@ -95,11 +89,26 @@ int strncasecmp();
 #define tolower(c) (('A' <= (c) && (c) <= 'Z') ? (c) + 0x20 : (c))
 
 /*
+ * Generic name of the program.
+ */
+const char *program_name;
+
+/*
+ * Program version.
+ */
+const char *program_version = VERSION;
+
+/*
+ * Actual program name. (argv[0])
+ */
+const char *invoked_name;
+
+
+/*
  * Output ``try ...'' message to standard error.
  */
 void
-output_try_help(invoked_name)
-    const char *invoked_name;
+output_try_help()
 {
     fprintf(stderr, _("try `%s --help' for more information\n"), invoked_name);
     fflush(stderr);
@@ -110,13 +119,10 @@ output_try_help(invoked_name)
  * Output version number to stdandard out.
  */
 void
-output_version(program_name, program_version)
-    const char *program_name;
-    const char *program_version;
+output_version()
 {
     printf("%s (EB Library) version %s\n", program_name, program_version);
-    printf("Copyright (c) 1997, 98, 99, 2000, 01\n");
-    printf("   Motoyuki Kasahara\n\n");
+    printf("Copyright (c) 1997, 98, 99, 2000  Motoyuki Kasahara\n\n");
     printf("This is free software; you can redistribute it and/or modify\n");
     printf("it under the terms of the GNU General Public License as published by\n");
     printf("the Free Software Foundation; either version 2, or (at your option)\n");
@@ -130,19 +136,66 @@ output_version(program_name, program_version)
 
 
 /*
+ * Parse an argument to option `--case (-c)'.
+ * If the argument is valid form, 0 is returned.
+ * Otherwise -1 is returned.
+ */
+int
+parse_case_argument(argument, fcase)
+    const char *argument;
+    EB_Case_Code *fcase;
+{
+    if (strcasecmp(argument, "upper") == 0)
+	*fcase = EB_CASE_UPPER;
+    else if (strcasecmp(argument, "lower") == 0)
+	*fcase = EB_CASE_LOWER;
+    else {
+	fprintf(stderr, _("%s: unknown file name case `%s'\n"),
+	    invoked_name, argument);
+	exit(1);
+    }
+}
+
+
+/*
+ * Parse an argument to option `--suffix (-s)'.
+ * If the argument is valid form, 0 is returned.
+ * Otherwise -1 is returned.
+ */
+int
+parse_suffix_argument(argument, fsuffix)
+    const char *argument;
+    EB_Suffix_Code *fsuffix;
+{
+    if (strcasecmp(argument, "none") == 0)
+	*fsuffix = EB_SUFFIX_NONE;
+    else if (strcasecmp(argument, "dot") == 0)
+	*fsuffix = EB_SUFFIX_DOT;
+    else if (strcasecmp(argument, "version") == 0)
+	*fsuffix = EB_SUFFIX_VERSION;
+    else if (strcasecmp(argument, "both") == 0)
+	*fsuffix = EB_SUFFIX_BOTH;
+    else {
+	fprintf(stderr, _("%s: unknown file name suffix `%s'\n"),
+	    invoked_name, argument);
+	exit(1);
+    }
+}
+
+
+/*
  * Parse an argument to option `--subbook (-S)'.
  * If the argument is valid form, 0 is returned.
  * Otherwise -1 is returned.
  */
 int
-parse_subbook_name_argument(invoked_name, argument, name_list, name_count)
-    const char *invoked_name;
+parse_subbook_name_argument(argument, name_list, name_count)
     const char *argument;
-    char name_list[][EB_MAX_DIRECTORY_NAME_LENGTH + 1];
+    char name_list[][EB_MAX_BASE_NAME_LENGTH + 1];
     int *name_count;
 {
     const char *argument_p = argument;
-    char name[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
+    char name[EB_MAX_BASE_NAME_LENGTH + 1];
     char *name_p;
     int i;
 
@@ -162,8 +215,8 @@ parse_subbook_name_argument(invoked_name, argument, name_list, name_count)
 	i = 0;
 	name_p = name;
 	while (*argument_p != ',' && *argument_p != '\0'
-	    && i < EB_MAX_DIRECTORY_NAME_LENGTH) {
-		*name_p = tolower(*argument_p);
+	    && i < EB_MAX_BASE_NAME_LENGTH) {
+		*name_p = toupper(*argument_p);
 	    i++;
 	    name_p++;
 	    argument_p++;
@@ -179,8 +232,8 @@ parse_subbook_name_argument(invoked_name, argument, name_list, name_count)
 	}
 
 	/*
-	 * If the subbook name is not found in the subbook name list,
-	 * it is added to the list.
+	 * If the font name is not found in `font_list', it is added to
+	 * the list.
 	 */
 	for (i = 0; i < *name_count; i++) {
 	    if (strcmp(name, name_list[i]) == 0)
@@ -197,18 +250,18 @@ parse_subbook_name_argument(invoked_name, argument, name_list, name_count)
 
 
 /*
- * Find a subbook-code of the subbook whose directory name is `directory'.
- * When no sub-book is matched', EB_ERR_NO_SUCH_SUB is returned.
+ * Return a subbook-code of the subbook which contains the directory
+ * name `directory'.
+ * When no sub-book is matched to `directory', -1 is returned.
  */
 EB_Subbook_Code
-find_subbook(book, directory, subbook_code)
+find_subbook(book, directory)
     EB_Book *book;
     const char *directory;
-    EB_Subbook_Code *subbook_code;
 {
     EB_Error_Code error_code;
     EB_Subbook_Code subbook_list[EB_MAX_SUBBOOKS];
-    char directory2[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
+    char directory2[EB_MAX_BASE_NAME_LENGTH + 1];
     int subbook_count;
     int i;
 
@@ -217,21 +270,80 @@ find_subbook(book, directory, subbook_code)
      */
     error_code = eb_subbook_list(book, subbook_list, &subbook_count);
     if (error_code != EB_SUCCESS) {
-	*subbook_code = EB_SUBBOOK_INVALID;
-	return EB_ERR_NO_SUCH_SUB;
+	fprintf(stderr, "%s: %s\n", invoked_name,
+	    eb_error_message(error_code));
+	fflush(stderr);
+	return EB_SUBBOOK_INVALID;
     }
     for (i = 0; i < subbook_count; i++) {
         error_code = eb_subbook_directory2(book, subbook_list[i], directory2);
 	if (error_code != EB_SUCCESS)
 	    continue;
-        if (strcasecmp(directory, directory2) == 0) {
-            *subbook_code = subbook_list[i];
-	    return EB_SUCCESS;
+        if (strcasecmp(directory, directory2) == 0)
+            return subbook_list[i];
+    }
+
+    fprintf(stderr, _("%s: no such subbook `%s'\n"), invoked_name, directory);
+    fflush(stderr);
+
+    return EB_SUBBOOK_INVALID;
+}
+
+
+/*
+ * Adjust case and suffix of a file name.
+ *
+ * `file_name' is a file name to be adjusted.
+ * Upon return, `file_name' are converted to upper or lower case,
+ * and a suffix is added according with `fcase' and 'fsuffix'.
+ */
+void
+fix_file_name(file_name, fcase, fsuffix)
+    char *file_name;
+    EB_Case_Code fcase;
+    EB_Suffix_Code fsuffix;
+{
+    char *p;
+    char *rslash;
+    int have_dot;
+
+    /*
+     * Check whether `file_name' contains `.', or not.
+     */
+    rslash = strrchr(file_name, '/');
+    if (rslash == NULL)
+	rslash = file_name;
+    have_dot = (strchr(rslash, '.') != NULL);
+
+    /*
+     * Add a suffix.
+     */
+    if (!have_dot && (fsuffix == EB_SUFFIX_DOT || fsuffix == EB_SUFFIX_BOTH))
+	strcat(file_name, ".");
+    if (fsuffix == EB_SUFFIX_VERSION || fsuffix == EB_SUFFIX_BOTH)
+	strcat(file_name, ";1");
+
+    /*
+     * Convert characters in the file name to upper or lower case.
+     */
+    if (fcase == EB_CASE_UPPER) {
+	for (p = file_name; *p != '\0'; p++) {
+	    if (islower(*p))
+		*p = toupper(*p);
+	}
+    } else {
+	for (p = file_name; *p != '\0'; p++) {
+	    if (isupper(*p))
+		*p = tolower(*p);
 	}
     }
 
-    *subbook_code = EB_SUBBOOK_INVALID;
-    return EB_ERR_NO_SUCH_SUB;
+#ifdef DOS_FILE_PATH
+    for (p = file_name; *p != '\0'; p++) {
+	if (*p == '/')
+	    *p = '\\';
+    }
+#endif
 }
 
 

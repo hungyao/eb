@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 98, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 2000  Motoyuki Kasahara
  *
  * This programs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +30,6 @@
 
 #endif /* not HAVE_CONFIG_H */
 
-#include <sys/types.h>
 
 /*
  * Character comparison table used in strcasecmp() and strncasecmp().
@@ -142,9 +140,6 @@ strncasecmp(string1, string2, n)
     size_t i = n;
     int comparison_result;
 
-    if (i == 0)
-	return 0;
-
     while (*string1_p != '\0') {
 	if (i-- <= 0)
 	    return 0;
@@ -154,7 +149,7 @@ strncasecmp(string1, string2, n)
 	    return comparison_result;
     }
 
-    return -comparison_table[*string2_p];
+    return -comparison_table[*string2];
 }
 
 

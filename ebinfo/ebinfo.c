@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 98, 99, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 99, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +36,7 @@
 #include "eb/error.h"
 #include "eb/font.h"
 
+#include "fakelog.h"
 #include "getopt.h"
 #include "ebutils.h"
 
@@ -66,15 +66,10 @@
 /*
  * Tricks for gettext.
  */
-#ifdef ENABLE_NLS
 #define _(string) gettext(string)
 #ifdef gettext_noop
 #define N_(string) gettext_noop(string)
 #else
-#define N_(string) (string)
-#endif
-#else
-#define _(string) (string)
 #define N_(string) (string)
 #endif
 
@@ -85,13 +80,6 @@ static void output_error_message EB_P((EB_Error_Code));
 static int output_information EB_P((const char *, int));
 static void output_help EB_P((void));
 static void output_multi_information EB_P((EB_Book *));
-
-/*
- * Program name and version.
- */
-static const char *program_name = "ebinfo";
-static const char *program_version = VERSION;
-static const char *invoked_name;
 
 /*
  * Command line options.
@@ -118,6 +106,7 @@ main(argc, argv)
     char *book_path;
     int multi_flag;
 
+    program_name = "ebinfo";
     invoked_name = argv[0];
 
     /*
@@ -130,6 +119,13 @@ main(argc, argv)
        bindtextdomain(TEXT_DOMAIN_NAME, LOCALEDIR);
        textdomain(TEXT_DOMAIN_NAME);
 #endif
+
+    /*
+     * Set fakelog behavior.
+     */
+    set_fakelog_name(invoked_name);
+    set_fakelog_mode(FAKELOG_TO_STDERR);
+    set_fakelog_level(FAKELOG_ERR);
 
     /*
      * Parse command line options.
@@ -158,11 +154,11 @@ main(argc, argv)
 	    /*
 	     * Option `-v'.  Display version number, then exit.
 	     */
-	    output_version(program_name, program_version);
+	    output_version();
 	    exit(0);
 
 	default:
-	    output_try_help(invoked_name);
+	    output_try_help();
 	    exit(1);
 	}
     }
@@ -172,7 +168,7 @@ main(argc, argv)
      */
     if (1 < argc - optind) {
 	fprintf(stderr, _("%s: too many arguments\n"), invoked_name);
-	output_try_help(invoked_name);
+	output_try_help();
 	exit(1);
     }
 
@@ -219,8 +215,8 @@ output_information(book_path, multi_flag)
     EB_Subbook_Code subbook_list[EB_MAX_SUBBOOKS];
     EB_Font_Code font_list[EB_MAX_FONTS];
     char title[EB_MAX_TITLE_LENGTH + 1];
-    char directory[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
-    int font_height, font_start, font_end;
+    char directory[EB_MAX_BASE_NAME_LENGTH + 1];
+    int font_start, font_end;
     int subbook_count;
     int font_count;
     int i, j;
@@ -319,6 +315,8 @@ output_information(book_path, multi_flag)
 	    fputs(_("keyword "), stdout);
 	if (eb_have_multi_search(&book))
 	    fputs(_("multi "), stdout);
+	if (eb_have_graphic_search(&book))
+	    fputs(_("graphic "), stdout);
 	if (eb_have_menu(&book))
 	    fputs(_("menu "), stdout);
 	if (eb_have_copyright(&book))
@@ -331,14 +329,12 @@ output_information(book_path, multi_flag)
 	fputs(_("  font sizes: "), stdout);
 	error_code = eb_font_list(&book, font_list, &font_count);
 	if (error_code != EB_SUCCESS) {
-	    fputc('\n', stdout);
-	    output_error_message(error_code);
+	    fprintf(stderr, "%s: %s\n\n", invoked_name,
+		eb_error_message(error_code));
+	    fflush(stderr);
 	} else {
-	    for (j = 0; j < font_count; j++) {
-		error_code = eb_font_height2(font_list[j], &font_height);
-		if (error_code == EB_SUCCESS)
-		    printf("%d ", font_height);
-	    }
+	    for (j = 0; j < font_count; j++)
+		printf("%d ", (int)font_list[j]);
 	    fputc('\n', stdout);
 	}
 
@@ -349,22 +345,22 @@ output_information(book_path, multi_flag)
 	if (eb_have_narrow_font(&book)) {
 	    do {
 		error_code = eb_set_font(&book, font_list[0]);
-		if (error_code != EB_SUCCESS)
+		if (error_code != EB_SUCCESS) {
+		    output_error_message(error_code);
 		    break;
+		}
 		error_code = eb_narrow_font_start(&book, &font_start);
-		if (error_code != EB_SUCCESS)
+		if (error_code != EB_SUCCESS) {
+		    output_error_message(error_code);
 		    break;
+		}
 		error_code = eb_narrow_font_end(&book, &font_end);
-		if (error_code != EB_SUCCESS)
+		if (error_code != EB_SUCCESS) {
+		    output_error_message(error_code);
 		    break;
-	    } while (0);
-
-	    if (error_code == EB_SUCCESS)
+		}
 		printf("0x%04x -- 0x%04x\n", font_start, font_end);
-	    else {
-		fputc('\n', stdout);
-		output_error_message(error_code);
-	    }
+	    } while (0);
 	} else {
 	    fputc('\n', stdout);
 	}
@@ -376,22 +372,22 @@ output_information(book_path, multi_flag)
 	if (eb_have_wide_font(&book)) {
 	    do {
 		error_code = eb_set_font(&book, font_list[0]);
-		if (error_code != EB_SUCCESS)
+		if (error_code != EB_SUCCESS) {
+		    output_error_message(error_code);
 		    break;
+		}
 		error_code = eb_wide_font_start(&book, &font_start);
-		if (error_code != EB_SUCCESS)
+		if (error_code != EB_SUCCESS) {
+		    output_error_message(error_code);
 		    break;
+		}
 		error_code = eb_wide_font_end(&book, &font_end);
-		if (error_code != EB_SUCCESS)
+		if (error_code != EB_SUCCESS) {
+		    output_error_message(error_code);
 		    break;
-	    } while (0);
-
-	    if (error_code == EB_SUCCESS)
+		}
 		printf("0x%04x -- 0x%04x\n", font_start, font_end);
-	    else {
-		fputc('\n', stdout);
-		output_error_message(error_code);
-	    }
+	    } while (0);
 	} else {
 	    fputc('\n', stdout);
 	}

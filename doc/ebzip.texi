@@ -14,7 +14,7 @@
 @ifinfo
 ebzip: Utility for compressing and uncompressing CD-ROM books, by Motoyuki Kasahara.
 
-Copyright @copyright{} 1998, 99, 2000, 01  Motoyuki Kasahara
+Copyright @copyright{} 1998, 99, 2000  Motoyuki Kasahara
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -47,7 +47,7 @@ by Free Software Foundation, Inc.
 
 @page
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1998, 99, 2000, 01  Motoyuki Kasahara
+Copyright @copyright{} 1998, 99, 2000  Motoyuki Kasahara
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -89,6 +89,7 @@ Compression
 * Compression Example 1::       Example of Compression (1).
 * Compression Example 2::       Example of Compression (2).
 * Compression Level::           Compression Level.
+* Adjust Filenames::            Adjust Filenames.
 * Test::                        Test.
 * Partial Compression::         Partial Compression.
 * Overwrite Old Files::         Overwrite Old Files.
@@ -259,6 +260,7 @@ In this case, it is assumed that the current working directory
 * Compression Example 1::       Example of Compression (1).
 * Compression Example 2::       Example of Compression (2).
 * Compression Level::           Compression Level.
+* Adjust Filenames::            Adjust Filenames.
 * Test::                        Test.
 * Partial Compression::         Partial Compression.
 * Overwrite Old Files::         Overwrite Old Files.
@@ -384,7 +386,7 @@ By default, @code{ebzip} deletes original files after compression, but
 the @samp{--keep} option disables this behavior.
 
 The directory strcture under @file{/dict} and @file{/cdrom} are almost
-the same, but the suffix @samp{.ebz} is added to the compressed files
+same, but the suffix @samp{.ebz} is added to the compressed files
 under @file{/dict}.
 
 @example
@@ -405,7 +407,7 @@ directory.
 @code{ebzip} ignores files and directories not supported by EB Library.
 
 @c -------------------------------------------------------------------
-@node Compression Level, Test, Compression Example 2, Compression
+@node Compression Level, Adjust Filenames, Compression Example 2, Compression
 @section Compression Level
 
 @code{ebzip} supports four compression levels, from 0 to 3.
@@ -423,7 +425,68 @@ The compression level is set by the @samp{--level} (@samp{-l}) option.
 The default level is 0 (fastest but worst).
 
 @c -------------------------------------------------------------------
-@node Test, Partial Compression, Compression Level, Compression
+@node Adjust Filenames, Test, Compression Level, Compression
+@section Adjust Filenames
+
+Let's go back to the previous example.
+Again, supporsed that you have already copied a CD-ROM book to @file{/dict}
+on a hard disk, but it is not compressed.
+The book has the following files under @file{/dict}.
+However, unlike the previous example, file and directory names under
+@file{/dict} consist of upper case letters, and filenames have the
+version number @samp{;1} in their tails.
+
+@example
+@group
+/dict/CATALOG;1
+/dict/LANGUAGE;1
+/dict/GERMAN/START;1
+/dict/FRENCH/START;1
+/dict/ITALIAN/START;1
+@end group
+@end example
+
+After the compression by @code{ebzip}, they will be as the following:
+
+@example
+@group
+/dict/CATALOG;1
+/dict/LANGUAGE.EBZ;1
+/dict/GERMAN/START.EBZ;1
+/dict/FRENCH/START.EBZ;1
+/dict/ITALIAN/START.EBZ;1
+@end group
+@end example
+
+@noindent
+@code{ebzip} keeps @dfn{case} (upper or lower) and @dfn{suffix} of
+filenames as original form.
+The following table displayes how a filename of @file{start} file changes.
+
+@multitable @columnfractions .4 .3 .3
+@item case/suffix       @tab before compression @tab after compresssion
+@item lower/none        @tab start              @tab start.ebz
+@item lower/dot         @tab start.             @tab start.ebz
+@item lower/version     @tab start;1            @tab start.ebz;1
+@item lower/dot+version @tab start.;1           @tab start.ebz;1
+@item upper/none        @tab START              @tab START.EBZ
+@item upper/dot         @tab START.             @tab START.EBZ
+@item upper/version     @tab START;1            @tab START.EBZ;1
+@item upper/dot+version @tab START.;1           @tab START.EBZ;1
+@end multitable
+
+The @samp{--case} and @samp{--suffix} options allows you to
+modify these case and suffix styles of output filenames.
+The @samp{--case} option takes an argument, and it must be @samp{upper}
+or @samp{lower}.
+The option sets the case of output filenames to upper or lower.
+Also the @samp{--suffix} option takes an argument, and it must be
+@samp{none}, @samp{dot}, @samp{version} or @samp{both}.
+The option sets the suffix style of output filenames to none, dot,
+version or both (dot+version).
+
+@c -------------------------------------------------------------------
+@node Test, Partial Compression, Adjust Filenames, Compression
 @section Test
 
 Invoking @code{ebzip} with the @code{--test} (@code{-t}) option,
@@ -440,8 +503,8 @@ before compression.
 @section Partial Compression
 
 @code{ebzip} compresses an entire book by default,
-but the @samp{--subbook} (@samp{-S}) and @samp{--skip-content}
-(@samp{-s}) options allow you to compress part of a book.
+but the @samp{--subbook} (@samp{-S}) option allows you to compress
+specified subbooks only.
 
 The @samp{--subbook} option takes an argument which is a list of
 directory names of subbooks to be compressed, separeted by a comma
@@ -460,7 +523,7 @@ the number of subbooks: 3
 @group
 subbook 1:
   title: New English Japanese Dictionary (4th edition)
-  directory: english
+  directory: ENGLISH
   search methods: word endword keyword menu
   font sizes: 16 24 30 48
   narrow font characters: 0xa121 -- 0xa24e
@@ -470,7 +533,7 @@ subbook 1:
 @group
 subbook 2:
   title: CD-ROM French Japanese Dictionary (3rd edition)
-  directory: french
+  directory: FRENCH
   search methods: word endword keyword menu
   font sizes: 16 24 30 48
   narrow font characters: 
@@ -480,7 +543,7 @@ subbook 2:
 @group
 subbook 3:
   title: Pocket German Japanese Dictionary (3rd edition)
-  directory: german
+  directory: GERMAN
   search methods: menu
   font sizes: 16 24 30 48
   narrow font characters: 
@@ -493,8 +556,10 @@ subbook 3:
 for more details about the @code{ebinfo} command).
 @*
 In this example, there are three subbooks in the book, and their
-directory names are @code{english}, @code{french} and @code{german}.
-By the following, you can compress @code{english} and @code{french}:
+directory names are @code{ENGLISH}, @code{FRENCH} and @code{GERMAN}.
+
+You can compress only @code{ENGLISH} and @code{FRENCH} by the following
+way:
 
 @example
 % ebzip --subbook english,french /dict
@@ -509,7 +574,7 @@ An argument to @samp{--subbook} can be splitted like as follows:
 @end example
 
 @noindent
-Files in the rest subbooks (@code{german} in this example) are not
+Files in the rest subbooks (@code{GERMAN} in this example) are not
 compressed nor copied, so that the compression procedure for the book
 is incompleted at this point.
 In order to use the book, you must compress the rest subbooks in a
@@ -518,20 +583,11 @@ the @file{CATALOG(S)} file by using the @code{ebrefile} command
 (@xref{Combination with ebzip, , Combination with @code{ebzip}, ebrefile,
 ebrefile}, for more details).
 You can compress subbooks with different compression levels
-(e.g. compress @code{english} and @code{french} with level 0, and 
-compress @code{german} with level 2).
+(e.g. compress @code{ENGLISH} and @code{FRENCH} with level 0, and 
+compress @code{GERMAN} with level 2).
 
-The @samp{--skip-content} (@samp{-s}) is similar to @samp{--subbook},
-but @samp{--skip-content} specifies data types of files to be ignored.
-
-@example
-% ebzip --skip-content sound,movie --subbook french /dict
-@end example
-
-@noindent
-In this example, @code{ebzip} skips sound and movie files.
-The data type names currently recognized by @code{ebzip} are:
-@code{font}, @code{graphic}, @code{sound} and @code{movie}.
+Regardless of the @samp{--subbook} option, the @file{LANGUAGE} file is
+always compressed.
 
 @c -------------------------------------------------------------------
 @node Overwrite Old Files, Compress Compressed EPWING, Partial Compression, Compression
@@ -563,18 +619,13 @@ Similary, when the @samp{--no-overwrite} option is specified,
 @node Compress Compressed EPWING,  , Overwrite Old Files, Compression
 @section Compress Compressed EPWING CD-ROM Book
 
-EPWING also defines compression format which is different from ebzip.
-Some CD-ROM books of EPWING V4 and later version use the compression.
-
-@code{ebzip} (@code{ebunzip}) can also uncompress CD-ROM books compressed
-with the EPWING compression fomrat, but it cannot compress files with
-the format.
-
-If you command @code{ebzip} to compress a CD-ROM book wich has been
-compressed with EPWING compression format, then @code{ebzip} uncompresses
-the book first, and next compresses it with the ebzip compression.
-Compression ratio of the ebzip compression format is generally better
-than that of EPWING format.
+@code{ebzip} can compress a CD-ROM book compressed with the EPWING
+compression format.
+It uncompress the book, and then recompresses the book with the ebzip
+compression format.
+Since the ebzip compression is generally better than the EPWING
+compression format, the book compressed by @code{ebzip} is smaller than
+original.
 
 @c ===================================================================
 @node Uncompression, Information, Compression, Top
@@ -685,16 +736,23 @@ doesn't write uncompressed data to acutual files.
 This option is usuful for checking validity of compressed files.
 @xref{Test}, for more details about the @samp{--test} option.
 
-When the @samp{--subbook} and/or @samp{--skip-content} options are
-specified, @code{ebunzip} only uncompresses files matched to the given
-condition only.
-@xref{Partial Compression}, for more details about these options.
+When the @samp{--subbook} is specified, @code{ebunzip} only uncompresses
+specified subbooks, in addition with @file{LANGUAGE}.
+@xref{Partial Compression}, for more details about the @samp{--subbook}
+option.
 
 When the @samp{--force-overwrite} or @samp{--no-overwrite} option is
 specified, @code{ebunzip} overwrites or skips files without confirmation
 for overwriting.
 @xref{Overwrite Old Files}, for more details about the
 @samp{--force-overwrite} and @samp{--no-overwrite} options.
+
+By default, case (upper or lower) and suffix styles of filenames of
+uncompressed files are the same as those of compressed files.
+The @samp{--case} and @samp{--suffix} options allows you to modify
+the case and suffix styles of filenames of uncompressed files.
+@xref{Adjust Filenames}, for more details about the @samp{--case} and 
+@samp{--suffix} options.
 
 @code{ebunzip} ignores the @samp{--level} option.
 You don't have to specify the @samp{--level} option at uncompression.
@@ -703,12 +761,12 @@ You don't have to specify the @samp{--level} option at uncompression.
 @node Uncompress Compressed EPWING,  , Options for Uncompression, Uncompression
 @section Uncompress Compressed EPWING CD-ROM Book
 
-EPWING also defines compression format which is different from ebzip.
-Some CD-ROM books of EPWING V4 and later version use the compression.
-
-@code{ebzip} (@code{ebunzip}) can also uncompress CD-ROM books compressed
-with the EPWING compression fomrat, but it cannot compress files with
-the format.
+@code{ebzip} can uncompress a CD-ROM book compressed with the EPWING
+compression format.
+However, @code{ebzip} cannot restore the original compressed book by
+compressing the uncompressed book again.
+In other words, @code{ebzip} support uncompression of the EPWING
+compression format, but doesn't support compression.
 
 @c ===================================================================
 @node Information, Delete a Book, Uncompression, Top
@@ -758,15 +816,15 @@ compressed: 12288 -> 4121 bytes (33.5%, ebzip level 0 compression)
 @node Options for Information,  , Information Example, Information
 @section Options for Information
 
-When you invoke @code{ebzipinfo} with the @samp{--subbook} and/or
-@samp{--skip-content} options, @code{ebzipinfo} outputs information
-about files matched to the given condition only.
-@xref{Partial Compression}, for details about these options.
+When you invoke @code{ebzipinfo} with the @samp{--subbook} option, 
+@code{ebzipinfo} outputs information about files of the specified subbooks
+only, in addition with @file{LANGUAGE}, @file{CATALOG} and @file{CATALOGS}.
+@xref{Partial Compression}, for details about the @samp{--subbook} option.
 
 @code{ebzipinfo} ignores the following options; @samp{--force-overwrite},
 @samp{--keep}, @samp{--level}, @samp{--no-overwrite},
-@samp{--output-directory}, @samp{--quiet}, @samp{--silence} and
-@samp{--test}.
+@samp{--output-directory}, @samp{--quiet}, @samp{--silence}, @code{--suffix}
+and @samp{--test}.
 
 @c ===================================================================
 @node Delete a Book, Summary of Options, Information, Top
@@ -793,6 +851,18 @@ Long option names are indicated with @samp{--} instead of @samp{-}.
 Abbreviations for option names are allowed as long as they are unique.
 
 @table @code
+@item -c @var{case}
+@itemx --case @var{case}
+Output files which have filenames with upper or lower @var{case}
+letters.
+@var{case} must be @samp{upper} or @samp{lower}.
+When this option is not specified, the case of filenames of the output
+files comes to be the same as filenames of files in the input book.
+This option is ignored when the action is information, or when you
+specify the @samp{--test} (@samp{-t}) option.
+
+(@xref{Adjust Filenames}, for more details).
+
 @item -f
 @itemx --force-overwrite
 Overwrite existed files without confirmation.
@@ -857,14 +927,22 @@ To supress this question, specify the @samp{--force-overwrite} (@samp{-f})
 or @samp{--no-overwrite} (@samp{-n}) option.
 This option is ignored when the action is uncompression or information.
 
-@item -s @var{types}
-@itemx --skip-content @var{types}
-Specify data types of files to be ignored.
-@var{types} must be a list of data type names separated by a comma
-(@samp{,}).
-The data type names @code{ebzip} currently recognizes are: @code{font},
-@code{graphic}, @code{sound} and @code{movie}.
-By default, none is skipped.
+@item -s @var{suffix}
+@itemx --suffix @var{suffix}
+Specify the suffix of filenames of output files.
+@var{suffix} must be @samp{none}, @samp{dot}, @samp{version} or @samp{both}.
+When @var{suffix} is @samp{none}, no suffix is appended.
+When @var{suffix} is @samp{dot}, a dot (@samp{.}) is appended.
+When @var{suffix} is @samp{version}, a version number 1 (@samp{;1}) is
+appended.
+When @var{suffix} is @samp{both}, dot and version number 1 (@samp{.;1})
+is appended.
+If this option is not specified, suffixes of filenames of the output
+files comes to be the same as filenames of files in the input book.
+This option is ignored when the action is information, or when you
+specify the @samp{--test} (@samp{-t}) option.
+
+(@xref{Adjust Filenames}, for more details).
 
 @item -S @var{subbooks}
 @itemx --subbook @var{subbooks}

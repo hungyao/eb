@@ -1,6 +1,5 @@
 /*                                                            -*- C -*-
- * Copyright (c) 1997, 98, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,10 +59,7 @@ int eb_have_graphic_search EB_P((EB_Book *));
 
 /* keyword.c */
 int eb_have_keyword_search EB_P((EB_Book *));
-EB_Error_Code eb_search_keyword EB_P((EB_Book *, const char * const []));
-
-/* lock.c */
-int eb_pthread_enabled EB_P((void));
+EB_Error_Code eb_search_keyword EB_P((EB_Book *, const char *[]));
 
 /* menu.c */
 int eb_have_menu EB_P((EB_Book *));
@@ -82,7 +78,7 @@ int eb_multi_entry_have_candidates EB_P((EB_Book *, EB_Multi_Search_Code,
 EB_Error_Code eb_multi_entry_candidates EB_P((EB_Book *, 
     EB_Multi_Search_Code, EB_Multi_Entry_Code, EB_Position *));
 EB_Error_Code eb_search_multi EB_P((EB_Book *, EB_Multi_Search_Code,
-    const char * const []));
+    const char *[]));
 
 /* search.c */
 EB_Error_Code eb_hit_list EB_P((EB_Book *, int, EB_Hit *, int *));

@@ -14,7 +14,7 @@
 @ifinfo
 ebinfo: Utility for getting CD-ROM book information, by Motoyuki Kasahara.
 
-Copyright @copyright{} 1997, 98, 99, 2000, 01  Motoyuki Kasahara
+Copyright @copyright{} 1997, 98, 99, 2000  Motoyuki Kasahara
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -47,7 +47,7 @@ by Free Software Foundation, Inc.
 
 @page
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1997, 98, 99, 2000, 01  Motoyuki Kasahara
+Copyright @copyright{} 1997, 98, 99, 2000  Motoyuki Kasahara
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -132,7 +132,7 @@ the number of subbooks: 2
 @group
 subbook 1:
   title: New English Japanese Dictionary (3rd edition)
-  directory: ejdict
+  directory: EJDICT
   search methods: word endword keyword menu
   font sizes: 16 24 30 48
   narrow font characters: 0xa121 -- 0xa24e
@@ -142,7 +142,7 @@ subbook 1:
 @group
 subbook 2:
   title: How to use the book
-  directory: howto
+  directory: HOWTO
   search methods: word endword keyword menu
   font sizes: 16 24 30 48
   narrow font characters: 

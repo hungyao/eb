@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 98, 99, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 99, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,6 +59,7 @@
 #include "eb/error.h"
 #include "eb/font.h"
 
+#include "fakelog.h"
 #include "getopt.h"
 #include "getumask.h"
 #include "makedir.h"
@@ -117,25 +117,11 @@ char *strerror();
 /*
  * Tricks for gettext.
  */
-#ifdef ENABLE_NLS
 #define _(string) gettext(string)
 #ifdef gettext_noop
 #define N_(string) gettext_noop(string)
 #else
 #define N_(string) (string)
-#endif
-#else
-#define _(string) (string)       
-#define N_(string) (string)
-#endif
-
-/*
- * Trick for difference of path notation between UNIX and DOS.
- */
-#ifndef DOS_FILE_PATH
-#define F_(path1, path2) (path1)
-#else
-#define F_(path1, path2) (path2)
 #endif
 
 /*
@@ -181,13 +167,6 @@ static Image_Format image_formats[] = {
 #define MAX_LENGTH_IMAGE_SUFFIX	3
 
 /*
- * Program name and version.
- */
-static const char *program_name = "ebfont";
-static const char *program_version = VERSION;
-static const char *invoked_name;
-
-/*
  * Debug flag.
  */
 static int debug_flag;
@@ -195,26 +174,26 @@ static int debug_flag;
 /*
  * List of target subbook names.
  */
-char subbook_name_list[EB_MAX_SUBBOOKS][EB_MAX_DIRECTORY_NAME_LENGTH + 1];
+char subbook_name_list[EB_MAX_SUBBOOKS][EB_MAX_BASE_NAME_LENGTH + 1];
 int subbook_name_count = 0;
 
 /*
  * List of target subbook codes.
  */
-static EB_Subbook_Code subbook_list[EB_MAX_SUBBOOKS];
-static int subbook_count = 0;
+EB_Subbook_Code subbook_list[EB_MAX_SUBBOOKS];
+int subbook_count = 0;
 
 /*
  * List of target font heights.
  */
-static EB_Font_Code font_list[EB_MAX_FONTS];
-static int font_count = 0;
+EB_Font_Code font_list[EB_MAX_FONTS];
+int font_count = 0;
 
 /*
  * Target Image formats.
  */
-static Image_Format_Code image_list[MAX_IMAGE_FORMATS];
-static int image_count = 0;
+Image_Format_Code image_list[MAX_IMAGE_FORMATS];
+int image_count = 0;
 
 /*
  * Defaults and limitations.
@@ -243,9 +222,9 @@ static int image_count = 0;
 /*
  * Unexported functions.
  */
-static int parse_image_argument EB_P((const char *, Image_Format_Code *,
-    int *));
-static int parse_font_argument EB_P((const char *, EB_Font_Code *, int *));
+static int parse_image_argument EB_P((const char *, int *,
+    Image_Format_Code *));
+static int parse_font_argument EB_P((const char *, int *, EB_Font_Code *));
 static void output_help EB_P((void));
 static int make_book_fonts EB_P((EB_Book *, const char *, EB_Subbook_Code *,
     int, EB_Font_Code *, int, Image_Format_Code *, int));
@@ -269,6 +248,7 @@ main(argc, argv)
     EB_Book book;
     int ch;
     
+    program_name = "ebfont";
     invoked_name = argv[0];
     debug_flag = 0;
     strcpy(out_path, DEFAULT_OUTPUT_DIRECTORY);
@@ -291,6 +271,13 @@ main(argc, argv)
     eb_initialize_book(&book);
 
     /*
+     * Set fakelog behavior.
+     */
+    set_fakelog_name(invoked_name);
+    set_fakelog_mode(FAKELOG_TO_STDERR);
+    set_fakelog_level(FAKELOG_ERR);
+
+    /*
      * Parse command line options.
      */
     for (;;) {
@@ -303,14 +290,15 @@ main(argc, argv)
 	     * Option `-d'.  Debug mode.
 	     */
 	    debug_flag = 1;
+	    set_fakelog_level(FAKELOG_DEBUG);
 	    break;
 
 	case 'f':
 	    /*
 	     * Option `-f'.  Generate fonts with HEIGHT.
 	     */
-	    if (parse_font_argument(optarg, font_list, &font_count) < 0) {
-		output_try_help(invoked_name);
+	    if (parse_font_argument(optarg, &font_count, font_list) < 0) {
+		output_try_help();
 		goto die;
 	    }
 	    break;
@@ -326,8 +314,8 @@ main(argc, argv)
 	    /*
 	     * Option `-i'.  Generate fonts as FORMAT.
 	     */
-	    if (parse_image_argument(optarg, image_list, &image_count) < 0) {
-		output_try_help(invoked_name);
+	    if (parse_image_argument(optarg, &image_count, image_list) < 0) {
+		output_try_help();
 		goto die;
 	    }
 	    break;
@@ -340,9 +328,10 @@ main(argc, argv)
 	     *         <charno>.<suffix>"
 	     *
 	     * <path>:    is `optarg'.
-	     * <subbook>: require EB_MAX_DIRECTORY_NAME_LENGTH characters.
+	     * <subbook>: require EB_MAX_BASE_NAME_LENGTH characters.
 	     * fonts:     require 5 characters.
 	     * <height>:  require 2 characters ("16", "24", "32", or "48").
+	     * <image>:   require MAX_LENGTH_IMAGE_NAME characters.
 	     * {narrow,wide}:
 	     *            requre 6 characters (= strlen("narrow")).
 	     * <charno>:  requre 4 characters. ("0000" ... "ffff")
@@ -355,9 +344,8 @@ main(argc, argv)
 	    }
 	    strcpy(out_path, optarg);
 	    canonicalize_path(out_path);
-	    if (PATH_MAX < strlen(out_path) + 1 + EB_MAX_DIRECTORY_NAME_LENGTH
-		+ 1 + 5 + 1 + 2 + 1 + 6 + 1 + 4 + 1
-		+ MAX_LENGTH_IMAGE_SUFFIX) {
+	    if (PATH_MAX < strlen(out_path) + (1 + EB_MAX_BASE_NAME_LENGTH + 1
+		+ 5 + 1 + 2 + 1 + 6 + 1 + 4 + 1 + MAX_LENGTH_IMAGE_SUFFIX)) {
 		fprintf(stderr, _("%s: too long output directory path\n"),
 		    invoked_name);
 		goto die;
@@ -368,9 +356,9 @@ main(argc, argv)
             /*
              * Option `-S'.  Specify target subbooks.
              */
-            if (parse_subbook_name_argument(invoked_name, optarg,
-		subbook_name_list, &subbook_name_count) < 0) {
-		output_try_help(invoked_name);
+            if (parse_subbook_name_argument(optarg, subbook_name_list,
+		&subbook_name_count) < 0) {
+		output_try_help();
 		goto die;
 	    }
             break;
@@ -379,11 +367,11 @@ main(argc, argv)
 	    /*
 	     * Option `-v'.  Display version number, then exit.
 	     */
-	    output_version(program_name, program_version);
+	    output_version();
 	    exit(0);
 
 	default:
-	    output_try_help(invoked_name);
+	    output_try_help();
 	    goto die;
 	}
     }
@@ -393,15 +381,15 @@ main(argc, argv)
      */
     if (1 < argc - optind) {
 	fprintf(stderr, _("%s: too many arguments\n"), invoked_name);
-	output_try_help(invoked_name);
+	output_try_help();
 	goto die;
     }
 
     if (image_count == 0)
-	parse_image_argument(DEFAULT_IMAGE_FORMAT, image_list, &image_count);
+	parse_image_argument(DEFAULT_IMAGE_FORMAT, &image_count, image_list);
 
     if (font_count == 0)
-	parse_font_argument(DEFAULT_FONT_HEIGHT, font_list, &font_count);
+	parse_font_argument(DEFAULT_FONT_HEIGHT, &font_count, font_list);
 
     /*
      * Set a book path.
@@ -438,8 +426,8 @@ main(argc, argv)
 	EB_Subbook_Code sub;
 
 	for (i = 0; i < subbook_name_count; i++) {
-	    error_code = find_subbook(&book, subbook_name_list[i], &sub);
-	    if (error_code != EB_SUCCESS) {
+	    sub = find_subbook(&book, subbook_name_list[i]);
+	    if (sub < 0) {
 		fprintf(stderr, _("%s: unknown subbook name `%s'\n"),
 		    invoked_name, subbook_name_list[i]);
 	    }
@@ -477,10 +465,10 @@ main(argc, argv)
  * Parse an argument to option `--font-height (-f)'
  */
 static int
-parse_font_argument(argument, font_list, font_count)
+parse_font_argument(argument, font_count, font_list)
     const char *argument;
-    EB_Font_Code *font_list;
     int *font_count;
+    EB_Font_Code *font_list;
 {
     const char *argument_p = argument;
     char font_name[MAX_LENGTH_FONT_NAME + 1];
@@ -514,13 +502,13 @@ parse_font_argument(argument, font_list, font_count)
 	 * Check for the font name.
 	 */
 	if (strcmp(font_name, "16") == 0)
-	    font_code = EB_FONT_16;
+	    font_code = 16;
 	else if (strcmp(font_name, "24") == 0)
-	    font_code = EB_FONT_24;
+	    font_code = 24;
 	else if (strcmp(font_name, "30") == 0)
-	    font_code = EB_FONT_30;
+	    font_code = 30;
 	else if (strcmp(font_name, "48") == 0)
-	    font_code = EB_FONT_48;
+	    font_code = 48;
 	else {
 	    fprintf(stderr, _("%s: unknown font height `%s'\n"),
 		invoked_name, font_name);
@@ -557,10 +545,10 @@ parse_font_argument(argument, font_list, font_count)
  * Parse an argument to option `--font-image-format (-i)'
  */
 static int
-parse_image_argument(argument, image_list, image_count)
+parse_image_argument(argument, image_count, image_list)
     const char *argument;
-    Image_Format_Code *image_list;
     int *image_count;
+    Image_Format_Code *image_list;
 {
     const char *argument_p = argument;
     char image_name[MAX_LENGTH_IMAGE_NAME + 1];
@@ -681,7 +669,7 @@ make_book_fonts(book, out_path, subbook_list, subbook_count, font_list,
 {
     EB_Error_Code error_code;
     char subbook_path[PATH_MAX + 1];
-    char subbook_directory[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
+    char subbook_directory[EB_MAX_BASE_NAME_LENGTH + 1];
     int i;
 
     /*
@@ -703,16 +691,6 @@ make_book_fonts(book, out_path, subbook_list, subbook_count, font_list,
 	}
 
 	/*
-	 * Get directory name of the subbook.
-	 */
-	error_code = eb_subbook_directory(book, subbook_directory);
-	if (error_code != EB_SUCCESS) {
-	    fprintf(stderr, "%s: %s: subbook=%d\n", invoked_name,
-		eb_error_message(error_code), subbook_list[i]);
-	    goto failed;
-	}
-
-	/*
 	 * Output debug information.
 	 */
 	if (debug_flag) {
@@ -723,8 +701,17 @@ make_book_fonts(book, out_path, subbook_list, subbook_count, font_list,
 	/*
 	 * Make a directory for the subbook.
 	 */
-	sprintf(subbook_path, F_("%s/%s", "%s\\%s"),
-	    out_path, subbook_directory);
+	error_code = eb_subbook_directory(book, subbook_directory);
+	if (error_code != EB_SUCCESS) {
+	    fprintf(stderr, "%s: %s: subbook=%d\n", invoked_name,
+		eb_error_message(error_code), subbook_list[i]);
+	    goto failed;
+	}
+	sprintf(subbook_path, "%s/%s", out_path, subbook_directory);
+
+#ifdef DOS_FILE_PATH
+	eb_canonicalize_file_name(subbook_path);
+#endif
 	if (make_missing_directory(subbook_path, 0777 ^ get_umask()) < 0)
 	    goto failed;
 
@@ -761,9 +748,8 @@ make_subbook_fonts(book, subbook_path, font_list, font_count, image_list,
     int image_count;
 {
     EB_Error_Code error_code;
-    char subbook_directory[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
+    char subbook_directory[EB_MAX_BASE_NAME_LENGTH + 1];
     char font_path[PATH_MAX + 1];
-    int font_height;
     int i;
 
     /*
@@ -805,8 +791,10 @@ make_subbook_fonts(book, subbook_path, font_list, font_count, image_list,
 	/*
 	 * Make a directory for the font.
 	 */
-	eb_font_height2(font_list[i], &font_height);
-	sprintf(font_path, F_("%s/%d", "%s\\%d"), subbook_path, font_height);
+	sprintf(font_path, "%s/%d", subbook_path, font_list[i]);
+#ifdef DOS_FILE_PATH
+	eb_canonicalize_file_name(font_path);
+#endif
 	if (make_missing_directory(font_path, 0777 ^ get_umask()) < 0)
 	    goto failed;
 
@@ -840,7 +828,7 @@ make_subbook_size_fonts(book, font_path, image_list, image_count)
     int image_count;
 {
     EB_Error_Code error_code;
-    char subbook_directory[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
+    char subbook_directory[EB_MAX_BASE_NAME_LENGTH + 1];
     int i;
 
     /*
@@ -865,7 +853,8 @@ make_subbook_size_fonts(book, font_path, image_list, image_count)
 	/*
 	 * Make font-files as the image format.
 	 */
-	if (make_subbook_size_image_fonts(book, font_path, image_list[i]) < 0)
+	if (make_subbook_size_image_fonts(book, font_path, image_list[i])
+	    < 0)
 	    goto failed;
     }
 
@@ -890,7 +879,7 @@ make_subbook_size_image_fonts(book, image_path, image)
     Image_Format_Code image;
 {
     EB_Error_Code error_code;
-    char subbook_directory[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
+    char subbook_directory[EB_MAX_BASE_NAME_LENGTH + 1];
     char type_path[PATH_MAX + 1];
     char file_name[PATH_MAX + 1];
     char bitmap_data[EB_SIZE_WIDE_FONT_48];
@@ -913,7 +902,7 @@ make_subbook_size_image_fonts(book, image_path, image)
     /*
      * Get the current font size.
      */
-    error_code = eb_font_height(book, &image_height);
+    error_code = eb_font(book, &image_height);
     if (error_code != EB_SUCCESS) {
 	fprintf(stderr, "%s: %s: subbook=%s\n", invoked_name,
 	    eb_error_message(error_code), subbook_directory);
@@ -945,7 +934,10 @@ make_subbook_size_image_fonts(book, image_path, image)
 	/*
 	 * Make a directory for the narrow font.
 	 */
-	sprintf(type_path, F_("%s/narrow", "%s\\narrow"), image_path);
+	sprintf(type_path, "%s/narrow", image_path);
+#ifdef DOS_FILE_PATH
+	eb_canonicalize_file_name(type_path);
+#endif
 	if (make_missing_directory(type_path, 0777 ^ get_umask()) < 0)
 	    goto failed;
 
@@ -961,8 +953,11 @@ make_subbook_size_image_fonts(book, image_path, image)
 	    /*
 	     * Generate a bitmap file for the character `character_number'.
 	     */
-	    sprintf(file_name, F_("%s/%04x.%s", "%s\\%04x.%s"),
-		type_path, character_number, image_formats[image].suffix);
+	    sprintf(file_name, "%s/%04x.%s", type_path, character_number,
+		image_formats[image].suffix);
+#ifdef DOS_FILE_PATH
+	    eb_canonicalize_file_name(file_name);
+#endif
 	    error_code = eb_narrow_font_character_bitmap(book,
 		character_number, bitmap_data);
 	    if (error_code != EB_SUCCESS) {
@@ -972,15 +967,16 @@ character=0x%04x\n",
 		    subbook_directory, image_height, character_number);
 		goto failed;
 	    }
-	    (image_formats[image].function)(bitmap_data, image_width,
-		image_height, image_data, &image_size);
+	    (image_formats[image].function)(image_data, image_width,
+		image_height, bitmap_data, &image_size);
 	    if (save_image_file(file_name, image_data, image_size) < 0)
 		goto failed;
 
 	    /*
 	     * Toward next charahacter.
 	     */
-	    eb_forward_narrow_font_character(book, 1, &character_number);
+	    character_number = eb_forward_narrow_font_character(book, 1,
+		&character_number);
 	}
     }
 
@@ -1009,7 +1005,10 @@ character=0x%04x\n",
 	/*
 	 * Make a directory for the wide font.
 	 */
-	sprintf(type_path, F_("%s/wide", "%s\\wide"), image_path);
+	sprintf(type_path, "%s/wide", image_path);
+#ifdef DOS_FILE_PATH
+	    eb_canonicalize_file_name(type_path);
+#endif
 	if (make_missing_directory(type_path, 0777 ^ get_umask()) < 0)
 	    goto failed;
 
@@ -1025,8 +1024,11 @@ character=0x%04x\n",
 	    /*
 	     * Generate a bitmap file for the character `character_number'.
 	     */
-	    sprintf(file_name, F_("%s/%04x.%s", "%s\\%04x.%s"),
-		type_path, character_number, image_formats[image].suffix);
+	    sprintf(file_name, "%s/%04x.%s", type_path, character_number,
+		image_formats[image].suffix);
+#ifdef DOS_FILE_PATH
+	    eb_canonicalize_file_name(file_name);
+#endif
 	    error_code = eb_wide_font_character_bitmap(book, character_number,
 		bitmap_data);
 	    if (error_code != EB_SUCCESS) {
@@ -1036,15 +1038,16 @@ character=0x%04x\n",
 		    subbook_directory, image_height, character_number);
 		goto failed;
 	    }
-	    (image_formats[image].function)(bitmap_data, image_width,
-		image_height, image_data, &image_size);
+	    (image_formats[image].function)(image_data, image_width,
+		image_height, bitmap_data, &image_size);
 	    if (save_image_file(file_name, image_data, image_size) < 0)
 		goto failed;
 
 	    /*
 	     * Toward next charahacter.
 	     */
-	    eb_forward_wide_font_character(book, 1, &character_number);
+	    character_number = eb_forward_wide_font_character(book, 1,
+		&character_number);
 	}
     }
 

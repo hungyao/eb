@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1998, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1998, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +23,6 @@
 #endif
 
 #include <sys/types.h>
-#include <sys/stat.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>

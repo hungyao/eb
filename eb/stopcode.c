@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,7 +12,16 @@
  * GNU General Public License for more details.
  */
 
-#include "ebconfig.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+
+#ifdef ENABLE_PTHREAD
+#include <pthread.h>
+#endif
 
 #include "eb.h"
 #include "error.h"

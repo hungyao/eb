@@ -1,6 +1,5 @@
 /*                                                            -*- C -*-
- * Copyright (c) 1998, 99, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1998, 99, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +17,10 @@
 #endif
 
 #include <stdio.h>
+#include <signal.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 #if defined(STDC_HEADERS) || defined(HAVE_STRING_H)
 #include <string.h>
@@ -37,8 +39,18 @@
 #include <unistd.h>
 #endif
 
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#else
+#include <sys/file.h>
+#endif
+
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
+
+#ifdef HAVE_UTIME_H
+#include <utime.h>
 #endif
 
 #ifdef ENABLE_NLS
@@ -48,7 +60,31 @@
 #include <libintl.h>
 #endif
 
+#include <zlib.h>
+
 #include "ebutils.h"
+
+#ifndef HAVE_STRUCT_UTIMBUF
+struct utimbuf {
+    long actime;
+    long modtime;
+};
+#endif
+
+#ifndef HAVE_MEMCPY
+#define memcpy(d, s, n) bcopy((s), (d), (n))
+#ifdef __STDC__
+void *memchr(const void *, int, size_t);
+int memcmp(const void *, const void *, size_t);
+void *memmove(void *, const void *, size_t);
+void *memset(void *, int, size_t);
+#else /* not __STDC__ */
+char *memchr();
+int memcmp();
+char *memmove();
+char *memset();
+#endif /* not __STDC__ */
+#endif
 
 #ifndef HAVE_STRCHR
 #define strchr index
@@ -65,6 +101,38 @@ int strncasecmp();
 #endif /* not __STDC__ */
 #endif /* not HAVE_STRCASECMP */
 
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
+/*
+ * Whence parameter for lseek().
+ */
+#ifndef SEEK_SET
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+#endif
+
+/*
+ * stat macros.
+ */
+#ifdef  STAT_MACROS_BROKEN
+#ifdef  S_ISREG
+#undef  S_ISREG
+#endif
+#ifdef  S_ISDIR
+#undef  S_ISDIR
+#endif
+#endif  /* STAT_MACROS_BROKEN */
+
+#ifndef S_ISREG
+#define S_ISREG(m)   (((m) & S_IFMT) == S_IFREG)
+#endif
+#ifndef S_ISDIR
+#define S_ISDIR(m)   (((m) & S_IFMT) == S_IFDIR)
+#endif
+
 /*
  * The maximum length of path name.
  */
@@ -76,18 +144,16 @@ int strncasecmp();
 #endif /* not MAXPATHLEN */
 #endif /* not PATH_MAX */
 
-#include "eb.h"
-#include "error.h"
-#include "internal.h"
-#include "font.h"
+#include "eb/eb.h"
+#include "eb/error.h"
+#include "eb/internal.h"
 
+#include "fakelog.h"
 #include "getopt.h"
 #include "getumask.h"
 #include "makedir.h"
 #include "samefile.h"
 #include "yesno.h"
-
-#include "ebzip.h"
 
 /*
  * Trick for function protypes.
@@ -103,17 +169,29 @@ int strncasecmp();
 /*
  * Tricks for gettext.
  */
-#ifdef ENABLE_NLS
 #define _(string) gettext(string)
 #ifdef gettext_noop
 #define N_(string) gettext_noop(string)
 #else
 #define N_(string) (string)
 #endif
-#else
-#define _(string) (string)       
-#define N_(string) (string)
-#endif
+
+/*
+ * Defaults and limitations.
+ */
+#define DEFAULT_EBZIP_LEVEL		0
+#define DEFAULT_BOOK_DIRECTORY          "."
+#define DEFAULT_OUTPUT_DIRECTORY        "."
+
+/*
+ * Information output interval.
+ */
+#define INFORMATION_INTERVAL_FACTOR		1024
+
+/*
+ * Maximum length of a file name list.
+ */
+#define MAX_LENGTH_FILE_NAME_LIST		3
 
 /*
  * Character type tests and conversions.
@@ -129,17 +207,11 @@ int strncasecmp();
 #define tolower(c) (('A' <= (c) && (c) <= 'Z') ? (c) + 0x20 : (c))
 
 /*
- * Program name and version.
- */
-const char *program_name = "ebzip";
-const char *program_version = VERSION;
-const char *invoked_name;
-
-/*
  * Command line options.
  */
-static const char *short_options = "fhikl:no:qs:S:tT:uvz";
+static const char *short_options = "c:fhikl:no:qs:S:tT:uvz";
 static struct option long_options[] = {
+    {"case",              required_argument, NULL, 'c'},
     {"force-overwrite",   no_argument,       NULL, 'f'},
     {"help",              no_argument,       NULL, 'h'},
     {"information",       no_argument,       NULL, 'i'},
@@ -149,7 +221,7 @@ static struct option long_options[] = {
     {"output-directory",  required_argument, NULL, 'o'},
     {"quiet",             no_argument,       NULL, 'q'},
     {"silent",            no_argument,       NULL, 'q'},
-    {"skip-content",      required_argument, NULL, 's'},
+    {"suffix",            required_argument, NULL, 's'},
     {"subbook",           required_argument, NULL, 'S'},
     {"test",              no_argument,       NULL, 't'},
     {"uncompress",        no_argument,       NULL, 'u'},
@@ -159,37 +231,9 @@ static struct option long_options[] = {
 };
 
 /*
- * Zip level.
+ * CD-ROM book.
  */
-int ebzip_level = EBZIP_DEFAULT_LEVEL;
-
-/*
- * Keep mode flag.
- */
-int ebzip_keep_flag = EBZIP_DEFAULT_KEEP;
-
-/*
- * Quiet mode flag.
- */
-int ebzip_quiet_flag = EBZIP_DEFAULT_QUIET;
-
-/*
- * Test mode flag.
- */
-int ebzip_test_flag = EBZIP_DEFAULT_OVERWRITE;
-
-/*
- * Overwrite mode.
- */
-int ebzip_overwrite_mode = EBZIP_DEFAULT_OVERWRITE;
-
-/*
- * Target contents.
- */
-int ebzip_skip_flag_font    = EBZIP_DEFAULT_SKIP_FONT;
-int ebzip_skip_flag_graphic = EBZIP_DEFAULT_SKIP_GRAPHIC;
-int ebzip_skip_flag_movie   = EBZIP_DEFAULT_SKIP_MOVIE;
-int ebzip_skip_flag_sound   = EBZIP_DEFAULT_SKIP_SOUND;
+EB_Book book;
 
 /*
  * Operation modes.
@@ -198,35 +242,92 @@ int ebzip_skip_flag_sound   = EBZIP_DEFAULT_SKIP_SOUND;
 #define EBZIP_ACTION_UNZIP		1
 #define EBZIP_ACTION_INFO		2
 
-static int action_mode = EBZIP_ACTION_ZIP;
+int action_mode = EBZIP_ACTION_ZIP;
+
+/*
+ * Overwrite modes.
+ */
+#define EBZIP_OVERWRITE_QUERY		0
+#define EBZIP_OVERWRITE_FORCE		1
+#define EBZIP_OVERWRITE_NO		2
+
+int overwrite_mode;
 
 /*
  * A list of subbook names to be compressed/uncompressed.
  */
-static char 
-subbook_name_list[EB_MAX_SUBBOOKS][EB_MAX_DIRECTORY_NAME_LENGTH + 1];
-static int subbook_name_count = 0;
+char subbook_name_list[EB_MAX_SUBBOOKS][EB_MAX_BASE_NAME_LENGTH + 1];
+int subbook_name_count = 0;
+
+/*
+ * A list of subbook codes to be compressed/uncompressed.
+ */
+EB_Subbook_Code subbook_list[EB_MAX_SUBBOOKS];
+int subbook_count = 0;
+
+/*
+ * Zip level.
+ */
+int zip_level = DEFAULT_EBZIP_LEVEL;
+
+/*
+ * File name case and suffix.
+ */
+EB_Case_Code file_name_case = EB_CASE_UNCHANGE;
+EB_Suffix_Code file_name_suffix = EB_SUFFIX_UNCHANGE;
+
+/*
+ * Flags.
+ */
+static int keep_flag = 0;
+static int quiet_flag = 0;
+static int test_flag = 0;
+
+/*
+ * File name to be deleted and file to be closed when signal is received.
+ */
+static const char *trap_file_name = NULL;
+static int trap_file = -1;
 
 /*
  * Unexported functions.
  */
-static int parse_zip_level EB_P((const char *, int *));
-static int parse_skip_content_argument EB_P((const char *));
+static int parse_zip_level EB_P((const char *));
 static void output_help EB_P((void));
+static int zip_book EB_P((EB_Book *, const char *, const char *));
+static int unzip_book EB_P((EB_Book *, const char *, const char *));
+static int zipinfo_book EB_P((EB_Book *, const char *));
+static int zip_file EB_P((const char *, const char **));
+static int unzip_file EB_P((const char *, const char **));
+static int zipinfo_file EB_P((const char **));
+static int copy_file EB_P((const char *, const char *));
+static RETSIGTYPE trap EB_P((int));
+/* filelist.c */
+void initialize_file_name_list EB_P((const char **, int));
+void clear_file_name_list EB_P((const char **));
+void add_file_name_list EB_P((const char **, const char *));
 
+/*
+ * External functions.
+ */
+extern int ebzip1_slice EB_P((char *, size_t *, char *, size_t));
 
 int
 main(argc, argv)
     int argc;
     char *argv[];
 {
-    char out_top_path[PATH_MAX + 1];
+    EB_Error_Code error_code;
+    EB_Subbook_Code subbook_code;
+    char out_path[PATH_MAX + 1];
     char book_path[PATH_MAX + 1];
     int ch;
+    int i;
     char *invoked_base_name;
 
+    program_name = "ebzip";
     invoked_name = argv[0];
-    strcpy(out_top_path, EBZIP_DEFAULT_OUTPUT_DIRECTORY);
+    strcpy(out_path, DEFAULT_OUTPUT_DIRECTORY);
 
     /*
      * Initialize locale data.
@@ -270,14 +371,22 @@ main(argc, argv)
      * Set overwrite mode.
      */
     if (isatty(0))
-	ebzip_overwrite_mode = EBZIP_OVERWRITE_QUERY;
+	overwrite_mode = EBZIP_OVERWRITE_QUERY;
     else
-	ebzip_overwrite_mode = EBZIP_OVERWRITE_NO;
+	overwrite_mode = EBZIP_OVERWRITE_NO;
 
     /*
      * Initialize `book'.
      */
     eb_initialize_library();
+    eb_initialize_book(&book);
+
+    /*
+     * Set fakelog behavior.
+     */
+    set_fakelog_name(invoked_name);
+    set_fakelog_mode(FAKELOG_TO_STDERR);
+    set_fakelog_level(FAKELOG_ERR);
 
     /*
      * Parse command line options.
@@ -287,11 +396,19 @@ main(argc, argv)
         if (ch == EOF)
             break;
         switch (ch) {
+        case 'c':
+            /*
+             * Option `-c'.  Set case of file names.
+             */
+            if (parse_case_argument(optarg, &file_name_case) < 0)
+                exit(1);
+	    break;
+
         case 'f':
             /*
              * Option `-f'.  Set `force' to the overwrite flag.
              */
-	    ebzip_overwrite_mode = EBZIP_OVERWRITE_FORCE;
+	    overwrite_mode = EBZIP_OVERWRITE_FORCE;
 	    break;
 
         case 'h':
@@ -312,14 +429,14 @@ main(argc, argv)
             /*
              * Option `-k'.  Keep (don't delete) input files.
              */
-	    ebzip_keep_flag = 1;
+	    keep_flag = 1;
 	    break;
 
         case 'l':
             /*
              * Option `-l'.  Specify compression level.
              */
-	    if (parse_zip_level(optarg, &ebzip_level) < 0)
+	    if (parse_zip_level(optarg) < 0)
 		exit(1);
 	    break;
 
@@ -327,14 +444,14 @@ main(argc, argv)
             /*
              * Option `-n'.  Set `no' to the overwrite flag.
              */
-	    ebzip_overwrite_mode = EBZIP_OVERWRITE_NO;
+	    overwrite_mode = EBZIP_OVERWRITE_NO;
 	    break;
 
         case 'o':
             /*
              * Option `-o'.  Output files under DIRECOTRY.
 	     * The length of the file name
-	     *    "<out_top_path>/subdir/subsubdir/file.ebz;1"
+	     *    "<out_path>/subdir/subsubdir/file.ebz;1"
 	     * must not exceed PATH_MAX.
              */
             if (PATH_MAX < strlen(optarg)) {
@@ -342,12 +459,10 @@ main(argc, argv)
                     invoked_name);
                 exit(1);
             }
-            strcpy(out_top_path, optarg);
-	    canonicalize_path(out_top_path);
-	    if (PATH_MAX < strlen(out_top_path) + 1
-		+ EB_MAX_DIRECTORY_NAME_LENGTH + 1
-		+ EB_MAX_DIRECTORY_NAME_LENGTH + 1
-		+ EB_MAX_FILE_NAME_LENGTH) {
+            strcpy(out_path, optarg);
+	    canonicalize_path(out_path);
+	    if (PATH_MAX < strlen(out_path) + (1 + EB_MAX_BASE_NAME_LENGTH + 1
+		+ EB_MAX_BASE_NAME_LENGTH + 1 + EB_MAX_BASE_NAME_LENGTH + 6)) {
 		fprintf(stderr, _("%s: too long output directory path\n"),
 		    invoked_name);
 		goto die;
@@ -358,14 +473,14 @@ main(argc, argv)
             /*
              * Option `-q'.  Set quiet flag.
              */
-	    ebzip_quiet_flag = 1;
+	    quiet_flag = 1;
 	    break;
 
         case 's':
             /*
-             * Option `-s'.  Specify content type to be skipped.
+             * Option `-s'.  Set suffix of file names.
              */
-            if (parse_skip_content_argument(optarg) < 0)
+            if (parse_suffix_argument(optarg, &file_name_suffix) < 0)
                 exit(1);
 	    break;
 
@@ -373,8 +488,8 @@ main(argc, argv)
             /*
              * Option `-S'.  Specify target subbooks.
              */
-            if (parse_subbook_name_argument(invoked_name, optarg,
-		subbook_name_list, &subbook_name_count) < 0)
+            if (parse_subbook_name_argument(optarg, subbook_name_list,
+		&subbook_name_count) < 0)
                 exit(1);
             break;
 
@@ -382,7 +497,7 @@ main(argc, argv)
             /*
              * Option `-t'.  Set test mode.
              */
-	    ebzip_test_flag = 1;
+	    test_flag = 1;
 	    break;
 
         case 'u':
@@ -396,7 +511,7 @@ main(argc, argv)
             /*
              * Option `-v'.  Display version number, then exit.
              */
-            output_version(program_name, program_version);
+            output_version();
             exit(0);
 
         case 'z':
@@ -407,7 +522,7 @@ main(argc, argv)
 	    break;
 
         default:
-            output_try_help(invoked_name);
+            output_try_help();
 	    goto die;
 	}
     }
@@ -417,7 +532,7 @@ main(argc, argv)
      */
     if (1 < argc - optind) {
         fprintf(stderr, _("%s: too many arguments\n"), invoked_name);
-        output_try_help(invoked_name);
+        output_try_help();
 	goto die;
     }
 
@@ -425,36 +540,77 @@ main(argc, argv)
      * Set a book path.
      */
     if (argc == optind)
-        strcpy(book_path, EBZIP_DEFAULT_BOOK_DIRECTORY);
+        strcpy(book_path, DEFAULT_BOOK_DIRECTORY);
     else
         strcpy(book_path, argv[optind]);
     canonicalize_path(book_path);
+
+    /*
+     * Bind a book.
+     */
+    error_code = eb_bind(&book, book_path);
+    if (error_code != EB_SUCCESS) {
+	fprintf(stderr, "%s: %s\n", invoked_name,
+	    eb_error_message(error_code));
+	fflush(stderr);
+	goto die;
+    }
+
+    /*
+     * For each targe subbook, convert a subbook-names to a subbook-codes.
+     * If no subbook is specified by `--subbook'(`-S'), set all subbooks
+     * as the target.
+     */
+    if (subbook_name_count == 0) {
+	error_code = eb_subbook_list(&book, subbook_list, &subbook_count);
+	if (error_code != EB_SUCCESS) {
+	    fprintf(stderr, "%s: %s\n", invoked_name,
+		eb_error_message(error_code));
+	    fflush(stderr);
+	    goto die;
+	}
+    } else {
+	for (i = 0; i < subbook_name_count; i++) {
+	    subbook_code = find_subbook(&book, subbook_name_list[i]);
+	    if (subbook_code != EB_SUCCESS)
+		goto die;
+	    subbook_list[subbook_count++] = subbook_code;
+	}
+    }
+
+    /*
+     * Fix case and suffix types of output file names.
+     *
+     * When action mode is ZIP, modify suffix-type.
+     * Since the suffix `*.ebz' is added to output file names, we don't
+     * add a DOT to the output file names.  (If added, the file names
+     * come to `*.ebz.' or `*.ebz.;1'.)
+     */
+    if (file_name_case == EB_CASE_UNCHANGE)
+	file_name_case = book.case_code;
+    if (file_name_suffix == EB_SUFFIX_UNCHANGE)
+	file_name_suffix = book.suffix_code;
 
     /*
      * Compress the book.
      */
     switch (action_mode) {
     case EBZIP_ACTION_ZIP:
-	if (ebzip_zip_book(out_top_path, book_path, subbook_name_list,
-	    subbook_name_count) < 0) {
+	if (zip_book(&book, out_path, book_path) < 0)
 	    goto die;
-	}
 	break;
     case EBZIP_ACTION_UNZIP:
-	if (ebzip_unzip_book(out_top_path, book_path, subbook_name_list,
-	    subbook_name_count) < 0) {
+	if (unzip_book(&book, out_path, book_path) < 0)
 	    goto die;
-	}
 	exit(1);
 	break;
     case EBZIP_ACTION_INFO:
-	if (ebzip_zipinfo_book(book_path, subbook_name_list,
-	    subbook_name_count) < 0) {
+	if (zipinfo_book(&book, book_path) < 0)
 	    goto die;
-	}
 	break;
     }
 
+    eb_finalize_book(&book);
     eb_finalize_library();
 
     return 0;
@@ -463,6 +619,7 @@ main(argc, argv)
      * A critical error occurs...
      */
   die:
+    eb_finalize_book(&book);
     eb_finalize_library();
     exit(1);
 }
@@ -474,83 +631,18 @@ main(argc, argv)
  * Otherwise -1 is returned.
  */
 static int
-parse_zip_level(argument, zip_level)
+parse_zip_level(argument)
     const char *argument;
-    int *zip_level;
 {
     char *end_p;
-    int level;
 
-    level = (int)strtol(argument, &end_p, 10);
+    zip_level = (int)strtol(argument, &end_p, 10);
     if (!isdigit(*argument) || *end_p != '\0'
-	|| level < 0 || ZIO_MAX_EBZIP_LEVEL < level) {
+	|| zip_level < 0 || EB_MAX_EBZIP_LEVEL < zip_level) {
 	fprintf(stderr, _("%s: invalid compression level `%s'\n"),
 	    invoked_name, argument);
 	fflush(stderr);
 	return -1;
-    }
-
-    *zip_level = level;
-
-    return 0;
-}
-
-
-/*
- * Parse an argument to option `--skip-content (-S)'.
- * If the argument is valid form, 0 is returned.
- * Otherwise -1 is returned.
- */
-int
-parse_skip_content_argument(argument)
-    const char *argument;
-{
-    const char *argument_p = argument;
-    char name[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
-    char *name_p;
-    int i;
-
-    while (*argument_p != '\0') {
-	/*
-	 * Take a next element in the argument.
-	 */
-	i = 0;
-	name_p = name;
-	while (*argument_p != ',' && *argument_p != '\0'
-	    && i < EB_MAX_DIRECTORY_NAME_LENGTH) {
-		*name_p = tolower(*argument_p);
-	    i++;
-	    name_p++;
-	    argument_p++;
-	}
-	*name_p = '\0';
-	if (*argument_p == ',')
-	    argument_p++;
-	else if (*argument_p != '\0') {
-	    fprintf(stderr, _("%s: invalid content name `%s'\n"),
-		invoked_name, name);
-	    fflush(stderr);
-	    return -1;
-	}
-
-	/*
-	 * If the font name is not found in `font_list', it is added to
-	 * the list.
-	 */
-	if (strcasecmp(name, "font") == 0) {
-	    ebzip_skip_flag_font = 1;
-	} else if (strcasecmp(name, "sound") == 0) {
-	    ebzip_skip_flag_sound = 1;
-	} else if (strcasecmp(name, "graphic") == 0) {
-	    ebzip_skip_flag_graphic = 1;
-	} else if (strcasecmp(name, "movie") == 0) {
-	    ebzip_skip_flag_movie = 1;
-	} else {
-	    fprintf(stderr, _("%s: invalid content name `%s'\n"),
-		invoked_name, name);
-	    fflush(stderr);
-	    return -1;
-	}
     }
 
     return 0;
@@ -565,24 +657,29 @@ output_help()
 {
     printf(_("Usage: %s [option...] [book-directory]\n"), program_name);
     printf(_("Options:\n"));
+    printf(_("  -c CASE  --case CASE       \
+output files which have file names with CASE\n\
+                             letters; upper or lower\n"));
+    printf(_("                             (default: depend on `catalog(s)(.ebz)')\n"));
     printf(_("  -f  --force-overwrite      force overwrite of output files\n"));
     printf(_("  -h  --help                 display this help, then exit\n"));
     printf(_("  -i  --information          list information of compressed files\n"));
     printf(_("  -k  --keep                 keep (don't delete) original files\n"));
     printf(_("  -l INTEGER  --level INTEGER\n"));
     printf(_("                             compression level; 0..%d\n"),
-	ZIO_MAX_EBZIP_LEVEL);
+	EB_MAX_EBZIP_LEVEL);
     printf(_("                             (default: %d)\n"),
-	EBZIP_DEFAULT_LEVEL);
+	DEFAULT_EBZIP_LEVEL);
     printf(_("  -n  --no-overwrite         don't overwrite output files\n"));
     printf(_("  -o DIRECTORY  --output-directory DIRECTORY\n"));
     printf(_("                             ouput files under DIRECTORY\n"));
     printf(_("                             (default: %s)\n"),
-	EBZIP_DEFAULT_OUTPUT_DIRECTORY);
+	DEFAULT_OUTPUT_DIRECTORY);
     printf(_("  -q  --quiet  --silence     suppress all warnings\n"));
-    printf(_("  -s TYPE[,TYPE]  --skip-content TYPE[,TYPE...]\n"));
-    printf(_("                             skip content; font, graphic, sound or movie\n"));
-    printf(_("                             (default: none is skipped)\n"));
+    printf(_("  -s SUFFIX  --suffix SUFFIX\n"));
+    printf(_("                             output files which have file names with SUFFIX;\n"));
+    printf(_("                             none, dot, version or both\n"));
+    printf(_("                             (default: depend on `catalog(s)(.ebz)')\n"));
     printf(_("  -S SUBBOOK[,SUBBOOK...]  --subbook SUBBOOK[,SUBBOOK...]\n"));
     printf(_("                             target subbook\n"));
     printf(_("                             (default: all subbooks)\n"));
@@ -593,7 +690,7 @@ output_help()
     printf(_("\nArgument:\n"));
     printf(_("  book-directory             top directory of a CD-ROM book\n"));
     printf(_("                             (default: %s)\n"),
-	EBZIP_DEFAULT_BOOK_DIRECTORY);
+	DEFAULT_BOOK_DIRECTORY);
 
     printf(_("\nDefault action:\n"));
 #ifndef EXEEXT
@@ -606,4 +703,1713 @@ output_help()
     printf(_("  Otherwise, compression is the default action.\n"));
     printf(_("\nReport bugs to %s.\n"), MAILING_ADDRESS);
     fflush(stdout);
+}
+
+
+/*
+ * Compress files in `book' and output them under `out_path'.
+ * If it succeeds, 0 is returned.  Otherwise -1 is returned.
+ */
+static int
+zip_book(book, out_path, book_path)
+    EB_Book *book;
+    const char *out_path;
+    const char *book_path;
+{
+    EB_Subbook *subbook;
+    EB_Font *font;
+    const char *in_file_name_list[MAX_LENGTH_FILE_NAME_LIST + 1];
+    char in_file_name[PATH_MAX + 1];
+    char out_file_name[PATH_MAX + 1];
+    char in_directory[PATH_MAX + 1];
+    char out_directory[PATH_MAX + 1];
+    size_t book_path_length;
+    size_t out_path_length;
+    mode_t out_directory_mode;
+    struct stat st;
+    int i, j;
+
+    /*
+     * If `out_path' and/or `book_path' represents "/", replace it
+     * to an empty string, or `in_file_name' and `out_file_name' start
+     * with double slashes.
+     */
+    if (strcmp(out_path, "/") == 0)
+	out_path++;
+    if (strcmp(book_path, "/") == 0)
+	book_path++;
+
+    /*
+     * Initialize variables.
+     */
+    out_path_length = strlen(out_path);
+    book_path_length = strlen(book_path);
+    out_directory_mode = 0777 ^ get_umask();
+    initialize_file_name_list(in_file_name_list, MAX_LENGTH_FILE_NAME_LIST);
+
+    for (i = 0; i < subbook_count; i++) {
+	subbook = book->subbooks + subbook_list[i];
+	clear_file_name_list(in_file_name_list);
+
+	/*
+	 * Make directories for start/honmon files.
+	 */
+	sprintf(in_directory, "%s/%s", book_path, subbook->directory);
+	fix_file_name(in_directory + book_path_length, book->case_code,
+	    EB_SUFFIX_NONE);
+	sprintf(out_directory, "%s/%s", out_path, subbook->directory);
+	fix_file_name(out_directory + out_path_length, file_name_case,
+	    EB_SUFFIX_NONE);
+	if (!test_flag
+	    && make_missing_directory(out_directory, out_directory_mode) < 0)
+	    return -1;
+
+	if (book->disc_code == EB_DISC_EPWING) {
+	    sprintf(in_directory, "%s/%s/%s", book_path, subbook->directory,
+		EB_DIRECTORY_NAME_DATA);
+	    fix_file_name(in_directory + book_path_length, book->case_code,
+		EB_SUFFIX_NONE);
+	    sprintf(out_directory, "%s/%s/%s", out_path, subbook->directory,
+		EB_DIRECTORY_NAME_DATA);
+	    fix_file_name(out_directory + out_path_length, file_name_case,
+		EB_SUFFIX_NONE);
+	    if (!test_flag 
+		&& make_missing_directory(out_directory, out_directory_mode)
+		< 0)
+		return -1;
+	}
+
+	/*
+	 * Compress a start/honmon file.
+	 * (If there is no HONMON but HONMON2, we compress HONMON2.)
+	 */
+	if (book->disc_code == EB_DISC_EB) {
+	    /* IN: START */
+	    sprintf(in_file_name, "%s/%s", in_directory, EB_FILE_NAME_START);
+	    fix_file_name(in_file_name + book_path_length, book->case_code,
+		book->suffix_code);
+	    add_file_name_list(in_file_name_list, in_file_name);
+
+	    /* OUT: START.EBZ */
+	    sprintf(out_file_name, "%s/%s.EBZ", out_directory,
+		EB_FILE_NAME_START);
+	    fix_file_name(out_file_name + out_path_length, file_name_case,
+		file_name_suffix);
+	} else {
+	    /* IN: HONMON */
+	    sprintf(in_file_name, "%s/%s", in_directory, EB_FILE_NAME_HONMON);
+	    fix_file_name(in_file_name + book_path_length, book->case_code,
+		book->suffix_code);
+	    add_file_name_list(in_file_name_list, in_file_name);
+
+	    /* IN: HONMON2 */
+	    sprintf(in_file_name, "%s/%s", in_directory, EB_FILE_NAME_HONMON2);
+	    fix_file_name(in_file_name + book_path_length, book->case_code,
+		book->suffix_code);
+	    add_file_name_list(in_file_name_list, in_file_name);
+
+	    /* OUT: HONMON.EBZ */
+	    sprintf(out_file_name, "%s/%s.EBZ", out_directory,
+		EB_FILE_NAME_HONMON);
+	    fix_file_name(out_file_name + out_path_length, file_name_case,
+		file_name_suffix);
+	}
+	zip_file(out_file_name, in_file_name_list);
+
+	if (book->disc_code == EB_DISC_EPWING) {
+	    /*
+	     * Make a directory for font files.
+	     */
+	    sprintf(in_directory, "%s/%s/%s", book_path, subbook->directory,
+		EB_DIRECTORY_NAME_GAIJI);
+	    fix_file_name(in_directory + book_path_length, book->case_code,
+		EB_SUFFIX_NONE);
+	    sprintf(out_directory, "%s/%s/%s", out_path, subbook->directory,
+		EB_DIRECTORY_NAME_GAIJI);
+	    fix_file_name(out_directory + out_path_length, file_name_case,
+		EB_SUFFIX_NONE);
+	    if (!test_flag
+		&& make_missing_directory(out_directory, out_directory_mode)
+		< 0)
+		return -1;
+
+	    for (j = 0; j < subbook->font_count; j++) {
+		/*
+		 * Compress a font file.
+		 */
+		font = subbook->fonts + j;
+		clear_file_name_list(in_file_name_list);
+
+		/* IN: <fontname> */
+		sprintf(in_file_name, "%s/%s", in_directory, font->file_name);
+		fix_file_name(in_file_name + book_path_length, book->case_code,
+		    book->suffix_code);
+		add_file_name_list(in_file_name_list, in_file_name);
+
+		/* OUT: <fontname>.EBZ */
+		sprintf(out_file_name, "%s/%s.EBZ", out_directory,
+		    font->file_name);
+		fix_file_name(out_file_name + out_path_length, file_name_case,
+		    file_name_suffix);
+
+		zip_file(out_file_name, in_file_name_list);
+	    }
+	}
+    }
+
+    /*
+     * Compress a language file.
+     */
+    if (book->disc_code == EB_DISC_EB) {
+	clear_file_name_list(in_file_name_list);
+
+	/* IN: LANGUAGE */
+	sprintf(in_file_name, "%s/%s", book_path, EB_FILE_NAME_LANGUAGE);
+	fix_file_name(in_file_name + book_path_length, book->case_code,
+	    book->suffix_code);
+	add_file_name_list(in_file_name_list, in_file_name);
+
+	/* OUT: LANGUAGE.EBZ */
+	sprintf(out_file_name, "%s/%s.EBZ", out_path, EB_FILE_NAME_LANGUAGE);
+	fix_file_name(out_file_name + out_path_length, file_name_case,
+	    file_name_suffix);
+
+	zip_file(out_file_name, in_file_name_list);
+    }
+
+    /*
+     * Copy a catalog/catalogs file.
+     */
+    if (book->disc_code == EB_DISC_EB) {
+	sprintf(in_file_name, "%s/%s", book_path, EB_FILE_NAME_CATALOG);
+	sprintf(out_file_name, "%s/%s", out_path, EB_FILE_NAME_CATALOG);
+    } else {
+	sprintf(in_file_name, "%s/%s", book_path, EB_FILE_NAME_CATALOGS);
+	sprintf(out_file_name, "%s/%s", out_path, EB_FILE_NAME_CATALOGS);
+    }
+    fix_file_name(in_file_name + book_path_length, book->case_code,
+	book->suffix_code);
+    fix_file_name(out_file_name + out_path_length, file_name_case,
+	file_name_suffix);
+    copy_file(out_file_name, in_file_name);
+
+    clear_file_name_list(in_file_name_list);
+    return 0;
+}
+
+
+/*
+ * Uncompress files in `book' and output them under `out_path'.
+ * If it succeeds, 0 is returned.  Otherwise -1 is returned.
+ */
+static int
+unzip_book(book, out_path, book_path)
+    EB_Book *book;
+    const char *out_path;
+    const char *book_path;
+{
+    EB_Subbook *subbook;
+    EB_Font *font;
+    const char *in_file_name_list[MAX_LENGTH_FILE_NAME_LIST + 1];
+    char in_file_name[PATH_MAX + 1];
+    char out_file_name[PATH_MAX + 1];
+    char in_directory[PATH_MAX + 1];
+    char out_directory[PATH_MAX + 1];
+    size_t out_path_length;
+    size_t book_path_length;
+    mode_t out_directory_mode;
+    struct stat st;
+    int i, j;
+
+    /*
+     * If `out_path' and/or `book_path' represents "/", replace it
+     * to an empty string, or `in_file_name' and `out_file_name' start
+     * with double slashes.
+     */
+    if (strcmp(out_path, "/") == 0)
+	out_path++;
+    if (strcmp(book_path, "/") == 0)
+	book_path++;
+
+    /*
+     * Initialize variables.
+     */
+    out_path_length = strlen(out_path);
+    book_path_length = strlen(book_path);
+    out_directory_mode = 0777 ^ get_umask();
+    initialize_file_name_list(in_file_name_list, MAX_LENGTH_FILE_NAME_LIST);
+
+    for (i = 0; i < subbook_count; i++) {
+	subbook = book->subbooks + subbook_list[i];
+
+	/*
+	 * Make directories for start/honmon files.
+	 */
+	sprintf(in_directory, "%s/%s", book_path, subbook->directory);
+	fix_file_name(in_directory + book_path_length, book->case_code,
+	    EB_SUFFIX_NONE);
+	sprintf(out_directory, "%s/%s", out_path, subbook->directory);
+	fix_file_name(out_directory + out_path_length, file_name_case,
+	    EB_SUFFIX_NONE);
+	if (!test_flag
+	    && make_missing_directory(out_directory, out_directory_mode) < 0)
+	    return -1;
+
+	if (book->disc_code == EB_DISC_EPWING) {
+	    sprintf(in_directory, "%s/%s/%s", book_path, subbook->directory,
+		EB_DIRECTORY_NAME_DATA);
+	    fix_file_name(in_directory + book_path_length, book->case_code,
+		EB_SUFFIX_NONE);
+	    sprintf(out_directory, "%s/%s/%s", out_path, subbook->directory,
+		EB_DIRECTORY_NAME_DATA);
+	    fix_file_name(out_directory + out_path_length, file_name_case,
+		EB_SUFFIX_NONE);
+	    if (!test_flag
+		&& make_missing_directory(out_directory, out_directory_mode)
+		< 0)
+		return -1;
+	}
+
+	/*
+	 * Uncompress a start/honmon file.
+	 * (If there is no HONMON.EBZ but HONMON2, we uncompress HONMON2.)
+	 */
+	clear_file_name_list(in_file_name_list);
+	if (book->disc_code == EB_DISC_EB) {
+	    /* IN 1: START */
+	    sprintf(in_file_name, "%s/%s", in_directory, EB_FILE_NAME_START);
+	    fix_file_name(in_file_name + book_path_length, book->case_code,
+		book->suffix_code);
+	    add_file_name_list(in_file_name_list, in_file_name);
+
+	    /* IN 2: START.EBZ */
+	    sprintf(in_file_name, "%s/%s.EBZ", in_directory,
+		EB_FILE_NAME_START);
+	    fix_file_name(in_file_name + book_path_length, book->case_code,
+		book->suffix_code);
+	    add_file_name_list(in_file_name_list, in_file_name);
+
+	    /* OUT: START */
+	    sprintf(out_file_name, "%s/%s", out_directory, EB_FILE_NAME_START);
+	    fix_file_name(out_file_name + out_path_length, file_name_case,
+		file_name_suffix);
+	} else {
+	    /* IN 1: HONMON */
+	    sprintf(in_file_name, "%s/%s", in_directory, EB_FILE_NAME_HONMON);
+	    fix_file_name(in_file_name + book_path_length, book->case_code,
+		book->suffix_code);
+	    add_file_name_list(in_file_name_list, in_file_name);
+
+	    /* IN 2: HONMON.EBZ */
+	    sprintf(in_file_name, "%s/%s.EBZ", in_directory,
+		EB_FILE_NAME_HONMON);
+	    fix_file_name(in_file_name + book_path_length, book->case_code,
+		book->suffix_code);
+	    add_file_name_list(in_file_name_list, in_file_name);
+
+	    /* IN 3: HONMON2 */
+	    sprintf(in_file_name, "%s/%s", in_directory, EB_FILE_NAME_HONMON2);
+	    fix_file_name(in_file_name + book_path_length, book->case_code,
+		book->suffix_code);
+	    add_file_name_list(in_file_name_list, in_file_name);
+
+	    /* OUT: HONMON */
+	    sprintf(out_file_name, "%s/%s", out_directory,
+		EB_FILE_NAME_HONMON);
+	    fix_file_name(out_file_name + out_path_length, file_name_case,
+		file_name_suffix);
+	}
+	unzip_file(out_file_name, in_file_name_list);
+
+	if (book->disc_code == EB_DISC_EPWING) {
+	    /*
+	     * Make a directory for font files.
+	     */
+	    sprintf(in_directory, "%s/%s/%s", book_path, subbook->directory,
+		EB_DIRECTORY_NAME_GAIJI);
+	    fix_file_name(in_directory + book_path_length, book->case_code,
+		EB_SUFFIX_NONE);
+	    sprintf(out_directory, "%s/%s/%s", out_path, subbook->directory,
+		EB_DIRECTORY_NAME_GAIJI);
+	    fix_file_name(out_directory + out_path_length, file_name_case,
+		EB_SUFFIX_NONE);
+	    if (!test_flag
+		&& make_missing_directory(out_directory, out_directory_mode)
+		< 0)
+		return -1;
+
+	    for (j = 0; j < subbook->font_count; j++) {
+		/*
+		 * Uncompress a font file.
+		 */
+		font = subbook->fonts + j;
+		clear_file_name_list(in_file_name_list);
+
+		/* IN 1: <fontname> */
+		sprintf(in_file_name, "%s/%s", in_directory, font->file_name);
+		fix_file_name(in_file_name + book_path_length, book->case_code,
+		    book->suffix_code);
+		add_file_name_list(in_file_name_list, in_file_name);
+
+		/* IN 2: <fontname>.EBZ */
+		sprintf(in_file_name, "%s/%s.EBZ", in_directory,
+		    font->file_name);
+		fix_file_name(in_file_name + book_path_length, book->case_code,
+		    book->suffix_code);
+		add_file_name_list(in_file_name_list, in_file_name);
+
+		/* OUT: <fontname> */
+		sprintf(out_file_name, "%s/%s", out_directory,
+		    font->file_name);
+		fix_file_name(out_file_name + out_path_length, file_name_case,
+		    file_name_suffix);
+
+		unzip_file(out_file_name, in_file_name_list);
+	    }
+	}
+    }
+
+    /*
+     * Uncompress a language file.
+     */
+    if (book->disc_code == EB_DISC_EB) {
+	clear_file_name_list(in_file_name_list);
+
+	/* IN: LANGUAGE */
+	sprintf(in_file_name, "%s/%s", book_path, EB_FILE_NAME_LANGUAGE);
+	fix_file_name(in_file_name + book_path_length, book->case_code,
+	    book->suffix_code);
+	add_file_name_list(in_file_name_list, in_file_name);
+
+	/* IN: LANGUAGE.EBZ */
+	sprintf(in_file_name, "%s/%s.EBZ", book_path, EB_FILE_NAME_LANGUAGE);
+	fix_file_name(in_file_name + book_path_length, book->case_code,
+	    book->suffix_code);
+	add_file_name_list(in_file_name_list, in_file_name);
+
+	/* OUT: LANGUAGE */
+	sprintf(out_file_name, "%s/%s", out_path, EB_FILE_NAME_LANGUAGE);
+	fix_file_name(out_file_name + out_path_length, file_name_case,
+	    file_name_suffix);
+
+	unzip_file(out_file_name, in_file_name_list);
+    }
+
+    /*
+     * Copy a catalog/catalogs file.
+     */
+    if (book->disc_code == EB_DISC_EB) {
+	sprintf(in_file_name, "%s/%s", book_path, EB_FILE_NAME_CATALOG);
+	sprintf(out_file_name, "%s/%s", out_path, EB_FILE_NAME_CATALOG);
+    } else {
+	sprintf(in_file_name, "%s/%s", book_path, EB_FILE_NAME_CATALOGS);
+	sprintf(out_file_name, "%s/%s", out_path, EB_FILE_NAME_CATALOGS);
+    }
+    fix_file_name(in_file_name + book_path_length, book->case_code,
+	book->suffix_code);
+    fix_file_name(out_file_name + out_path_length, file_name_case,
+	file_name_suffix);
+    copy_file(out_file_name, in_file_name);
+
+    return 0;
+}
+
+
+/*
+ * List compressed book information.
+ * If is succeeds, 0 is returned.  Otherwise -1 is returned.
+ */
+static int
+zipinfo_book(book, book_path)
+    EB_Book *book;
+    const char *book_path;
+{
+    EB_Subbook *subbook;
+    EB_Font *font;
+    const char *file_name_list[MAX_LENGTH_FILE_NAME_LIST + 1];
+    char file_name[PATH_MAX + 1];
+    size_t book_path_length;
+    int i, j;
+
+    /*
+     * If `book_path' represents "/", replace it to an empty string,
+     * or `file_name' starts with double slashes.
+     */
+    if (strcmp(book_path, "/") == 0)
+	book_path++;
+
+    /*
+     * Initialize variables.
+     */
+    book_path_length = strlen(book_path);
+    initialize_file_name_list(file_name_list, MAX_LENGTH_FILE_NAME_LIST);
+
+    for (i = 0; i < subbook_count; i++) {
+	subbook = book->subbooks + subbook_list[i];
+
+        /*
+         * Inspect `start' and `honmon' files.
+         */
+	clear_file_name_list(file_name_list);
+        if (book->disc_code == EB_DISC_EB) {
+	    /* 1: START */
+            sprintf(file_name, "%s/%s/%s", book_path, subbook->directory,
+                EB_FILE_NAME_START);
+	    fix_file_name(file_name + book_path_length, book->case_code,
+		book->suffix_code);
+	    add_file_name_list(file_name_list, file_name);
+
+	    /* 2: START.EBZ */
+            sprintf(file_name, "%s/%s/%s.EBZ", book_path, subbook->directory,
+                EB_FILE_NAME_START);
+	    fix_file_name(file_name + book_path_length, book->case_code,
+		book->suffix_code);
+	    add_file_name_list(file_name_list, file_name);
+        } else {
+	    /* 1: HONMON */
+            sprintf(file_name, "%s/%s/%s/%s", book_path, subbook->directory,
+		EB_DIRECTORY_NAME_DATA, EB_FILE_NAME_HONMON);
+	    fix_file_name(file_name + book_path_length, book->case_code,
+		book->suffix_code);
+	    add_file_name_list(file_name_list, file_name);
+
+	    /* 2: HONMON.EBZ */
+            sprintf(file_name, "%s/%s/%s/%s.EBZ", book_path,
+		subbook->directory, EB_DIRECTORY_NAME_DATA,
+		EB_FILE_NAME_HONMON);
+	    fix_file_name(file_name + book_path_length, book->case_code,
+		book->suffix_code);
+	    add_file_name_list(file_name_list, file_name);
+
+	    /* 3: HONMON2 */
+	    sprintf(file_name, "%s/%s/%s/%s", book_path, subbook->directory,
+		EB_DIRECTORY_NAME_DATA, EB_FILE_NAME_HONMON2);
+	    fix_file_name(file_name + book_path_length, book->case_code,
+		book->suffix_code);
+	    add_file_name_list(file_name_list, file_name);
+        }
+	zipinfo_file(file_name_list);
+
+
+	/*
+	 * Inspect font files.
+	 */
+	clear_file_name_list(file_name_list);
+	if (book->disc_code == EB_DISC_EPWING) {
+	    for (j = 0; j < subbook->font_count; j++) {
+		font = subbook->fonts + j;
+		clear_file_name_list(file_name_list);
+
+		/* 1: <fontname> */
+		sprintf(file_name, "%s/%s/%s/%s", book_path,
+		    subbook->directory, EB_DIRECTORY_NAME_GAIJI,
+		    font->file_name);
+		fix_file_name(file_name + book_path_length, book->case_code,
+		    book->suffix_code);
+		add_file_name_list(file_name_list, file_name);
+
+		/* 2: <fontname>.EBZ */
+		sprintf(file_name, "%s/%s/%s/%s.EBZ", book_path,
+		    subbook->directory, EB_DIRECTORY_NAME_GAIJI,
+		    font->file_name);
+		fix_file_name(file_name + book_path_length, book->case_code,
+		    book->suffix_code);
+		add_file_name_list(file_name_list, file_name);
+
+		zipinfo_file(file_name_list);
+	    }
+	}
+    }
+
+    /*
+     * Inspect language files.
+     */
+    clear_file_name_list(file_name_list);
+    if (book->disc_code == EB_DISC_EB) {
+	/* 1: LANGUAGE */
+	sprintf(file_name, "%s/%s", book_path, EB_FILE_NAME_LANGUAGE);
+	fix_file_name(file_name + book_path_length, book->case_code,
+	    book->suffix_code);
+	add_file_name_list(file_name_list, file_name);
+
+	/* 2: LANGUAGE.EBZ */
+	sprintf(file_name, "%s/%s.EBZ", book_path, EB_FILE_NAME_LANGUAGE);
+	fix_file_name(file_name + book_path_length, book->case_code,
+	    book->suffix_code);
+	add_file_name_list(file_name_list, file_name);
+	zipinfo_file(file_name_list);
+    }
+
+    /*
+     * Inspect a catalog/catalogs file.
+     */
+    clear_file_name_list(file_name_list);
+    if (book->disc_code == EB_DISC_EB)
+	sprintf(file_name, "%s/%s", book_path, EB_FILE_NAME_CATALOG);
+    else
+	sprintf(file_name, "%s/%s", book_path, EB_FILE_NAME_CATALOGS);
+    fix_file_name(file_name + book_path_length, book->case_code,
+	book->suffix_code);
+    add_file_name_list(file_name_list, file_name);
+    zipinfo_file(file_name_list);
+
+    clear_file_name_list(file_name_list);
+    return 0;
+}
+
+
+/*
+ * Compress a file in `in_file_name_list'.
+ * It compresses the existed file nearest to the beginning of the list.
+ * If it succeeds, 0 is returned.  Otherwise -1 is returned.
+ */
+static int
+zip_file(out_file_name, in_file_name_list)
+    const char *out_file_name;
+    const char **in_file_name_list;
+{
+    const char **in_file_name;
+    EB_Zip in_zip, out_zip;
+    unsigned char *in_buffer = NULL, *out_buffer = NULL;
+    size_t in_total_length, out_total_length;
+    int in_file = -1, out_file = -1;
+    ssize_t in_length;
+    size_t out_length;
+    struct stat in_status, out_status;
+    off_t slice_location, next_location;
+    size_t index_length;
+    int information_interval;
+    int total_slices;
+    int i;
+
+    /*
+     * Check whether the input file exists.
+     */
+    for (in_file_name = in_file_name_list; *in_file_name != NULL;
+	 in_file_name++) {
+	if (stat(*in_file_name, &in_status) == 0 && S_ISREG(in_status.st_mode))
+	    break;
+    }
+    if (*in_file_name == NULL) {
+	fprintf(stderr, _("%s: no such file: %s\n"), invoked_name,
+	    *in_file_name_list);
+	goto failed;
+    }
+	
+    /*
+     * Output information.
+     */
+    if (!quiet_flag) {
+	printf(_("==> compress %s <==\n"), *in_file_name);
+	printf(_("output to %s\n"), out_file_name);
+	fflush(stdout);
+    }
+
+    /*
+     * Do nothing if the `in_file_name' and `out_file_name' are the same.
+     */
+    if (is_same_file(out_file_name, *in_file_name)) {
+	if (!quiet_flag) {
+	    printf(_("the input and output files are the same, skipped.\n\n"));
+	    fflush(stdout);
+	}
+	return 0;
+    }
+
+    /*
+     * Allocate memories for in/out buffers.
+     */
+    in_buffer = (unsigned char *)malloc(EB_SIZE_PAGE << EB_MAX_EBZIP_LEVEL);
+    if (in_buffer == NULL) {
+	fprintf(stderr, _("%s: memory exhausted\n"), invoked_name);
+	goto failed;
+    }
+
+    out_buffer = (unsigned char *) malloc((EB_SIZE_PAGE << EB_MAX_EBZIP_LEVEL)
+	+ EB_SIZE_EBZIP_MARGIN);
+    if (out_buffer == NULL) {
+	fprintf(stderr, _("%s: memory exhausted\n"), invoked_name);
+	goto failed;
+    }
+    
+    /*
+     * If the file `out_file_name' already exists, confirm and unlink it.
+     */
+    if (!test_flag
+	&& stat(out_file_name, &out_status) == 0
+	&& S_ISREG(out_status.st_mode)) {
+	if (overwrite_mode == EBZIP_OVERWRITE_NO) {
+	    if (!quiet_flag) {
+		fputs(_("already exists, skip the file\n\n"), stderr);
+		fflush(stderr);
+	    }
+	    return 0;
+	} else if (overwrite_mode == EBZIP_OVERWRITE_QUERY) {
+	    int y_or_n;
+
+	    fprintf(stderr, _("\nthe file already exists: %s\n"),
+		out_file_name);
+	    y_or_n = query_y_or_n(_("do you wish to overwrite (y or n)? "));
+	    fputc('\n', stderr);
+	    fflush(stderr);
+	    if (!y_or_n)
+		return 0;
+        }
+	if (unlink(out_file_name) < 0) {
+	    fprintf(stderr, _("%s: failed to unlink the file: %s\n"),
+		invoked_name, out_file_name);
+	    goto failed;
+	}
+    }
+
+    /*
+     * Open files.
+     */
+    in_file = eb_zopen2(&in_zip, *in_file_name);
+    if (in_file < 0) {
+	fprintf(stderr, _("%s: failed to open the file, %s: %s\n"),
+	    invoked_name, strerror(errno), *in_file_name);
+	goto failed;
+    }
+    if (!test_flag) {
+	trap_file_name = out_file_name;
+#ifdef SIGHUP
+	signal(SIGHUP, trap);
+#endif
+	signal(SIGINT, trap);
+#ifdef SIGQUIT
+	signal(SIGQUIT, trap);
+#endif
+#ifdef SIGTERM
+	signal(SIGTERM, trap);
+#endif
+
+#ifdef O_CREAT
+	out_file = open(out_file_name, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY,
+	    0666 ^ get_umask());
+#else
+	out_file = creat(out_file_name, 0666 ^ get_umask());
+#endif
+	if (out_file < 0) {
+	    fprintf(stderr, _("%s: failed to open the file, %s: %s\n"),
+		invoked_name, strerror(errno), out_file_name);
+	    goto failed;
+	}
+	trap_file = out_file;
+    }
+
+    /*
+     * Initialize `zip'.
+     */
+    out_zip.code = EB_ZIP_EBZIP1;
+    out_zip.slice_size = EB_SIZE_PAGE << zip_level;
+    out_zip.file_size = in_zip.file_size;
+    out_zip.crc = 1;
+    out_zip.mtime = in_status.st_mtime;
+
+    if (out_zip.file_size < 1 << 16)
+	out_zip.index_width = 2;
+    else if (out_zip.file_size < 1 << 24)
+	out_zip.index_width = 3;
+    else 
+	out_zip.index_width = 4;
+
+    /*
+     * Fill header and index part with `\0'.
+     * 
+     * Original File:
+     *   +-----------------+-----------------+-....-+-------+
+     *   |     slice 1     |     slice 2     |      |slice N| [EOF]
+     *   |                 |                 |      |       |
+     *   +-----------------+-----------------+-....-+-------+          
+     *        slice_size        slice_size            odds
+     *   <-------------------- file size ------------------->
+     * 
+     * Compressed file:
+     *   +------+---------+...+---------+---------+----------+...+-
+     *   |Header|index for|   |index for|index for|compressed|   |
+     *   |      | slice 1 |   | slice N |   EOF   |  slice 1 |   |
+     *   +------+---------+...+---------+---------+----------+...+-
+     *             index         index     index
+     *             width         width     width
+     *          <---------  index_length --------->
+     *
+     *     total_slices = N = (file_size + slice_size - 1) / slice_size
+     *     index_length = (N + 1) * index_width
+     */
+    total_slices = (out_zip.file_size + out_zip.slice_size - 1)
+	/ out_zip.slice_size;
+    index_length = (total_slices + 1) * out_zip.index_width;
+    memset(out_buffer, '\0', out_zip.slice_size);
+
+    if (!test_flag) {
+	for (i = index_length + EB_SIZE_EBZIP_HEADER;
+	     out_zip.slice_size <= i; i -= out_zip.slice_size) {
+	    if (write(out_file, out_buffer, out_zip.slice_size)
+		!= out_zip.slice_size) {
+		fprintf(stderr, _("%s: failed to write to the file: %s\n"),
+		    invoked_name, out_file_name);
+		goto failed;
+	    }
+	}
+	if (0 < i) {
+	    if (write(out_file, out_buffer, i) != i) {
+		fprintf(stderr, _("%s: failed to write to the file: %s\n"),
+		    invoked_name, out_file_name);
+		goto failed;
+	    }
+	}
+    }
+
+    /*
+     * Read a slice from the input file, compress it, and then
+     * write it to the output file.
+     */
+    in_total_length = 0;
+    out_total_length = 0;
+    information_interval = INFORMATION_INTERVAL_FACTOR >> zip_level;
+    for (i = 0; i < total_slices; i++) {
+	/*
+	 * Read a slice from the original file.
+	 */
+	if (eb_zlseek(&in_zip, in_file, in_total_length, SEEK_SET) < 0) {
+	    fprintf(stderr, _("%s: failed to seek the file, %s: %s\n"),
+		invoked_name, strerror(errno), *in_file_name);
+	    goto failed;
+	}
+	in_length = eb_zread(&in_zip, in_file, in_buffer, out_zip.slice_size);
+	if (in_length < 0) {
+	    fprintf(stderr, _("%s: failed to read from the file, %s: %s\n"),
+		invoked_name, strerror(errno), *in_file_name);
+	    goto failed;
+	} else if (in_length == 0) {
+	    fprintf(stderr, _("%s: unexpected EOF: %s\n"), 
+		invoked_name, *in_file_name);
+	    goto failed;
+	} else if (in_length != out_zip.slice_size
+	    && in_total_length + in_length != out_zip.file_size) {
+	    fprintf(stderr, _("%s: unexpected EOF: %s\n"), 
+		invoked_name, *in_file_name);
+	    goto failed;
+	}
+
+	/*
+	 * Update CRC.  (Calculate adler32 again.)
+	 */
+	out_zip.crc = adler32((uLong)out_zip.crc, (Bytef *)in_buffer,
+	    (uInt)in_length);
+
+	/*
+	 * If this is last slice and its length is shorter than
+	 * `slice_size', fill `\0'.
+	 */
+	if (in_length < out_zip.slice_size) {
+	    memset(in_buffer + in_length, '\0',
+		out_zip.slice_size - in_length);
+	    in_length = out_zip.slice_size;
+	}
+
+	/*
+	 * Compress the slice.
+	 */
+	if (ebzip1_slice((char *)out_buffer, &out_length, (char *)in_buffer,
+	    out_zip.slice_size) < 0) {
+	    fprintf(stderr, _("%s: memory exhausted\n"), invoked_name);
+	    goto failed;
+	}
+	if (out_zip.slice_size <= out_length) {
+	    memcpy(out_buffer, in_buffer, out_zip.slice_size);
+	    out_length = out_zip.slice_size;
+	}
+
+	/*
+	 * Write the slice to the zip file.
+	 * If the length of the zipped slice is not shorter than
+	 * original, write orignal slice.
+	 */
+	if (!test_flag) {
+	    slice_location = lseek(out_file, 0, SEEK_END);
+	    if (slice_location < 0) {
+		fprintf(stderr, _("%s: failed to seek the file, %s: %s\n"),
+		    invoked_name, strerror(errno), out_file_name);
+		goto failed;
+	    }
+	    if (write(out_file, out_buffer, out_length) != out_length) {
+		fprintf(stderr, _("%s: failed to write to the file: %s\n"),
+		    invoked_name, out_file_name);
+		goto failed;
+	    }
+	}
+
+	/*
+	 * Write an index for the slice.
+	 */
+	next_location = slice_location + out_length;
+	switch (out_zip.index_width) {
+	case 2:
+	    out_buffer[0] = (slice_location >> 8) & 0xff;
+	    out_buffer[1] = slice_location & 0xff;
+	    out_buffer[2] = (next_location >> 8) & 0xff;
+	    out_buffer[3] = next_location & 0xff;
+	    break;
+	case 3:
+	    out_buffer[0] = (slice_location >> 16) & 0xff;
+	    out_buffer[1] = (slice_location >> 8) & 0xff;
+	    out_buffer[2] = slice_location & 0xff;
+	    out_buffer[3] = (next_location >> 16) & 0xff;
+	    out_buffer[4] = (next_location >> 8) & 0xff;
+	    out_buffer[5] = next_location & 0xff;
+	    break;
+	case 4:
+	    out_buffer[0] = (slice_location >> 24) & 0xff;
+	    out_buffer[1] = (slice_location >> 16) & 0xff;
+	    out_buffer[2] = (slice_location >> 8) & 0xff;
+	    out_buffer[3] = slice_location & 0xff;
+	    out_buffer[4] = (next_location >> 24) & 0xff;
+	    out_buffer[5] = (next_location >> 16) & 0xff;
+	    out_buffer[6] = (next_location >> 8) & 0xff;
+	    out_buffer[7] = next_location & 0xff;
+	    break;
+	}
+
+	if (!test_flag) {
+	    if (lseek(out_file, EB_SIZE_EBZIP_HEADER + i * out_zip.index_width,
+		SEEK_SET) < 0) {
+		fprintf(stderr, _("%s: failed to seek the file, %s: %s\n"),
+		    invoked_name, strerror(errno), out_file_name);
+		goto failed;
+	    }
+	    if (write(out_file, out_buffer, out_zip.index_width * 2)
+		!= out_zip.index_width * 2) {
+		fprintf(stderr, _("%s: failed to write to the file, %s: %s\n"),
+		    invoked_name, strerror(errno), out_file_name);
+		goto failed;
+	    }
+	}
+
+	in_total_length += in_length;
+	out_total_length += out_length + out_zip.index_width;
+
+	/*
+	 * Output status information unless `quiet' mode.
+	 */
+	if (!quiet_flag && i % information_interval + 1
+	    == information_interval) {
+	    printf(_("%4.1f%% done (%lu / %lu bytes)\n"),
+		(double)(i + 1) * 100.0 / (double)total_slices,
+		(unsigned long)in_total_length,
+		(unsigned long)in_zip.file_size);
+	    fflush(stdout);
+	}
+    }
+
+    /*
+     * Write a header part (22 bytes):
+     *     magic-id		5   bytes  ( 0 ...  4)
+     *     zip-mode		4/8 bytes  ( 5)
+     *     slice_size		4/8 bytes  ( 5)
+     *     (reserved)		4   bytes  ( 6 ...  9)
+     *     file_size		4   bytes  (10 ... 13)
+     *     crc			4   bytes  (14 ... 17)
+     *     mtime		4   bytes  (18 ... 21)
+     */
+    memcpy(out_buffer, "EBZip", 5);
+    out_buffer[ 5] = (EB_ZIP_EBZIP1 << 4) + (zip_level & 0x0f);
+    out_buffer[ 6] = 0;
+    out_buffer[ 7] = 0;
+    out_buffer[ 8] = 0;
+    out_buffer[ 9] = 0;
+    out_buffer[10] = (out_zip.file_size >> 24) & 0xff;
+    out_buffer[11] = (out_zip.file_size >> 16) & 0xff;
+    out_buffer[12] = (out_zip.file_size >> 8) & 0xff;
+    out_buffer[13] = out_zip.file_size & 0xff;
+    out_buffer[14] = (out_zip.crc >> 24) & 0xff;
+    out_buffer[15] = (out_zip.crc >> 16) & 0xff;
+    out_buffer[16] = (out_zip.crc >> 8) & 0xff;
+    out_buffer[17] = out_zip.crc & 0xff;
+    out_buffer[18] = (out_zip.mtime >> 24) & 0xff;
+    out_buffer[19] = (out_zip.mtime >> 16) & 0xff;
+    out_buffer[20] = (out_zip.mtime >> 8) & 0xff;
+    out_buffer[21] = out_zip.mtime & 0xff;
+
+    if (!test_flag) {
+	if (lseek(out_file, 0, SEEK_SET) < 0) {
+	    fprintf(stderr, _("%s: failed to seek the file, %s: %s\n"),
+		invoked_name, strerror(errno), out_file_name);
+	    goto failed;
+	}
+	if (write(out_file, out_buffer, EB_SIZE_EBZIP_HEADER)
+	    != EB_SIZE_EBZIP_HEADER) {
+	    fprintf(stderr, _("%s: failed to write to the file, %s: %s\n"),
+		invoked_name, strerror(errno), out_file_name);
+	    goto failed;
+	}
+    }
+
+    /*
+     * Output the result information unless quiet mode.
+     */
+    out_total_length += EB_SIZE_EBZIP_HEADER + out_zip.index_width;
+    if (!quiet_flag) {
+	printf(_("completed (%lu / %lu bytes)\n"),
+	    (unsigned long)in_zip.file_size, (unsigned long)in_zip.file_size);
+	if (in_total_length != 0) {
+	    printf(_("%lu -> %lu bytes (%4.1f%%)\n\n"),
+		(unsigned long)in_zip.file_size,
+		(unsigned long)out_total_length, 
+		(double)out_total_length * 100.0 / (double)in_zip.file_size);
+	}
+	fflush(stdout);
+    }
+
+    /*
+     * Close files.
+     */
+    eb_zclose(&in_zip, in_file);
+    in_file = -1;
+
+    if (!test_flag) {
+	close(out_file);
+	out_file = -1;
+	trap_file = -1;
+	trap_file_name = NULL;
+#ifdef SIGHUP
+	signal(SIGHUP, SIG_DFL);
+#endif
+	signal(SIGINT, SIG_DFL);
+#ifdef SIGQUIT
+	signal(SIGQUIT, SIG_DFL);
+#endif
+#ifdef SIGTERM
+	signal(SIGTERM, SIG_DFL);
+#endif
+    }
+
+    /*
+     * Delete an original file unless `keep_flag' is set.
+     */
+    if (!test_flag  && !keep_flag && unlink(*in_file_name) < 0) {
+	fprintf(stderr, _("%s: failed to unlink the file: %s\n"), invoked_name,
+	    *in_file_name);
+	goto failed;
+    }
+
+    /*
+     * Set owner, group, permission, atime and utime of `out_file'.
+     * We ignore return values of `chown', `chmod' and `utime'.
+     */
+    if (!test_flag) {
+	struct utimbuf utim;
+
+#if defined(HAVE_CHOWN)
+	chown(out_file_name, in_status.st_uid, in_status.st_gid);
+#endif
+#if defined(HAVE_CHMOD)
+	chmod(out_file_name, in_status.st_mode);
+#endif
+#if defined(HAVE_UTIME)
+	utim.actime = in_status.st_atime;
+	utim.modtime = in_status.st_mtime;
+	utime(out_file_name, &utim);
+#endif
+    }
+
+    /*
+     * Dispose memories.
+     */
+    free(in_buffer);
+    free(out_buffer);
+
+    return 0;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    if (in_buffer != NULL)
+	free(in_buffer);
+    if (out_buffer != NULL)
+	free(out_buffer);
+
+    if (0 <= in_file)
+	close(in_file);
+    if (0 <= out_file) {
+	close(out_file);
+	trap_file = -1;
+	trap_file_name = NULL;
+#ifdef SIGHUP
+	signal(SIGHUP, SIG_DFL);
+#endif
+	signal(SIGINT, SIG_DFL);
+#ifdef SIGQUIT
+	signal(SIGQUIT, SIG_DFL);
+#endif
+#ifdef SIGTERM
+	signal(SIGTERM, SIG_DFL);
+#endif
+    }
+
+    fputc('\n', stderr);
+    fflush(stderr);
+
+    return -1;
+}
+
+
+/*
+ * Uncompress a file in `in_file_name_list'.
+ * It uncompresses the existed file nearest to the beginning of the
+ * list.  If it succeeds, 0 is returned.  Otherwise -1 is returned.
+ */
+static int
+unzip_file(out_file_name, in_file_name_list)
+    const char *out_file_name;
+    const char **in_file_name_list;
+{
+    const char **in_file_name;
+    EB_Zip in_zip;
+    unsigned char *buffer = NULL;
+    size_t total_length;
+    int in_file = -1, out_file = -1;
+    size_t length;
+    struct stat in_status, out_status;
+    unsigned int crc = 1;
+    int information_interval;
+    int total_slices;
+    int i;
+
+    /*
+     * Check whether the input file exists.
+     */
+    for (in_file_name = in_file_name_list; *in_file_name != NULL;
+	 in_file_name++) {
+	if (stat(*in_file_name, &in_status) == 0 && S_ISREG(in_status.st_mode))
+	    break;
+    }
+    if (*in_file_name == NULL) {
+	fprintf(stderr, _("%s: no such file: %s\n"), invoked_name,
+	    *in_file_name_list);
+	goto failed;
+    }
+	
+    /*
+     * Output file name information.
+     */
+    if (!quiet_flag) {
+	printf(_("==> uncompress %s <==\n"), *in_file_name);
+	printf(_("output to %s\n"), out_file_name);
+	fflush(stdout);
+    }
+
+    /*
+     * Do nothing if the `in_file_name' and `out_file_name' are the same.
+     */
+    if (is_same_file(out_file_name, *in_file_name)) {
+	if (!quiet_flag) {
+	    printf(_("the input and output files are the same, skipped.\n\n"));
+	    fflush(stdout);
+	}
+	return 0;
+    }
+
+    /*
+     * Allocate memories for in/out buffers.
+     */
+    buffer = (unsigned char *)malloc(EB_SIZE_PAGE << EB_MAX_EBZIP_LEVEL);
+    if (buffer == NULL) {
+	fprintf(stderr, _("%s: memory exhausted\n"), invoked_name);
+	goto failed;
+    }
+
+    /*
+     * If the file `out_file_name' already exists, confirm and unlink it.
+     */
+    if (!test_flag
+	&& stat(out_file_name, &out_status) == 0 && S_ISREG(out_status.st_mode)) {
+	if (overwrite_mode == EBZIP_OVERWRITE_NO) {
+	    if (!quiet_flag) {
+		fputs(_("already exists, skip the file\n\n"), stderr);
+		fflush(stderr);
+	    }
+	    return 0;
+	} else if (overwrite_mode == EBZIP_OVERWRITE_QUERY) {
+	    int y_or_n;
+
+	    fprintf(stderr, _("\nthe file already exists: %s\n"),
+		out_file_name);
+	    y_or_n = query_y_or_n(_("do you wish to overwrite (y or n)? "));
+	    fputc('\n', stderr);
+	    fflush(stderr);
+	    if (!y_or_n)
+		return 0;
+        }
+	if (unlink(out_file_name) < 0) {
+	    fprintf(stderr, _("%s: failed to unlink the file: %s\n"),
+		invoked_name, out_file_name);
+	    goto failed;
+	}
+    }
+
+    /*
+     * Open files.
+     */
+    in_file = eb_zopen2(&in_zip, *in_file_name);
+    if (in_file < 0) {
+	fprintf(stderr, _("%s: failed to open the file, %s: %s\n"),
+	    invoked_name, strerror(errno), *in_file_name);
+	goto failed;
+    }
+    if (!test_flag) {
+	trap_file_name = out_file_name;
+#ifdef SIGHUP
+	signal(SIGHUP, trap);
+#endif
+	signal(SIGINT, trap);
+#ifdef SIGQUIT
+	signal(SIGQUIT, trap);
+#endif
+#ifdef SIGTERM
+	signal(SIGTERM, trap);
+#endif
+
+#ifdef O_CREAT
+	out_file = open(out_file_name, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY,
+	    0666 ^ get_umask());
+#else
+	out_file = creat(out_file_name, 0666 ^ get_umask());
+#endif
+	if (out_file < 0) {
+	    fprintf(stderr, _("%s: failed to open the file, %s: %s\n"),
+		invoked_name, strerror(errno), out_file_name);
+	    goto failed;
+	}
+	trap_file = out_file;
+    }
+
+    /*
+     * Read a slice from the input file, uncompress it if required,
+     * and then write it to the output file.
+     */
+    total_length = 0;
+    total_slices = (in_zip.file_size + in_zip.slice_size - 1)
+	/ in_zip.slice_size;
+    information_interval = INFORMATION_INTERVAL_FACTOR;
+    for (i = 0; i < total_slices; i++) {
+	/*
+	 * Read the slice from `file' and unzip it, if it is zipped.
+	 * We assumes the slice is not compressed if its length is
+	 * equal to `slice_size'.
+	 */
+	if (eb_zlseek(&in_zip, in_file, total_length, SEEK_SET) < 0) {
+	    fprintf(stderr, _("%s: failed to seek the file, %s: %s\n"),
+		invoked_name, strerror(errno), *in_file_name);
+	    goto failed;
+	}
+	length = eb_zread(&in_zip, in_file, buffer, in_zip.slice_size);
+	if (length < 0) {
+	    fprintf(stderr, _("%s: failed to read from the file, %s: %s\n"),
+		invoked_name, strerror(errno), *in_file_name);
+	    goto failed;
+	} else if (length == 0) {
+	    fprintf(stderr, _("%s: unexpected EOF: %s\n"), 
+		invoked_name, *in_file_name);
+	    goto failed;
+	} else if (length != in_zip.slice_size
+	    && total_length + length != in_zip.file_size) {
+	    fprintf(stderr, _("%s: unexpected EOF: %s\n"), 
+		invoked_name, *in_file_name);
+	    goto failed;
+	}
+
+	/*
+	 * Update CRC.  (Calculate adler32 again.)
+	 */
+	if (in_zip.code == EB_ZIP_EBZIP1)
+	    crc = adler32((uLong)crc, (Bytef *)buffer, (uInt)length);
+
+	/*
+	 * Write the slice to `out_file'.
+	 */
+	if (!test_flag) {
+	    if (write(out_file, buffer, length) != length) {
+		fprintf(stderr, _("%s: failed to write to the file, %s: %s\n"),
+		    invoked_name, strerror(errno), out_file_name);
+		goto failed;
+	    }
+	}
+	total_length += length;
+
+	/*
+	 * Output status information unless `quiet' mode.
+	 */
+	if (!quiet_flag && i % information_interval + 1
+	    == information_interval) {
+	    printf(_("%4.1f%% done (%lu / %lu bytes)\n"),
+		(double)(i + 1) * 100.0 / (double)total_slices,
+		(unsigned long)total_length, (unsigned long)in_zip.file_size);
+	    fflush(stdout);
+	}
+    }
+
+    /*
+     * Output the result unless quiet mode.
+     */
+    if (!quiet_flag) {
+	printf(_("completed (%lu / %lu bytes)\n"),
+	    (unsigned long)in_zip.file_size, (unsigned long)in_zip.file_size);
+	printf(_("%lu -> %lu bytes\n\n"),
+	    (unsigned long)in_status.st_size, (unsigned long)total_length);
+	fflush(stdout);
+    }
+
+    /*
+     * Close files.
+     */
+    eb_zclose(&in_zip, in_file);
+    in_file = -1;
+
+    if (!test_flag) {
+	close(out_file);
+	out_file = -1;
+	trap_file = -1;
+	trap_file_name = NULL;
+#ifdef SIGHUP
+	signal(SIGHUP, SIG_DFL);
+#endif
+	signal(SIGINT, SIG_DFL);
+#ifdef SIGQUIT
+	signal(SIGQUIT, SIG_DFL);
+#endif
+#ifdef SIGTERM
+	signal(SIGTERM, SIG_DFL);
+#endif
+    }
+
+    /*
+     * Check for CRC.
+     */
+    if (in_zip.code == EB_ZIP_EBZIP1 && in_zip.crc != crc) {
+	fprintf(stderr, _("%s: CRC error: %s\n"), invoked_name, out_file_name);
+	goto failed;
+    }
+
+    /*
+     * Delete an original file unless `keep_flag' is set.
+     */
+    if (!test_flag  && !keep_flag && unlink(*in_file_name) < 0) {
+	fprintf(stderr, _("%s: failed to unlink the file: %s\n"), invoked_name,
+	    *in_file_name);
+	goto failed;
+    }
+
+    /*
+     * Set owner, group, permission, atime and mtime of `out_file'.
+     * We ignore return values of `chown', `chmod' and `utime'.
+     */
+    if (!test_flag) {
+	struct utimbuf utim;
+
+#if defined(HAVE_UTIME)
+	utim.actime = in_status.st_atime;
+	utim.modtime = in_status.st_mtime;
+	utime(out_file_name, &utim);
+#endif
+    }
+
+    /*
+     * Dispose memories.
+     */
+    free(buffer);
+
+    return 0;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    if (buffer != NULL)
+	free(buffer);
+
+    if (0 <= in_file)
+	close(in_file);
+    if (0 <= out_file) {
+	close(out_file);
+	trap_file = -1;
+	trap_file_name = NULL;
+#ifdef SIGHUP
+	signal(SIGHUP, SIG_DFL);
+#endif
+	signal(SIGINT, SIG_DFL);
+#ifdef SIGQUIT
+	signal(SIGQUIT, SIG_DFL);
+#endif
+#ifdef SIGTERM
+	signal(SIGTERM, SIG_DFL);
+#endif
+    }
+
+    fputc('\n', stderr);
+    fflush(stderr);
+
+    return -1;
+}
+
+
+/*
+ * Output status of a file in `file_name_list'.
+ * It outputs status of the existed file nearest to the beginning of
+ * the list.
+ * If it succeeds, 0 is returned.  Otherwise -1 is returned.
+ */
+static int
+zipinfo_file(file_name_list)
+    const char **file_name_list;
+{
+    const char **file_name;
+    char buffer[EB_SIZE_EBZIP_HEADER];
+    EB_Zip zip;
+    int file = -1;
+    struct stat status;
+    int zip_level;
+
+    /*
+     * Check whether a file exists.
+     */
+    for (file_name = file_name_list; *file_name != NULL; file_name++) {
+	if (stat(*file_name, &status) == 0 && S_ISREG(status.st_mode))
+	    break;
+    }
+    if (*file_name == NULL) {
+	fprintf(stderr, _("%s: no such file: %s\n"), invoked_name,
+	    *file_name_list);
+	goto failed;
+    }
+
+    /*
+     * Output file name information.
+     */
+    printf("==> %s <==\n", *file_name);
+    fflush(stdout);
+
+    /*
+     * Open the file.
+     */
+    file = eb_zopen2(&zip, *file_name);
+    if (file < 0) {
+	fprintf(stderr, _("%s: failed to open the file, %s: %s\n"),
+	    invoked_name, strerror(errno), *file_name);
+	goto failed;
+    }
+
+    /*
+     * Close the file.
+     */
+    close(file);
+
+    /*
+     * Output information.
+     */
+    if (zip.code == EB_ZIP_NONE)
+	printf(_("%lu bytes (not compressed)\n"),
+	    (unsigned long)status.st_size);
+    else {
+	printf(_("%lu -> %lu bytes "),
+	    (unsigned long)zip.file_size, (unsigned long)status.st_size);
+	if (zip.file_size == 0)
+	    fputs(_("(empty original file, "), stdout);
+	else {
+	    printf("(%4.1f%%, ", (double)status.st_size * 100.0
+		/ (double)zip.file_size);
+	}
+	if (zip.code == EB_ZIP_EBZIP1)
+	    printf(_("ebzip level %d compression)\n"), zip.zip_level);
+	else
+	    printf(_("EPWING compression)\n"));
+    }
+
+    fputc('\n', stdout);
+    fflush(stdout);
+
+    return 0;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    if (0 <= file)
+	close(file);
+
+    fputc('\n', stderr);
+    fflush(stderr);
+
+    return -1;
+}
+
+
+/*
+ * Copy a file.
+ * If it succeeds, 0 is returned.  Otherwise -1 is returned.
+ */
+static int
+copy_file(out_file_name, in_file_name)
+    const char *out_file_name;
+    const char *in_file_name;
+{
+    unsigned char buffer[EB_SIZE_PAGE];
+    size_t total_length;
+    struct stat in_status, out_status;
+    int in_file = -1, out_file = -1;
+    size_t in_length;
+    int information_interval;
+    int total_slices;
+    int i;
+
+    /*
+     * Check for the input file.
+     */
+    if (stat(in_file_name, &in_status) != 0 || !S_ISREG(in_status.st_mode)) {
+	fprintf(stderr, _("%s: no such file: %s\n"), invoked_name, 
+	    in_file_name);
+	goto failed;
+    }
+
+    /*
+     * Output file name information.
+     */
+    if (!quiet_flag) {
+	printf(_("==> copy %s <==\n"), in_file_name);
+	printf(_("output to %s\n"), out_file_name);
+	fflush(stdout);
+    }
+
+    /*
+     * Do nothing if the `in_file_name' and `out_file_name' are the same.
+     */
+    if (is_same_file(out_file_name, in_file_name)) {
+	if (!quiet_flag) {
+	    printf(_("the input and output files are the same, skipped.\n\n"));
+	    fflush(stdout);
+	}
+	return 0;
+    }
+
+    /*
+     * When test mode, return immediately.
+     */
+    if (test_flag) {
+	fputc('\n', stderr);
+	fflush(stderr);
+	return 0;
+    }
+
+    /*
+     * If the file to be output already exists, confirm and unlink it.
+     */
+    if (!test_flag
+	&& stat(out_file_name, &out_status) == 0
+	&& S_ISREG(out_status.st_mode)) {
+	if (overwrite_mode == EBZIP_OVERWRITE_NO) {
+	    if (!quiet_flag) {
+		fputs(_("already exists, skip the file\n\n"), stderr);
+		fflush(stderr);
+	    }
+	    return 0;
+	}
+	if (overwrite_mode == EBZIP_OVERWRITE_QUERY) {
+	    int y_or_n;
+
+	    fprintf(stderr, _("\nthe file already exists: %s\n"),
+		out_file_name);
+	    y_or_n = query_y_or_n(_("do you wish to overwrite (y or n)? "));
+	    fputc('\n', stderr);
+	    fflush(stderr);
+	    if (!y_or_n)
+		return 0;
+        }
+	if (unlink(out_file_name) < 0) {
+	    fprintf(stderr, _("%s: failed to unlink the file: %s\n"),
+		invoked_name, out_file_name);
+	    goto failed;
+	}
+    }
+
+    /*
+     * Open files.
+     */
+    in_file = open(in_file_name, O_RDONLY | O_BINARY);
+    if (in_file < 0) {
+	fprintf(stderr, _("%s: failed to open the file, %s: %s\n"),
+	    invoked_name, strerror(errno), in_file_name);
+	goto failed;
+    }
+    if (!test_flag) {
+	trap_file_name = out_file_name;
+#ifdef SIGHUP
+	signal(SIGHUP, trap);
+#endif
+	signal(SIGINT, trap);
+#ifdef SIGQUIT
+	signal(SIGQUIT, trap);
+#endif
+#ifdef SIGTERM
+	signal(SIGTERM, trap);
+#endif
+
+#ifdef O_CREAT
+	out_file = open(out_file_name, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY,
+	    0666 ^ get_umask());
+#else
+	out_file = creat(out_file_name, 0666 ^ get_umask());
+#endif
+	if (out_file < 0) {
+	    fprintf(stderr, _("%s: failed to open the file, %s: %s\n"),
+		invoked_name, strerror(errno), out_file_name);
+	    goto failed;
+	}
+	trap_file = out_file;
+    }
+
+    /*
+     * Read data from the input file, compress the data, and then
+     * write them to the output file.
+     */
+    total_length = 0;
+    total_slices = (in_status.st_size + EB_SIZE_PAGE - 1) / EB_SIZE_PAGE;
+    information_interval = INFORMATION_INTERVAL_FACTOR;
+    for (i = 0; i < total_slices; i++) {
+	/*
+	 * Read data from `in_file', and write them to `out_file'.
+	 */
+	in_length = read(in_file, buffer, EB_SIZE_PAGE);
+	if (in_length < 0) {
+	    fprintf(stderr, _("%s: failed to read from the file, %s: %s\n"),
+		invoked_name, strerror(errno), in_file_name);
+	    goto failed;
+	} else if (in_length == 0) {
+	    fprintf(stderr, _("%s: unexpected EOF: %s\n"), 
+		invoked_name, in_file_name);
+	    goto failed;
+	} else if (in_length != EB_SIZE_PAGE
+	    && total_length + in_length != in_status.st_size) {
+	    fprintf(stderr, _("%s: unexpected EOF: %s\n"), 
+		invoked_name, in_file_name);
+	    goto failed;
+	}
+
+	/*
+	 * Write decoded data to `out_file'.
+	 */
+	if (!test_flag) {
+	    if (write(out_file, buffer, in_length) != in_length) {
+		fprintf(stderr, _("%s: failed to write to the file, %s: %s\n"),
+		    invoked_name, strerror(errno), out_file_name);
+		goto failed;
+	    }
+	}
+	total_length += in_length;
+
+	/*
+	 * Output status information unless `quiet' mode.
+	 */
+	if (!quiet_flag
+	    && i % information_interval + 1 == information_interval) {
+	    printf(_("%4.1f%% done (%lu / %lu bytes)\n"),
+		(double)(i + 1) * 100.0 / (double)total_slices,
+		(unsigned long)total_length, (unsigned long)in_status.st_size);
+	    fflush(stdout);
+	}
+    }
+
+    /*
+     * Output the result unless quiet mode.
+     */
+    if (!quiet_flag) {
+	printf(_("completed (%lu / %lu bytes)\n"),
+	    (unsigned long)total_length, (unsigned long)total_length);
+	fputc('\n', stdout);
+	fflush(stdout);
+    }
+
+    /*
+     * Close files.
+     */
+    close(in_file);
+    in_file = -1;
+
+    if (!test_flag) {
+	close(out_file);
+	out_file = -1;
+	trap_file = -1;
+	trap_file_name = NULL;
+#ifdef SIGHUP
+	signal(SIGHUP, SIG_DFL);
+#endif
+	signal(SIGINT, SIG_DFL);
+#ifdef SIGQUIT
+	signal(SIGQUIT, SIG_DFL);
+#endif
+#ifdef SIGTERM
+	signal(SIGTERM, SIG_DFL);
+#endif
+    }
+
+    /*
+     * Delete an original file unless `keep_flag' is set.
+     */
+    if (!test_flag  && !keep_flag && unlink(in_file_name) < 0) {
+	fprintf(stderr, _("%s: failed to unlink the file: %s\n"), invoked_name,
+	    in_file_name);
+	goto failed;
+    }
+
+    /*
+     * Set owner, group, permission, atime and mtime of `out_file'.
+     * We ignore return values of `chown', `chmod' and `utime'.
+     */
+    if (!test_flag) {
+	struct utimbuf utim;
+
+#if defined(HAVE_UTIME)
+	utim.actime = in_status.st_atime;
+	utim.modtime = in_status.st_mtime;
+	utime(out_file_name, &utim);
+#endif
+    }
+
+    return 0;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    if (0 <= in_file)
+	close(in_file);
+    if (0 <= out_file)
+	close(out_file);
+
+    fputc('\n', stderr);
+    fflush(stderr);
+
+    return -1;
+}
+
+
+/*
+ * Signal handler.
+ */
+static RETSIGTYPE
+trap(signal_number)
+    int signal_number;
+{
+    if (0 <= trap_file)
+	close(trap_file);
+    if (trap_file_name != NULL)
+	unlink(trap_file_name);
+    
+    exit(1);
+
+    /* not reached */
+#ifndef RETSIGTYPE_VOID
+    return 0;
+#endif
 }

@@ -1,3 +1,5 @@
+@SET_MAKE@
+
 bin_SCRIPTS = ebappendix
 
 EXTRA_DIST = ebappendix.in

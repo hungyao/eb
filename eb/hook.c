@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 99, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 99, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,7 +12,16 @@
  * GNU General Public License for more details.
  */
 
-#include "ebconfig.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+
+#ifdef ENABLE_PTHREAD
+#include <pthread.h>
+#endif
 
 #include "eb.h"
 #include "error.h"
@@ -60,8 +68,6 @@ eb_initialize_hookset(hookset)
 	= eb_hook_narrow_character_text;
     hookset->hooks[EB_HOOK_WIDE_FONT].function
 	= eb_hook_wide_character_text;
-    hookset->hooks[EB_HOOK_NEWLINE].function
-	= eb_hook_newline;
 }
 
 
@@ -164,10 +170,27 @@ eb_set_hooks(hookset, hook)
 /*
  * EUC JP to ASCII conversion table.
  */
-#define EUC_TO_ASCII_TABLE_START	0xa0
-#define EUC_TO_ASCII_TABLE_END		0xff
-
 static const unsigned char euc_a1_to_ascii_table[] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x00 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x08 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x10 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x18 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x20 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x28 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x30 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x38 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x40 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x48 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x50 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x58 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x60 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x68 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x70 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x78 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x80 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x88 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x90 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x98 */
     0x00, 0x20, 0x00, 0x00, 0x2c, 0x2e, 0x00, 0x3a,     /* 0xa0 */
     0x3b, 0x3f, 0x21, 0x00, 0x00, 0x00, 0x60, 0x00,     /* 0xa8 */
     0x5e, 0x7e, 0x5f, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0xb0 */
@@ -183,6 +206,26 @@ static const unsigned char euc_a1_to_ascii_table[] = {
 };
 
 static const unsigned char euc_a3_to_ascii_table[] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x00 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x08 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x10 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x18 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x20 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x28 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x30 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x38 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x40 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x48 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x50 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x58 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x60 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x68 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x70 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x78 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x80 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x88 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x90 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0x98 */
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0xa0 */
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,     /* 0xa8 */
     0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,     /* 0xb0 */
@@ -199,36 +242,36 @@ static const unsigned char euc_a3_to_ascii_table[] = {
 
 
 /*
- * Hook which converts a character from EUC-JP to ASCII.
+ * Convert the `workbuf' string from EUC to ASCII.
  */
 EB_Error_Code
-eb_hook_euc_to_ascii(book, appendix, container, hook_code, argc, argv)
+eb_hook_euc_to_ascii(book, appendix, workbuf, hook_code, argc, argv)
     EB_Book *book;
     EB_Appendix *appendix;
-    VOID *container;
+    char *workbuf;
     EB_Hook_Code hook_code;
     int argc;
-    const unsigned int *argv;
+    const int *argv;
 {
     int in_code1, in_code2;
     int out_code = 0;
 
-    in_code1 = argv[0] >> 8;
-    in_code2 = argv[0] & 0xff;
+    in_code1 = *((unsigned char *)workbuf);
+    in_code2 = *((unsigned char *)workbuf + 1);
 
-    if (in_code2 < EUC_TO_ASCII_TABLE_START
-	|| EUC_TO_ASCII_TABLE_END < in_code2) {
-	out_code = 0;
-    } else if (in_code1 == 0xa1) {
-	out_code = euc_a1_to_ascii_table[in_code2 - EUC_TO_ASCII_TABLE_START];
-    } else if (in_code1 == 0xa3) {
-	out_code = euc_a3_to_ascii_table[in_code2 - EUC_TO_ASCII_TABLE_START];
+    if (in_code1 == 0xa1)
+	out_code = euc_a1_to_ascii_table[in_code2];
+    else if (in_code1 == 0xa3)
+	out_code = euc_a3_to_ascii_table[in_code2];
+
+    if (out_code == 0) {
+	*workbuf = in_code1;
+	*(workbuf + 1) = in_code2;
+	*(workbuf + 2) = '\0';
+    } else {
+	*workbuf = out_code;
+	*(workbuf + 1) = '\0';
     }
-
-    if (out_code == 0)
-	eb_write_text_byte2(book, in_code1, in_code2);
-    else
-	eb_write_text_byte1(book, out_code);
 
     return EB_SUCCESS;
 }
@@ -238,28 +281,31 @@ eb_hook_euc_to_ascii(book, appendix, container, hook_code, argc, argv)
  * Hook for stop-code.
  */
 EB_Error_Code
-eb_hook_stop_code(book, appendix, container, hook_code, argc, argv)
+eb_hook_stop_code(book, appendix, workbuf, hook_code, argc, argv)
     EB_Book *book;
     EB_Appendix *appendix;
-    VOID *container;
+    char *workbuf;
     EB_Hook_Code hook_code;
     int argc;
-    const unsigned int *argv;
+    const int *argv;
 {
-    EB_Error_Code error_code = EB_SUCCESS;
+    int is_stop_code = 0;
 
     if (appendix == NULL
 	|| appendix->subbook_current == NULL
 	|| appendix->subbook_current->stop0 == 0) {
+	printf("%04x<=>0x1f41 && %04x<=>%04x --> %d\n", argv[0], argv[1],
+	    book->text_context.auto_stop_code, 
+	    (argv[0] == 0x1f41 && argv[1] == book->text_context.auto_stop_code));
 	if (argv[0] == 0x1f41 && argv[1] == book->text_context.auto_stop_code)
-	    error_code = EB_ERR_STOP_CODE;
+	    is_stop_code = -1;
     } else {
 	if (argv[0] == appendix->subbook_current->stop0
 	    && argv[1] == appendix->subbook_current->stop1)
-	    error_code = EB_ERR_STOP_CODE;
+	    is_stop_code = -1;
     }
 
-    return error_code;
+    return is_stop_code;
 }
 
 
@@ -267,22 +313,21 @@ eb_hook_stop_code(book, appendix, container, hook_code, argc, argv)
  * Hook for narrow local character.
  */
 EB_Error_Code
-eb_hook_narrow_character_text(book, appendix, container, hook_code, argc, argv)
+eb_hook_narrow_character_text(book, appendix, workbuf, hook_code, argc, argv)
     EB_Book *book;
     EB_Appendix *appendix;
-    VOID *container;
+    char *workbuf;
     EB_Hook_Code hook_code;
     int argc;
-    const unsigned int *argv;
+    const int *argv;
 {
-    char alt_text[EB_MAX_ALTERNATION_TEXT_LENGTH + 1];
-
-    if (appendix == NULL
-	|| eb_narrow_alt_character_text(appendix, argv[0], alt_text)
+    if (appendix == NULL 
+	|| eb_narrow_alt_character_text(appendix, argv[0], workbuf)
 	!= EB_SUCCESS) {
-	eb_write_text_string(book, "<?>");
-    } else {
-	eb_write_text_string(book, alt_text);
+	*workbuf = '<';
+	*(workbuf + 1) = '?';
+	*(workbuf + 2) = '>';
+	*(workbuf + 3) = '\0';
     }
 
     return EB_SUCCESS;
@@ -293,22 +338,21 @@ eb_hook_narrow_character_text(book, appendix, container, hook_code, argc, argv)
  * Hook for wide local character.
  */
 EB_Error_Code
-eb_hook_wide_character_text(book, appendix, container, hook_code, argc, argv)
+eb_hook_wide_character_text(book, appendix, workbuf, hook_code, argc, argv)
     EB_Book *book;
     EB_Appendix *appendix;
-    VOID *container;
+    char *workbuf;
     EB_Hook_Code hook_code;
     int argc;
-    const unsigned int *argv;
+    const int *argv;
 {
-    char alt_text[EB_MAX_ALTERNATION_TEXT_LENGTH + 1];
-
     if (appendix == NULL
-	|| eb_wide_alt_character_text(appendix, argv[0], alt_text)
+	|| eb_wide_alt_character_text(appendix, argv[0], workbuf)
 	!= EB_SUCCESS) {
-	eb_write_text_string(book, "<?>");
-    } else {
-	eb_write_text_string(book, alt_text);
+	*workbuf = '<';
+	*(workbuf + 1) = '?';
+	*(workbuf + 2) = '>';
+	*(workbuf + 3) = '\0';
     }
 
     return EB_SUCCESS;
@@ -316,35 +360,18 @@ eb_hook_wide_character_text(book, appendix, container, hook_code, argc, argv)
 
 
 /*
- * Hook for a newline character.
+ * Convert `workbuf' to empty.
  */
 EB_Error_Code
-eb_hook_newline(book, appendix, container, code, argc, argv)
+eb_hook_empty(book, appendix, workbuf, hook_code, argc, argv)
     EB_Book *book;
     EB_Appendix *appendix;
-    void *container;
-    EB_Hook_Code code;
-    int argc;
-    const unsigned int *argv;
-{
-    eb_write_text_byte1(book, '\n');
-
-    return 0;
-}
-
-
-/*
- * Hook which does nothing.
- */
-EB_Error_Code
-eb_hook_empty(book, appendix, container, hook_code, argc, argv)
-    EB_Book *book;
-    EB_Appendix *appendix;
-    VOID *container;
+    char *workbuf;
     EB_Hook_Code hook_code;
     int argc;
-    const unsigned int *argv;
+    const int *argv;
 {
+    *workbuf = '\0';
     return EB_SUCCESS;
 }
 

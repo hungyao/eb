@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 98, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,11 +12,25 @@
  * GNU General Public License for more details.
  */
 
-#include "ebconfig.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#ifdef ENABLE_PTHREAD
+#include <pthread.h>
+#endif
 
 #include "eb.h"
 #include "error.h"
 #include "internal.h"
+
 
 /*
  * Examine whether the current subbook in `book' supports `KEYWORD SEARCH'
@@ -38,13 +51,8 @@ eb_have_keyword_search(book)
     if (book->subbook_current == NULL)
 	goto failed;
 
-    if (book->subbook_current->keyword.start_page == 0)
+    if (book->subbook_current->keyword.index_page == 0)
 	goto failed;
-
-    /*
-     * Unlock the book.
-     */
-    eb_unlock(&book->lock);
 
     return 1;
 
@@ -63,7 +71,7 @@ eb_have_keyword_search(book)
 EB_Error_Code
 eb_search_keyword(book, input_words)
     EB_Book *book;
-    const char * const input_words[];
+    const char *input_words[];
 {
     EB_Error_Code error_code;
     EB_Search_Context *context;
@@ -87,7 +95,7 @@ eb_search_keyword(book, input_words)
     /*
      * Check whether the current subbook has keyword search.
      */
-    if (book->subbook_current->keyword.start_page == 0) {
+    if (book->subbook_current->keyword.index_page == 0) {
 	error_code = EB_ERR_NO_SUCH_SEARCH;
 	goto failed;
     }
@@ -107,7 +115,7 @@ eb_search_keyword(book, input_words)
 	context = book->search_contexts + word_count;
 	context->code = EB_SEARCH_KEYWORD;
 	context->compare = eb_match_exactword;
-	context->page = book->subbook_current->keyword.start_page;
+	context->page = book->subbook_current->keyword.index_page;
 
 	/*
 	 * Make a fixed word and a canonicalized word to search from
@@ -132,7 +140,7 @@ eb_search_keyword(book, input_words)
     if (word_count == 0) {
 	error_code = EB_ERR_NO_WORD;
 	goto failed;
-    } else if (EB_MAX_KEYWORDS <= i && input_words[i] != NULL) {
+    } else if (EB_MAX_KEYWORDS <= i) {
 	error_code =  EB_ERR_TOO_MANY_WORDS;
 	goto failed;
     }

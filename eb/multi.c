@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 98, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,11 +12,49 @@
  * GNU General Public License for more details.
  */
 
-#include "ebconfig.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+
+#if defined(STDC_HEADERS) || defined(HAVE_STRING_H)
+#include <string.h>
+#if !defined(STDC_HEADERS) && defined(HAVE_MEMORY_H)
+#include <memory.h>
+#endif /* not STDC_HEADERS and HAVE_MEMORY_H */
+#else /* not STDC_HEADERS and not HAVE_STRING_H */
+#include <strings.h>
+#endif /* not STDC_HEADERS and not HAVE_STRING_H */
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
+#ifdef ENABLE_PTHREAD
+#include <pthread.h>
+#endif
 
 #include "eb.h"
 #include "error.h"
 #include "internal.h"
+
+/*
+ * The maximum length of path name.
+ */
+#ifndef PATH_MAX
+#ifdef MAXPATHLEN
+#define PATH_MAX	MAXPATHLEN
+#else /* not MAXPATHLEN */
+#define PATH_MAX	1024
+#endif /* not MAXPATHLEN */
+#endif /* not PATH_MAX */
+
 
 /*
  * Get information about the current subbook.
@@ -27,7 +64,7 @@ eb_initialize_multi_search(book)
     EB_Book *book;
 {
     EB_Error_Code error_code;
-    EB_Subbook *subbook;
+    EB_Subbook *sub = book->subbook_current;
     EB_Multi_Search *multi;
     EB_Search *entry;
     char buffer[EB_SIZE_PAGE];
@@ -37,20 +74,16 @@ eb_initialize_multi_search(book)
     int page;
     int i, j, k;
 
-    subbook = book->subbook_current;
-
-    for (i = 0, multi = subbook->multis; i < subbook->multi_count;
-	 i++, multi++) {
+    for (i = 0, multi = sub->multis; i < sub->multi_count; i++, multi++) {
 	/*
 	 * Read the index table page of the multi search.
 	 */
-	if (zio_lseek(&subbook->text_zio, 
-	    (off_t)(multi->search.start_page - 1) * EB_SIZE_PAGE, SEEK_SET)
-	    < 0) {
+	if (eb_zlseek(&(sub->zip), sub->text_file,
+	    (multi->search.index_page - 1) * EB_SIZE_PAGE, SEEK_SET) < 0) {
 	    error_code = EB_ERR_FAIL_SEEK_TEXT;
 	    goto failed;
 	}
-	if (zio_read(&subbook->text_zio, buffer, EB_SIZE_PAGE)
+	if (eb_zread(&(sub->zip), sub->text_file, buffer, EB_SIZE_PAGE)
 	    != EB_SIZE_PAGE) {
 	    error_code = EB_ERR_FAIL_READ_TEXT;
 	    goto failed;
@@ -81,7 +114,7 @@ eb_initialize_multi_search(book)
 	    /*
 	     * Initialize index page information of the entry.
 	     */
-	    entry->start_page = 0;
+	    entry->index_page = 0;
 	    entry->candidates_page = 0;
 
 	    for (k = 0; k < index_count; k++) {
@@ -92,18 +125,15 @@ eb_initialize_multi_search(book)
 		page = eb_uint4(bufp + 2);
 		switch (index_id) {
 		case 0x71:
-		    if (entry->start_page == 0)
-			entry->start_page = page;
-		    entry->index_id = index_id;
+		    if (entry->index_page == 0)
+			entry->index_page = page;
 		    break;
 		case 0x91:
 		case 0xa1:
-		    entry->start_page = page;
-		    entry->index_id = index_id;
+		    entry->index_page = page;
 		    break;
 		case 0x01:
 		    entry->candidates_page = page;
-		    entry->index_id = index_id;
 		    break;
 		}
 		bufp += 16;
@@ -169,7 +199,7 @@ eb_multi_search_list(book, search_list, search_count)
     int *search_count;
 {
     EB_Error_Code error_code;
-    EB_Subbook_Code *list_p;
+    EB_Subbook_Code *listp;
     int i;
 
     /*
@@ -194,8 +224,8 @@ eb_multi_search_list(book, search_list, search_count)
     }
 
     *search_count = book->subbook_current->multi_count;
-    for (i = 0, list_p = search_list; i < *search_count; i++, list_p++)
-	*list_p = i;
+    for (i = 0, listp = search_list; i < *search_count; i++, listp++)
+	*listp = i;
 
     /*
      * Unlock the book.
@@ -225,7 +255,7 @@ eb_multi_entry_list(book, multi_id, entry_list, entry_count)
     int *entry_count;
 {
     EB_Error_Code error_code;
-    EB_Subbook_Code *list_p;
+    EB_Subbook_Code *listp;
     int i;
 
     /*
@@ -258,8 +288,8 @@ eb_multi_entry_list(book, multi_id, entry_list, entry_count)
     }
 
     *entry_count = book->subbook_current->multis[multi_id].entry_count;
-    for (i = 0, list_p = entry_list; i < *entry_count; i++, list_p++)
-	*list_p = i;
+    for (i = 0, listp = entry_list; i < *entry_count; i++, listp++)
+	*listp = i;
 
     /*
      * Unlock the book.
@@ -462,7 +492,7 @@ eb_multi_entry_candidates(book, multi_id, entry_id, position)
     }
 
     if (multi->entries[entry_id].candidates_page == 0) {
-	error_code = EB_ERR_NO_CANDIDATES;
+	error_code = EB_ERR_NO_SUCH_SEARCH;
 	goto failed;
     }
 
@@ -492,7 +522,7 @@ EB_Error_Code
 eb_search_multi(book, multi_id, input_words)
     EB_Book *book;
     EB_Multi_Search_Code multi_id;
-    const char * const input_words[];
+    const char *input_words[];
 {
     EB_Error_Code error_code;
     EB_Search_Context *context;
@@ -540,7 +570,7 @@ eb_search_multi(book, multi_id, input_words)
 	context = book->search_contexts + word_count;
 	context->code = EB_SEARCH_MULTI;
 	context->compare = eb_match_exactword;
-	context->page = entry->start_page;
+	context->page = entry->index_page;
 	if (context->page == 0)
 	    continue;
 

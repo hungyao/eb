@@ -1,3 +1,5 @@
+@SET_MAKE@
+
 info_TEXINFOS = ebfont-ja.texi ebinfo-ja.texi ebrefile-ja.texi ebzip-ja.texi
 ebfont_ja_TEXINFOS = ebfont-ver.texi
 ebinfo_ja_TEXINFOS = ebinfo-ver.texi
@@ -7,13 +9,16 @@ ebzip_ja_TEXINFOS = ebzip-ver.texi
 samplesdir = $(srcdir)/../samples
 
 CLEANFILES = vti.tmp
-EXTRA_DIST = texinfo-ja.tex stamp-ebfont stamp-ebinfo \
+EXTRA_DIST = texinfo-ja.tex stamp-eb stamp-ebfont stamp-ebinfo \
 	stamp-ebrefile stamp-ebzip
+
+eb-ver.texi: stamp-eb
+	cp $(srcdir)/stamp-eb $(srcdir)/eb-ver.texi
 
 ebfont-ver.texi: stamp-ebfont
 	cp $(srcdir)/stamp-ebfont $(srcdir)/ebfont-ver.texi
 
-stamp-ebfont: ebfont-ja.texi $(top_srcdir)/configure.ac
+stamp-ebfont: ebfont-ja.texi $(top_srcdir)/configure.in
 	@echo "@set UPDATED `cd $(srcdir) \
 	  && $(SHELL) ./mdate-sh ebfont-ja.texi`" > vti.tmp
 	@echo "@set EDITION $(VERSION)" >> vti.tmp
@@ -26,7 +31,7 @@ stamp-ebfont: ebfont-ja.texi $(top_srcdir)/configure.ac
 ebinfo-ver.texi: stamp-ebinfo
 	cp $(srcdir)/stamp-ebinfo $(srcdir)/ebinfo-ver.texi
 
-stamp-ebinfo: ebinfo-ja.texi $(top_srcdir)/configure.ac
+stamp-ebinfo: ebinfo-ja.texi $(top_srcdir)/configure.in
 	@echo "@set UPDATED `cd $(srcdir) \
 	  && $(SHELL) ./mdate-sh ebinfo-ja.texi`" > vti.tmp
 	@echo "@set EDITION $(VERSION)" >> vti.tmp
@@ -39,7 +44,7 @@ stamp-ebinfo: ebinfo-ja.texi $(top_srcdir)/configure.ac
 ebrefile-ver.texi: stamp-ebrefile
 	cp $(srcdir)/stamp-ebrefile $(srcdir)/ebrefile-ver.texi
 
-stamp-ebrefile: ebrefile-ja.texi $(top_srcdir)/configure.ac
+stamp-ebrefile: ebrefile-ja.texi $(top_srcdir)/configure.in
 	@echo "@set UPDATED `cd $(srcdir) \
 	  && $(SHELL) ./mdate-sh ebrefile-ja.texi`" > vti.tmp
 	@echo "@set EDITION $(VERSION)" >> vti.tmp
@@ -52,7 +57,7 @@ stamp-ebrefile: ebrefile-ja.texi $(top_srcdir)/configure.ac
 ebzip-ver.texi: stamp-ebzip
 	cp $(srcdir)/stamp-ebzip $(srcdir)/ebzip-ver.texi
 
-stamp-ebzip: ebzip-ja.texi $(top_srcdir)/configure.ac
+stamp-ebzip: ebzip-ja.texi $(top_srcdir)/configure.in
 	@echo "@set UPDATED `cd $(srcdir) \
 	  && $(SHELL) ./mdate-sh ebzip-ja.texi`" > vti.tmp
 	@echo "@set EDITION $(VERSION)" >> vti.tmp

@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 98, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,7 +12,25 @@
  * GNU General Public License for more details.
  */
 
-#include "ebconfig.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+
+#if defined(STDC_HEADERS) || defined(HAVE_STRING_H)
+#include <string.h>
+#if !defined(STDC_HEADERS) && defined(HAVE_MEMORY_H)
+#include <memory.h>
+#endif /* not STDC_HEADERS and HAVE_MEMORY_H */
+#else /* not STDC_HEADERS and not HAVE_STRING_H */
+#include <strings.h>
+#endif /* not STDC_HEADERS and not HAVE_STRING_H */
+
+#ifdef ENABLE_PTHREAD
+#include <pthread.h>
+#endif
 
 #include "eb.h"
 #include "error.h"
@@ -22,13 +39,11 @@
 /*
  * Unexported functions.
  */
-static void eb_fix_word EB_P((EB_Book *, const EB_Search *, char *, char *));
-static EB_Error_Code eb_convert_latin EB_P((EB_Book *, const char *, char *,
+static EB_Error_Code eb_fix_word_latin EB_P((EB_Book *, const char *, char *,
     EB_Word_Code *));
-static EB_Error_Code eb_convert_euc_jp EB_P((EB_Book *, const char *, char *,
+static EB_Error_Code eb_fix_word_jis EB_P((EB_Book *, const char *, char *,
     EB_Word_Code *));
 static void eb_convert_katakana_jis EB_P((char *));
-static void eb_convert_hiragana_jis EB_P((char *));
 static void eb_convert_lower_latin EB_P((char *));
 static void eb_convert_lower_jis EB_P((char *));
 static void eb_delete_marks_jis EB_P((char *));
@@ -67,9 +82,9 @@ eb_set_word(book, input_word, word, canonicalized_word, word_code)
      * Make a fixed word and a canonicalized word from `input_word'.
      */
     if (book->character_code == EB_CHARCODE_ISO8859_1)
-	error_code = eb_convert_latin(book, input_word, word, word_code);
+	error_code = eb_fix_word_latin(book, input_word, word, word_code);
     else
-	error_code = eb_convert_euc_jp(book, input_word, word, word_code);
+	error_code = eb_fix_word_jis(book, input_word, word, word_code);
     if (error_code != EB_SUCCESS)
 	goto failed;
     strcpy(canonicalized_word, word);
@@ -79,9 +94,9 @@ eb_set_word(book, input_word, word, canonicalized_word, word_code)
      */
     switch (*word_code) {
     case EB_WORD_ALPHABET:
-	if (book->subbook_current->word_alphabet.start_page != 0)
+	if (book->subbook_current->word_alphabet.index_page != 0)
 	    search = &book->subbook_current->word_alphabet;
-	else if (book->subbook_current->word_asis.start_page != 0)
+	else if (book->subbook_current->word_asis.index_page != 0)
 	    search = &book->subbook_current->word_asis;
 	else {
 	    error_code = EB_ERR_NO_SUCH_SEARCH;
@@ -90,9 +105,9 @@ eb_set_word(book, input_word, word, canonicalized_word, word_code)
 	break;
 
     case EB_WORD_KANA:
-	if (book->subbook_current->word_kana.start_page != 0)
+	if (book->subbook_current->word_kana.index_page != 0)
 	    search = &book->subbook_current->word_kana;
-	else if (book->subbook_current->word_asis.start_page != 0)
+	else if (book->subbook_current->word_asis.index_page != 0)
 	    search = &book->subbook_current->word_asis;
 	else {
 	    error_code = EB_ERR_NO_SUCH_SEARCH;
@@ -101,7 +116,7 @@ eb_set_word(book, input_word, word, canonicalized_word, word_code)
 	break;
 
     case EB_WORD_OTHER:
-	if (book->subbook_current->word_asis.start_page != 0)
+	if (book->subbook_current->word_asis.index_page != 0)
 	    search = &book->subbook_current->word_asis;
 	else {
 	    error_code = EB_ERR_NO_SUCH_SEARCH;
@@ -115,9 +130,47 @@ eb_set_word(book, input_word, word, canonicalized_word, word_code)
     }
 
     /*
-     * Fix the word.
+     * Canonicalize the word.
      */
-    eb_fix_word(book, search, canonicalized_word, word);
+    if (book->character_code == EB_CHARCODE_ISO8859_1) {
+	if (search->space == EB_INDEX_STYLE_DELETE) {
+	    eb_delete_spaces_latin(word);
+	    eb_delete_spaces_latin(canonicalized_word);
+	}
+	if (search->lower == EB_INDEX_STYLE_CONVERT) {
+	    eb_convert_lower_latin(word);
+	    eb_convert_lower_latin(canonicalized_word);
+	}
+    } else {
+	if (search->space == EB_INDEX_STYLE_DELETE) {
+	    eb_delete_spaces_jis(word);
+	    eb_delete_spaces_jis(canonicalized_word);
+	}
+	if (search->katakana == EB_INDEX_STYLE_CONVERT)
+	    eb_convert_katakana_jis(canonicalized_word);
+	if (search->lower == EB_INDEX_STYLE_CONVERT) {
+	    eb_convert_lower_jis(word);
+	    eb_convert_lower_jis(canonicalized_word);
+	}
+	if (search->mark == EB_INDEX_STYLE_DELETE) {
+	    eb_delete_marks_jis(word);
+	    eb_delete_marks_jis(canonicalized_word);
+	}
+	if (search->long_vowel == EB_INDEX_STYLE_CONVERT)
+	    eb_convert_long_vowels_jis(canonicalized_word);
+	else if (search->long_vowel == EB_INDEX_STYLE_DELETE)
+	    eb_delete_long_vowels_jis(canonicalized_word);
+	if (search->double_consonant == EB_INDEX_STYLE_CONVERT)
+	    eb_convert_double_consonants_jis(canonicalized_word);
+	if (search->contracted_sound == EB_INDEX_STYLE_CONVERT)
+	    eb_convert_contracted_sounds_jis(canonicalized_word);
+	if (search->small_vowel == EB_INDEX_STYLE_CONVERT)
+	    eb_convert_small_vowels_jis(canonicalized_word);
+	if (search->voiced_consonant == EB_INDEX_STYLE_CONVERT)
+	    eb_convert_voiced_consonants_jis(canonicalized_word);
+	if (search->p_sound == EB_INDEX_STYLE_CONVERT)
+	    eb_convert_p_sounds_jis(canonicalized_word);
+    }
 
     return EB_SUCCESS;
 
@@ -148,67 +201,12 @@ eb_set_endword(book, input_word, word, canonicalized_word, word_code)
     EB_Word_Code *word_code;
 {
     EB_Error_Code error_code;
-    const EB_Search *search;
 
-    /*
-     * Make a fixed word and a canonicalized word from `input_word'.
-     */
-    if (book->character_code == EB_CHARCODE_ISO8859_1)
-	error_code = eb_convert_latin(book, input_word, word, word_code);
-    else
-	error_code = eb_convert_euc_jp(book, input_word, word, word_code);
+    error_code = eb_set_word(book, input_word, word, canonicalized_word, 
+	word_code);
     if (error_code != EB_SUCCESS)
 	goto failed;
-    strcpy(canonicalized_word, word);
 
-    /*
-     * Determine search method.
-     */
-    switch (*word_code) {
-    case EB_WORD_ALPHABET:
-	if (book->subbook_current->endword_alphabet.start_page != 0)
-	    search = &book->subbook_current->endword_alphabet;
-	else if (book->subbook_current->endword_asis.start_page != 0)
-	    search = &book->subbook_current->endword_asis;
-	else {
-	    error_code = EB_ERR_NO_SUCH_SEARCH;
-	    goto failed;
-	}
-	break;
-
-    case EB_WORD_KANA:
-	if (book->subbook_current->endword_kana.start_page != 0)
-	    search = &book->subbook_current->endword_kana;
-	else if (book->subbook_current->endword_asis.start_page != 0)
-	    search = &book->subbook_current->endword_asis;
-	else {
-	    error_code = EB_ERR_NO_SUCH_SEARCH;
-	    goto failed;
-	}
-	break;
-
-    case EB_WORD_OTHER:
-	if (book->subbook_current->endword_asis.start_page != 0)
-	    search = &book->subbook_current->endword_asis;
-	else {
-	    error_code = EB_ERR_NO_SUCH_SEARCH;
-	    goto failed;
-	}
-	break;
-
-    default:
-	error_code = EB_ERR_NO_SUCH_SEARCH;
-	goto failed;
-    }
-
-    /*
-     * Fix the word.
-     */
-    eb_fix_word(book, search, canonicalized_word, word);
-
-    /*
-     * Reverse the word.
-     */
     if (book->character_code == EB_CHARCODE_ISO8859_1) {
 	eb_reverse_word_latin(word);
 	eb_reverse_word_latin(canonicalized_word);
@@ -251,18 +249,12 @@ eb_set_keyword(book, input_word, canonicalized_word, word, word_code)
      * Make a fixed word and a canonicalized word from `input_word'.
      */
     if (book->character_code == EB_CHARCODE_ISO8859_1)
-	error_code = eb_convert_latin(book, input_word, word, word_code);
+	error_code = eb_fix_word_latin(book, input_word, word, word_code);
     else
-	error_code = eb_convert_euc_jp(book, input_word, word, word_code);
+	error_code = eb_fix_word_jis(book, input_word, word, word_code);
     if (error_code != EB_SUCCESS)
 	goto failed;
     strcpy(canonicalized_word, word);
-
-    /*
-     * Fix the word.
-     */
-    eb_fix_word(book, &book->subbook_current->keyword, canonicalized_word,
-	word);
 
     return EB_SUCCESS;
 
@@ -296,24 +288,17 @@ eb_set_multiword(book, multi_id, entry_id, input_word, word,
     EB_Word_Code *word_code;
 {
     EB_Error_Code error_code;
-    EB_Search *search;
 
     /*
      * Make a fixed word and a canonicalized word from `input_word'.
      */
     if (book->character_code == EB_CHARCODE_ISO8859_1)
-	error_code = eb_convert_latin(book, input_word, word, word_code);
+	error_code = eb_fix_word_latin(book, input_word, word, word_code);
     else
-	error_code = eb_convert_euc_jp(book, input_word, word, word_code);
+	error_code = eb_fix_word_jis(book, input_word, word, word_code);
     if (error_code != EB_SUCCESS)
 	goto failed;
     strcpy(canonicalized_word, word);
-
-    /*
-     * Fix the word.
-     */
-    search = &book->subbook_current->multis[multi_id].entries[entry_id];
-    eb_fix_word(book, search, canonicalized_word, word);
 
     return EB_SUCCESS;
 
@@ -329,75 +314,13 @@ eb_set_multiword(book, multi_id, entry_id, input_word, word,
 
 
 /*
- * Fix `canonicalized_word' and `word' according with `book->character_code'
- * and `search'.
- */
-static void
-eb_fix_word(book, search, canonicalized_word, word)
-    EB_Book *book;
-    const EB_Search *search;
-    char *word;
-    char *canonicalized_word;
-{
-    if (search->index_id == 0xa1 && search->candidates_page != 0)
-	return;
-
-    if (book->character_code == EB_CHARCODE_ISO8859_1) {
-	if (search->space == EB_INDEX_STYLE_DELETE)
-	    eb_delete_spaces_latin(canonicalized_word);
-
-	if (search->lower == EB_INDEX_STYLE_CONVERT)
-	    eb_convert_lower_latin(canonicalized_word);
-
-    } else {
-	if (search->space == EB_INDEX_STYLE_DELETE)
-	    eb_delete_spaces_jis(canonicalized_word);
-
-	if (search->katakana == EB_INDEX_STYLE_CONVERT)
-	    eb_convert_katakana_jis(canonicalized_word);
-	else if (search->katakana == EB_INDEX_STYLE_REVERSED_CONVERT)
-	    eb_convert_hiragana_jis(canonicalized_word);
-
-	if (search->lower == EB_INDEX_STYLE_CONVERT)
-	    eb_convert_lower_jis(canonicalized_word);
-
-	if (search->mark == EB_INDEX_STYLE_DELETE)
-	    eb_delete_marks_jis(canonicalized_word);
-
-	if (search->long_vowel == EB_INDEX_STYLE_CONVERT)
-	    eb_convert_long_vowels_jis(canonicalized_word);
-	else if (search->long_vowel == EB_INDEX_STYLE_DELETE)
-	    eb_delete_long_vowels_jis(canonicalized_word);
-
-	if (search->double_consonant == EB_INDEX_STYLE_CONVERT)
-	    eb_convert_double_consonants_jis(canonicalized_word);
-
-	if (search->contracted_sound == EB_INDEX_STYLE_CONVERT)
-	    eb_convert_contracted_sounds_jis(canonicalized_word);
-
-	if (search->small_vowel == EB_INDEX_STYLE_CONVERT)
-	    eb_convert_small_vowels_jis(canonicalized_word);
-
-	if (search->voiced_consonant == EB_INDEX_STYLE_CONVERT)
-	    eb_convert_voiced_consonants_jis(canonicalized_word);
-
-	if (search->p_sound == EB_INDEX_STYLE_CONVERT)
-	    eb_convert_p_sounds_jis(canonicalized_word);
-    }
-
-    if (search->index_id != 0x70 && search->index_id != 0x90)
-	strcpy(word, canonicalized_word);
-}
-
-
-/*
  * Convert `input_word' to ISO 8859 1 and put it into `word'.
  *
  * If `input_word' is a valid string to search, EB_WORD_ALPHABET is returned.
  * Otherwise, -1 is returned.
  */
 static EB_Error_Code
-eb_convert_latin(book, input_word, word, word_code)
+eb_fix_word_latin(book, input_word, word, word_code)
     EB_Book *book;
     const char *input_word;
     char *word;
@@ -428,7 +351,7 @@ eb_convert_latin(book, input_word, word, word_code)
     while (inp < tail) {
 	/*
 	 * Check for the length of the word.
-	 * If exceeds, return with an error code.
+	 * If exceeded, return with an error code.
 	 */
 	if (EB_MAX_WORD_LENGTH < word_length + 1) {
 	    error_code = EB_ERR_TOO_LONG_WORD;
@@ -525,7 +448,7 @@ static const unsigned int jisx0201_table[] = {
  * Otherwise, -1 is returned.
  */
 static EB_Error_Code
-eb_convert_euc_jp(book, input_word, word, word_code)
+eb_fix_word_jis(book, input_word, word, word_code)
     EB_Book *book;
     char *word;
     const char *input_word;
@@ -535,7 +458,7 @@ eb_convert_euc_jp(book, input_word, word, word_code)
     unsigned char *wp = (unsigned char *) word;
     const unsigned char *inp = (const unsigned char *) input_word;
     const unsigned char *tail;
-    unsigned char c1 = 0, c2 = 0;
+    unsigned char c1, c2;
     int kana_count = 0;
     int alphabet_count = 0;
     int kanji_count = 0;
@@ -570,7 +493,7 @@ eb_convert_euc_jp(book, input_word, word, word_code)
     while (inp < tail) {
 	/*
 	 * Check for the length of the word.
-	 * If exceeds, return with an error code.
+	 * If exceeded, return with an error code.
 	 */
 	if (EB_MAX_WORD_LENGTH < word_length + 2) {
 	    error_code = EB_ERR_TOO_LONG_WORD;
@@ -593,17 +516,15 @@ eb_convert_euc_jp(book, input_word, word, word_code)
 	    c2 = c & 0xff;
 	} else if (0xa1 <= c1 && c1 <= 0xfe) {
 	    /*
-	     * `c1' is a character in JIS X 0208, or local character.
+	     * `c1' is a character in JIS X 0208.
 	     */
 	    c2 = *inp++;
-	    
-	    if (0xa1 <= c2 && c2 <= 0xfe) {
-		c1 &= 0x7f;
-		c2 &= 0x7f;
-	    } else if (c2 < 0x20 || 0x7e < c2) {
+	    if (c2 < 0xa1 || 0xfe < c2) {
 		error_code = EB_ERR_BAD_WORD;
 		goto failed;
 	    }
+	    c1 &= 0x7f;
+	    c2 &= 0x7f;
 	} else if (c1 == 0x8e) {
 	    /*
 	     * `c1' is SS2.
@@ -681,32 +602,6 @@ eb_convert_katakana_jis(word)
 	     * This is a KATAKANA.  Convert to corresponding HIRAGANA.
 	     */
 	    *wp = 0x24;
-	}
-	wp += 2;
-    }
-    *wp = '\0';
-}
-
-
-/*
- * Convert HIRAGANA to KATAKANA in `word'.
- */
-static void
-eb_convert_hiragana_jis(word)
-    char *word;
-{
-    unsigned char *wp = (unsigned char *) word;
-    unsigned char c1, c2;
-    
-    while (*wp != '\0' && *(wp + 1) != '\0') {
-	c1 = *wp;
-	c2 = *(wp + 1);
-	
-	if (c1 == 0x24 && 0x21 <= c2 && c2 <= 0x76) {
-	    /*
-	     * This is a HIRAGANA.  Convert to corresponding KATAKANA.
-	     */
-	    *wp = 0x25;
 	}
 	wp += 2;
     }

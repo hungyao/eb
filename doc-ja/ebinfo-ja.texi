@@ -4,7 +4,7 @@
 @settitle ebinfo
 @c %** end of header
 
-@include ebinfo-ver.texi
+@include version.texi
 
 @dircategory CD-ROM Book Utilities
 @direntry
@@ -14,7 +14,7 @@
 @ifinfo
 ebinfo: CD-ROM 書籍の情報を得るためのツール、笠原基之
 
-Copyright @copyright{} 1997, 98, 99, 2000, 01  Motoyuki Kasahara
+Copyright @copyright{} 1997, 1998, 1999  Motoyuki Kasahara
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -47,7 +47,7 @@ by Free Software Foundation, Inc.
 
 @page
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1997, 98, 99, 2000, 01  Motoyuki Kasahara
+Copyright @copyright{} 1997, 1998, 1999  Motoyuki Kasahara
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -131,7 +131,7 @@ EB ライブラリバージョン @value{VERSION} に対応しています。
 @group
 副本  1:
   題名: 新英和辞典（第三版）
-  ディレクトリ: ejdict
+  ディレクトリ: EJDICT
   検索方式: 前方一致 後方一致 条件 メニュー 
   フォントの大きさ: 16 24 30 48
   半角フォントの文字: 0xa121 -- 0xa24e
@@ -141,7 +141,7 @@ EB ライブラリバージョン @value{VERSION} に対応しています。
 @group
 副本  2:
   題名: この書籍の使い方
-  ディレクトリ: howto
+  ディレクトリ: HOWTO
   検索方式: 前方一致 後方一致 条件 メニュー 
   フォントの大きさ: 16 24 30 48
   半角フォントの文字: 

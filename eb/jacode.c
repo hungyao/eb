@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 99, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 99, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,7 +12,13 @@
  * GNU General Public License for more details.
  */
 
-#include "ebconfig.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+
 
 /*
  * Convert a string from JIS X 0208 to EUC JP.

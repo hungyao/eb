@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,7 +12,20 @@
  * GNU General Public License for more details.
  */
 
-#include "ebconfig.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+
+#ifdef ENABLE_PTHREAD
+#include <pthread.h>
+#endif
+
+#ifdef ENABLE_NLS
+#include <libintl.h>
+#endif
 
 #include "eb.h"
 #include "error.h"
@@ -31,7 +43,7 @@ eb_initialize_library()
 #ifdef ENABLE_NLS
     bindtextdomain(EB_TEXT_DOMAIN_NAME, LOCALEDIR);
 #endif
-    if (zio_initialize_library() < 0) {
+    if (eb_zinitialize() < 0) {
 	error_code = EB_ERR_MEMORY_EXHAUSTED;
 	goto failed;
     }
@@ -51,5 +63,5 @@ eb_initialize_library()
 void
 eb_finalize_library()
 {
-    zio_finalize_library();
+    eb_zfinalize();
 }

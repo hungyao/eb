@@ -8,7 +8,7 @@ END-INFO-DIR-ENTRY
 
    ebinfo: CD-ROM 書籍の情報を得るためのツール、笠原基之
 
-   Copyright (C) 1997, 98, 99, 2000, 01  Motoyuki Kasahara
+   Copyright (C) 1997, 1998, 1999  Motoyuki Kasahara
 
    Permission is granted to make and distribute verbatim copies of this
 manual provided the copyright notice and this permission notice are
@@ -27,8 +27,8 @@ translation approved by Free Software Foundation, Inc.
 
 File: ebinfo-ja.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 
-   この文書は第 3.0 版です。 EB ライブラリバージョン 3.0 に対応していま
-す。
+   この文書は第 3.0alpha0 版です。 EB ライブラリバージョン 3.0alpha0 に
+対応しています。
 
 * Menu:
 
@@ -83,14 +83,14 @@ File: ebinfo-ja.info,  Node: Invoking ebinfo,  Next: Details about Information, 
      副本の数: 2
      副本  1:
        題名: 新英和辞典（第三版）
-       ディレクトリ: ejdict
+       ディレクトリ: EJDICT
        検索方式: 前方一致後方一致条件メニュー
        フォントの大きさ: 16 24 30 48
        半角フォントの文字: 0xa121 -- 0xa24e
        全角フォントの文字: 0xa321 -- 0xa27e
      副本  2:
        題名: この書籍の使い方
-       ディレクトリ: howto
+       ディレクトリ: HOWTO
        検索方式: 前方一致後方一致条件メニュー
        フォントの大きさ: 16 24 30 48
        半角フォントの文字:
@@ -211,10 +211,10 @@ File: ebinfo-ja.info,  Node: Options to ebinfo,  Prev: Details about Information
 
 
 Tag Table:
-Node: Top1013
-Node: Introduction1386
-Node: Invoking ebinfo2131
-Node: Details about Information3972
-Node: Options to ebinfo5693
+Node: Top1007
+Node: Introduction1392
+Node: Invoking ebinfo2137
+Node: Details about Information3978
+Node: Options to ebinfo5699
 
 End Tag Table

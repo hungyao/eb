@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 98, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,7 +12,53 @@
  * GNU General Public License for more details.
  */
 
-#include "ebconfig.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+
+#if defined(STDC_HEADERS) || defined(HAVE_STRING_H)
+#include <string.h>
+#if !defined(STDC_HEADERS) && defined(HAVE_MEMORY_H)
+#include <memory.h>
+#endif /* not STDC_HEADERS and HAVE_MEMORY_H */
+#else /* not STDC_HEADERS and not HAVE_STRING_H */
+#include <strings.h>
+#endif /* not STDC_HEADERS and not HAVE_STRING_H */
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#ifdef ENABLE_PTHREAD
+#include <pthread.h>
+#endif
+
+#ifndef HAVE_MEMCPY
+#define memcpy(d, s, n) bcopy((s), (d), (n))
+#ifdef __STDC__
+void *memchr(const void *, int, size_t);
+int memcmp(const void *, const void *, size_t);
+void *memmove(void *, const void *, size_t);
+void *memset(void *, int, size_t);
+#else /* not __STDC__ */
+char *memchr();
+int memcmp();
+char *memmove();
+char *memset();
+#endif /* not __STDC__ */
+#endif
+
+#ifndef HAVE_MEMMOVE
+#define memmove eb_memmove
+#endif
+
+#ifndef ENABLE_PTHREAD
+#define pthread_mutex_lock(m)
+#define pthread_mutex_unlock(m)
+#endif
 
 #include "eb.h"
 #include "error.h"
@@ -23,16 +68,10 @@
 /*
  * Page-ID macros.
  */
-#define PAGE_ID_IS_LEAF_LAYER(page_id)		(((page_id) & 0x80) == 0x80)
-#define PAGE_ID_IS_LAYER_START(page_id)		(((page_id) & 0x40) == 0x40)
-#define PAGE_ID_IS_LAYER_END(page_id)		(((page_id) & 0x20) == 0x20)
+#define PAGE_ID_IS_LEAF_LAYER(page_id)	(((page_id) & 0x80) == 0x80)
+#define PAGE_ID_IS_LAYER_START(page_id)	(((page_id) & 0x40) == 0x40)
+#define PAGE_ID_IS_LAYER_END(page_id)	(((page_id) & 0x20) == 0x20)
 #define PAGE_ID_HAVE_GROUP_ENTRY(page_id)	(((page_id) & 0x10) == 0x10)
-
-/*
- * The maximum number of hit entries for tomporary hit lists.
- * This is used in eb_hit_list().
- */
-#define EB_TMP_MAX_HITS		64
 
 /*
  * Book-code of the book in which you want to search a word.
@@ -66,7 +105,7 @@ static EB_Error_Code eb_hit_list_keyword EB_P((EB_Book *, EB_Search_Context *,
 static EB_Error_Code eb_hit_list_multi EB_P((EB_Book *, EB_Search_Context *,
     int, EB_Hit *, int *));
 static void eb_and_hit_lists EB_P((EB_Hit [], int *, int, int,
-    EB_Hit [][EB_TMP_MAX_HITS], int []));
+    EB_Hit [EB_NUMBER_OF_SEARCH_CONTEXTS][], int []));
 
 /*
  * Intialize the current search status.
@@ -119,16 +158,17 @@ eb_presearch_word(book, context)
 	/*
 	 * Seek and read a page.
 	 */
-	if (zio_lseek(&book->subbook_current->text_zio, 
-	    (off_t)(context->page - 1) * EB_SIZE_PAGE, SEEK_SET) < 0) {
+	if (eb_zlseek(&(book->subbook_current->zip), 
+	    book->subbook_current->text_file,
+	    (context->page - 1) * EB_SIZE_PAGE, SEEK_SET)
+	    < 0) {
 	    cache_book_code = EB_BOOK_NONE;
-	    error_code = EB_ERR_FAIL_SEEK_TEXT;
 	    goto failed;
 	}
-	if (zio_read(&book->subbook_current->text_zio, cache_buffer,
-	    EB_SIZE_PAGE) != EB_SIZE_PAGE) {
+	if (eb_zread(&(book->subbook_current->zip),
+	    book->subbook_current->text_file, cache_buffer, EB_SIZE_PAGE)
+	    != EB_SIZE_PAGE) {
 	    cache_book_code = EB_BOOK_NONE;
-	    error_code = EB_ERR_FAIL_READ_TEXT;
 	    goto failed;
 	}
 
@@ -206,6 +246,12 @@ eb_presearch_word(book, context)
     pthread_mutex_unlock(&cache_mutex);
     return error_code;
 }
+
+/*
+ * The maximum number of hit entries for tomporary hit lists.
+ * This is used in eb_hit_list().
+ */
+#define EB_TMP_MAX_HITS		64
 
 /*
  * Get hit entries of a submitted search request.
@@ -388,11 +434,10 @@ eb_hit_list_word(book, context, max_hit_count, hit_list, hit_count)
     int *hit_count;
 {
     EB_Error_Code error_code;
-    EB_Hit *hit;
+    EB_Hit *hit = hit_list;
     int group_id;
     char *cache_p;
 
-    hit = hit_list;
     *hit_count = 0;
 
     /*
@@ -409,20 +454,22 @@ eb_hit_list_word(book, context, max_hit_count, hit_list, hit_count)
 	 * Cache may be missed by the two reasons:
 	 *   1. the search process reaches to the end of an index page,
 	 *      and tries to read the next page.
-	 *   2. Someone else used the cache buffer.
+	 *   2. Someone else used the cache data.
 	 * 
 	 * At the case of 1, the search process reads the page and update
 	 * the search context.  At the case of 2. it reads the page but
-	 * must not update the context!
+	 * muts not update the context!
 	 */
 	if (cache_book_code != book->code || cache_page != context->page) {
-	    if (zio_lseek(&book->subbook_current->text_zio,
-		(off_t)(context->page - 1) * EB_SIZE_PAGE, SEEK_SET) < 0) {
+	    if (eb_zlseek(&(book->subbook_current->zip),
+		book->subbook_current->text_file,
+		(context->page - 1) * EB_SIZE_PAGE, SEEK_SET) < 0) {
 		error_code = EB_ERR_FAIL_SEEK_TEXT;
 		goto failed;
 	    }
-	    if (zio_read(&book->subbook_current->text_zio,
-		cache_buffer, EB_SIZE_PAGE) != EB_SIZE_PAGE) {
+	    if (eb_zread(&(book->subbook_current->zip),
+		book->subbook_current->text_file, cache_buffer, EB_SIZE_PAGE)
+		!= EB_SIZE_PAGE) {
 		error_code = EB_ERR_FAIL_READ_TEXT;
 		goto failed;
 	    }
@@ -695,11 +742,10 @@ eb_hit_list_keyword(book, context, max_hit_count, hit_list, hit_count)
 {
     EB_Error_Code error_code;
     EB_Text_Context text_context;
-    EB_Hit *hit;
+    EB_Hit *hit = hit_list;
     int group_id;
     char *cache_p;
 
-    hit = hit_list;
     *hit_count = 0;
 
     /*
@@ -708,7 +754,7 @@ eb_hit_list_keyword(book, context, max_hit_count, hit_list, hit_count)
     memcpy(&text_context, &book->text_context, sizeof(EB_Text_Context));
 
     /*
-     * Seek text file.
+     *
      */
     if (context->in_group_entry && context->comparison_result == 0) {
 	error_code = eb_seek_text(book, &context->keyword_heading);
@@ -730,20 +776,22 @@ eb_hit_list_keyword(book, context, max_hit_count, hit_list, hit_count)
 	 * Cache may be missed by the two reasons:
 	 *   1. the search process reaches to the end of an index page,
 	 *      and tries to read the next page.
-	 *   2. Someone else used the cache buffer.
+	 *   2. Someone else used the cache data.
 	 * 
 	 * At the case of 1, the search process reads the page and update
 	 * the search context.  At the case of 2. it reads the page but
-	 * must not update the context!
+	 * muts not update the context!
 	 */
 	if (cache_book_code != book->code || cache_page != context->page) {
-	    if (zio_lseek(&book->subbook_current->text_zio,
-		(off_t)(context->page - 1) * EB_SIZE_PAGE, SEEK_SET) < 0) {
+	    if (eb_zlseek(&(book->subbook_current->zip),
+		book->subbook_current->text_file,
+		(context->page - 1) * EB_SIZE_PAGE, SEEK_SET) < 0) {
 		error_code = EB_ERR_FAIL_SEEK_TEXT;
 		goto failed;
 	    }
-	    if (zio_read(&book->subbook_current->text_zio, cache_buffer,
-		EB_SIZE_PAGE) != EB_SIZE_PAGE) {
+	    if (eb_zread(&(book->subbook_current->zip),
+		book->subbook_current->text_file, cache_buffer, EB_SIZE_PAGE)
+		!= EB_SIZE_PAGE) {
 		error_code = EB_ERR_FAIL_READ_TEXT;
 		goto failed;
 	    }
@@ -923,7 +971,7 @@ eb_hit_list_keyword(book, context, max_hit_count, hit_list, hit_count)
 			goto failed;
 		    }
 		    context->comparison_result
-			= context->compare(context->word,
+			= context->compare(context->canonicalized_word,
 			    cache_p + 6, context->entry_length);
 		    context->keyword_heading.page
 			= eb_uint4(cache_p + context->entry_length + 6);
@@ -1019,7 +1067,7 @@ eb_hit_list_keyword(book, context, max_hit_count, hit_list, hit_count)
     if (error_code == EB_ERR_FAIL_READ_TEXT)
 	cache_book_code = EB_BOOK_NONE;
     *hit_count = 0;
-    memcpy(&book->text_context, &text_context, sizeof(EB_Text_Context));
+    memcpy(&(book->text_context), &text_context, sizeof(EB_Text_Context));
     return error_code;
 }
 
@@ -1036,11 +1084,10 @@ eb_hit_list_multi(book, context, max_hit_count, hit_list, hit_count)
     int *hit_count;
 {
     EB_Error_Code error_code;
-    EB_Hit *hit;
+    EB_Hit *hit = hit_list;
     int group_id;
     char *cache_p;
 
-    hit = hit_list;
     *hit_count = 0;
 
     /*
@@ -1057,20 +1104,22 @@ eb_hit_list_multi(book, context, max_hit_count, hit_list, hit_count)
 	 * Cache may be missed by the two reasons:
 	 *   1. the search process reaches to the end of an index page,
 	 *      and tries to read the next page.
-	 *   2. Someone else used the cache buffer.
+	 *   2. Someone else used the cache data.
 	 * 
 	 * At the case of 1, the search process reads the page and update
 	 * the search context.  At the case of 2. it reads the page but
-	 * must not update the context!
+	 * muts not update the context!
 	 */
 	if (cache_book_code != book->code || cache_page != context->page) {
-	    if (zio_lseek(&book->subbook_current->text_zio,
-		(off_t)(context->page - 1) * EB_SIZE_PAGE, SEEK_SET) < 0) {
+	    if (eb_zlseek(&(book->subbook_current->zip),
+		book->subbook_current->text_file,
+		(context->page - 1) * EB_SIZE_PAGE, SEEK_SET) < 0) {
 		error_code = EB_ERR_FAIL_SEEK_TEXT;
 		goto failed;
 	    }
-	    if (zio_read(&book->subbook_current->text_zio, cache_buffer,
-		EB_SIZE_PAGE) != EB_SIZE_PAGE) {
+	    if (eb_zread(&(book->subbook_current->zip),
+		book->subbook_current->text_file, cache_buffer, EB_SIZE_PAGE)
+		!= EB_SIZE_PAGE) {
 		error_code = EB_ERR_FAIL_READ_TEXT;
 		goto failed;
 	    }
@@ -1250,7 +1299,7 @@ eb_hit_list_multi(book, context, max_hit_count, hit_list, hit_count)
 			goto failed;
 		    }
 		    context->comparison_result
-			= context->compare(context->word,
+			= context->compare(context->canonicalized_word,
 			    cache_p + 6, context->entry_length);
 		    context->in_group_entry = 1;
 		    cache_p += context->entry_length + 6;
@@ -1323,8 +1372,7 @@ eb_hit_list_multi(book, context, max_hit_count, hit_list, hit_count)
 
 
 /*
- * Do AND operation of hit lists.
- * and_list = hit_lists[0] AND hit_lists[1] AND ...
+ * Do AND operation of `hit_lists'.
  */
 static void
 eb_and_hit_lists(and_list, and_count, max_and_count, hit_list_count,
@@ -1346,6 +1394,15 @@ eb_and_hit_lists(and_list, and_count, max_and_count, hit_list_count,
     int increment_count;
     int i;
 
+    for (i = 0; i < hit_list_count; i++) {
+	int j;
+	printf("=== list %d ===\n", i);
+	for (j = 0; j < hit_counts[i]; j++) {
+	    printf("%d: %x, %x\n", j, hit_lists[i][j].text.page,
+		hit_lists[i][j].text.offset);
+	}
+    }
+
     /*
      * Initialize indexes for the hit_lists[].
      */
@@ -1366,6 +1423,13 @@ eb_and_hit_lists(and_list, and_count, max_and_count, hit_list_count,
 	current_page = 0;
 	current_offset = 0;
 	equal_count = 0;
+
+	for (i = 0; i < hit_list_count; i++) {
+	    printf("%d={%3d:%06x,%03x} ", i, hit_indexes[i],
+		hit_lists[i][hit_indexes[i]].text.page,
+		hit_lists[i][hit_indexes[i]].text.offset);
+	}
+	fputc('\n', stdout);
 
 	/*
 	 * Compare the current elements of the lists.
@@ -1422,8 +1486,8 @@ eb_and_hit_lists(and_list, and_count, max_and_count, hit_list_count,
 	} else {
 	    /*
 	     * This is not hit element.  Increase indexes of all lists
-	     * except for greatest element(s).  If there is no list
-	     * whose index is incremented, our job has been completed.
+	     * except for greatest element(s).  If no index is incremented,
+	     * our job has been completed.
 	     */
 	    increment_count = 0;
 	    for (i = 0; i < hit_list_count; i++) {

@@ -1,6 +1,5 @@
 /*                                                            -*- C -*-
- * Copyright (c) 1997, 98, 99, 2000, 01
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 99, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,6 +37,7 @@ int eb_is_appendix_bound EB_P((EB_Appendix *));
 EB_Error_Code eb_appendix_path EB_P((EB_Appendix *, char *));
 
 /* appsub.c */
+EB_Error_Code eb_initialize_appendix_subbook EB_P((EB_Appendix *));
 EB_Error_Code eb_initialize_all_appendix_subbooks EB_P((EB_Appendix *));
 EB_Error_Code eb_appendix_subbook_list EB_P((EB_Appendix *,
     EB_Subbook_Code *, int *));

@@ -1,6 +1,5 @@
 /*                                                            -*- C -*-
- * Copyright (c) 1997, 98, 99, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 99, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,10 +21,15 @@ extern "C" {
 
 #include <sys/types.h>
 
-#ifdef EB_BUILD_LIBRARY
-#include "zio.h"
+#if TIME_WITH_SYS_TIME
+# include <sys/time.h>
+# include <time.h>
 #else
-#include <eb/zio.h>
+# if HAVE_SYS_TIME_H
+#  include <sys/time.h>
+# else
+#  include <time.h>
+# endif
 #endif
 
 #ifdef ENABLE_PTHREAD
@@ -43,7 +47,23 @@ extern "C" {
  */
 #define EB_DISC_EB			0
 #define EB_DISC_EPWING			1
-#define EB_DISC_INVALID			-1
+
+/*
+ * Case of file names (upper or lower).
+ */
+#define EB_CASE_UNCHANGE		-1
+#define EB_CASE_UPPER			0
+#define EB_CASE_LOWER			1
+
+/*
+ * Suffix to be added to file names (none, `.', or `.;1').
+ */
+#define EB_SUFFIX_UNCHANGE		-1
+#define EB_SUFFIX_NONE			0
+#define EB_SUFFIX_DOT			1
+#define EB_SUFFIX_PERIOD		1
+#define EB_SUFFIX_VERSION		2
+#define EB_SUFFIX_BOTH			3
 
 /*
  * Character codes.
@@ -54,6 +74,53 @@ extern "C" {
 #define EB_CHARCODE_INVALID		-1
 
 /*
+ * Search word types.
+ */
+#define EB_WORD_ALPHABET		0
+#define EB_WORD_KANA			1
+#define EB_WORD_OTHER			2
+#define EB_WORD_INVALID			-1
+
+/*
+ * Index Style flags.
+ */
+#define EB_INDEX_STYLE_CONVERT		0
+#define EB_INDEX_STYLE_ASIS		1
+#define EB_INDEX_STYLE_DELETE		2
+
+/*
+ * Compression type codes.
+ */
+#define EB_ZIP_EPWING			-1
+#define EB_ZIP_NONE			0
+#define EB_ZIP_EBZIP1			1
+
+/*
+ * Text content currently read.
+ */
+#define EB_TEXT_TEXT            	1
+#define EB_TEXT_HEADING         	2
+#define EB_TEXT_RAWTEXT         	3
+#define EB_TEXT_NONE           		0
+#define EB_TEXT_INVALID        		-1
+
+/*
+ * Search method currently processed.
+ */
+#define EB_SEARCH_EXACTWORD            	0
+#define EB_SEARCH_WORD         		1
+#define EB_SEARCH_ENDWORD         	2
+#define EB_SEARCH_KEYWORD         	3
+#define EB_SEARCH_MULTI         	4
+#define EB_SEARCH_NONE           	-1
+
+/*
+ * Arrangement style of entries in a search index page.
+ */
+#define EB_ARRANGE_FIXED		0
+#define EB_ARRANGE_VARIABLE		1
+
+/*
  * Special book ID for cache to represent "no cache data for any book".
  */
 #define EB_BOOK_NONE			-1
@@ -62,6 +129,7 @@ extern "C" {
  * Special disc code, subbook code, multi search ID, and multi search
  * entry ID, for representing error state.
  */
+#define EB_DISC_INVALID			-1
 #define EB_SUBBOOK_INVALID		-1
 #define EB_MULTI_INVALID		-1
 #define EB_MULTI_ENTRY_INVALID		-1
@@ -96,7 +164,7 @@ extern "C" {
 /*
  * The maximum length of a word to be searched.
  */
-#define EB_MAX_WORD_LENGTH             255
+#define EB_MAX_WORD_LENGTH		255
 
 /*
  * The maximum length of an EB* book title.
@@ -114,15 +182,19 @@ extern "C" {
 #define EB_MAX_TITLE_LENGTH		80
 
 /*
- * The maximum length of a directory name.
+ * The maximum length of a base name of a file name.
  */
-#define EB_MAX_DIRECTORY_NAME_LENGTH	8
+#define EB_MAX_BASE_NAME_LENGTH		8
 
 /*
- * The maximum length of a file name under a certain directory.
- * prefix(8 chars) + '.' + suffix(3 chars) + ';' + digit(1 char)
+ * The maximum length of a language name.
  */
-#define EB_MAX_FILE_NAME_LENGTH		14
+#define EB_MAX_LANGUAGE_NAME_LENGTH	15
+
+/*
+ * The maximum length of a message.
+ */
+#define EB_MAX_MESSAGE_LENGTH		31
 
 /*
  * The maximum length of a label for multi-search entry.
@@ -145,6 +217,21 @@ extern "C" {
 #define EB_MAX_SUBBOOKS			50
 
 /*
+ * The maximum number of languages.
+ */
+#define EB_MAX_LANGUAGES		20
+
+/*
+ * The maximum number of messages in a languages.
+ */
+#define EB_MAX_MESSAGES			32
+
+/*
+ * The maximum index depth of search indexes.
+ */
+#define EB_MAX_INDEX_DEPTH		6
+
+/*
  * The maximum number of entries in a keyword search.
  */
 #define EB_MAX_KEYWORDS			5
@@ -165,14 +252,42 @@ extern "C" {
 #define EB_MAX_ALTERNATION_CACHE	16
 
 /*
+ * Maximum ebzip compression level.
+ */
+#define EB_MAX_EBZIP_LEVEL		3
+
+/*
+ * Maximum length of a text work buffer.
+ */
+#define EB_MAX_TEXT_WORK_LENGTH		255
+
+/*
  * The number of text hooks.
  */
-#define EB_NUMBER_OF_HOOKS		41
+#define EB_NUMBER_OF_HOOKS		32
 
 /*
  * The number of search contexts required by a book.
  */
 #define EB_NUMBER_OF_SEARCH_CONTEXTS	5
+
+/*
+ * File and directory names.
+ */
+#define EB_FILE_NAME_START		"START"
+#define EB_FILE_NAME_SOUND		"SOUND"
+#define EB_FILE_NAME_CATALOG		"CATALOG"
+#define EB_FILE_NAME_LANGUAGE		"LANGUAGE"
+#define EB_FILE_NAME_VTOC		"VTOC"
+#define EB_FILE_NAME_WELCOME		"WELCOME"
+#define EB_FILE_NAME_CATALOGS		"CATALOGS"
+#define EB_FILE_NAME_HONMON		"HONMON"
+#define EB_FILE_NAME_HONMON2		"HONMON2"
+#define EB_FILE_NAME_APPENDIX		"APPENDIX"
+#define EB_FILE_NAME_FUROKU		"FUROKU"
+
+#define EB_DIRECTORY_NAME_DATA		"DATA"
+#define EB_DIRECTORY_NAME_GAIJI		"GAIJI"
 
 /*
  * Trick for function protypes.
@@ -196,14 +311,16 @@ typedef int EB_Suffix_Code;
 typedef int EB_Character_Code;
 typedef int EB_Font_Code;
 typedef int EB_Word_Code;
+typedef int EB_Language_Code;
+typedef int EB_Message_Code;
 typedef int EB_Subbook_Code;
 typedef int EB_Index_Style_Code;
 typedef int EB_Search_Code;
 typedef int EB_Text_Code;
 typedef int EB_Multi_Search_Code;
 typedef int EB_Multi_Entry_Code;
+typedef int EB_Zip_Code;
 typedef int EB_Hook_Code;
-typedef int EB_Binary_Code;
 
 /*
  * Typedef for Structures.
@@ -212,15 +329,17 @@ typedef int EB_Binary_Code;
 typedef struct EB_Lock_Struct              EB_Lock;
 #endif
 typedef struct EB_Position_Struct          EB_Position;
+typedef struct EB_Huffman_Node_Struct      EB_Huffman_Node;
+typedef struct EB_Zip_Struct               EB_Zip;
 typedef struct EB_Alternation_Cache_Struct EB_Alternation_Cache;
 typedef struct EB_Appendix_Subbook_Struct  EB_Appendix_Subbook;
 typedef struct EB_Appendix_Struct          EB_Appendix;
 typedef struct EB_Font_Struct              EB_Font;
+typedef struct EB_Language_Struct          EB_Language;
 typedef struct EB_Search_Struct            EB_Search;
 typedef struct EB_Multi_Search_Struct      EB_Multi_Search;
 typedef struct EB_Subbook_Struct           EB_Subbook;
 typedef struct EB_Text_Context_Struct      EB_Text_Context;
-typedef struct EB_Binary_Context_Struct    EB_Binary_Context;
 typedef struct EB_Search_Context_Struct    EB_Search_Context;
 typedef struct EB_Book_Struct              EB_Book;
 typedef struct EB_Hit_Struct               EB_Hit;
@@ -265,6 +384,111 @@ struct EB_Position_Struct {
 };
 
 /*
+ * A node of static Huffman tree.
+ */
+struct EB_Huffman_Node_Struct {
+    /*
+     * node type (INTERMEDIATE, LEAF8, LEAF16 or EOF).
+     */
+    int type;
+
+    /*
+     * Value of a leaf node.
+     */
+    int value;
+
+    /*
+     * Frequency of a node.
+     */
+    int frequency;
+
+    /*
+     * Left child.
+     */
+    EB_Huffman_Node *left;
+
+    /*
+     * Right child.
+     */
+    EB_Huffman_Node *right;
+};
+
+/*
+ * Compression information of a book.
+ */
+struct EB_Zip_Struct {
+    /*
+     * Zip type. (NONE, EPWING or EBZIP)
+     */
+    EB_Zip_Code code;
+
+    /*
+     * Current offset.
+     */
+    off_t offset;
+
+    /*
+     * Size of an Uncopressed file.
+     */
+    off_t file_size;
+
+    /*
+     * Slice size of an EBZIP compressed file.
+     */
+    size_t slice_size;
+
+    /*
+     * Compression level. (EBZIP compression only)
+     */
+    int zip_level;
+
+    /*
+     * Length of an index. (EBZIP compression only)
+     */
+    int index_width;
+
+    /*
+     * Adler-32 check sum of an uncompressed file. (EBZIP compression only)
+     */
+    unsigned int crc;
+
+    /*
+     * mtime of an uncompressed file. (EBZIP compression only)
+     */
+    time_t mtime;
+
+    /*
+     * Location of an index table. (EPWING compression only)
+     */
+    off_t index_location;
+
+    /*
+     * Length of an index table. (EPWING compression only)
+     */
+    size_t index_length;
+
+    /*
+     * Location of a frequency table. (EPWING compression only)
+     */
+    off_t frequencies_location;
+
+    /*
+     * Length of a frequency table. (EPWING compression only)
+     */
+    size_t frequencies_length;
+
+    /*
+     * Huffman tree nodes. (EPWING compression only)
+     */
+    EB_Huffman_Node *huffman_nodes;
+
+    /*
+     * Root node of a Huffman tree. (EPWING compression only)
+     */
+    EB_Huffman_Node *huffman_root;
+};
+
+/*
  * Chace of aternation text.
  */
 struct EB_Alternation_Cache_Struct {
@@ -297,17 +521,12 @@ struct EB_Appendix_Subbook_Struct {
     /*
      * Directory name.
      */
-    char directory_name[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
+    char directory[EB_MAX_BASE_NAME_LENGTH + 1];
 
     /*
-     * Sub-directory name. (EPWING only)
+     * File descriptor for the appendix file.
      */
-    char data_directory_name[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
-
-    /*
-     * File name.
-     */
-    char file_name[EB_MAX_FILE_NAME_LENGTH + 1];
+    int appendix_file;
 
     /*
      * Character code of the book.
@@ -339,9 +558,9 @@ struct EB_Appendix_Subbook_Struct {
     int stop1;
 
     /*
-     * Compression Information for appendix file.
+     * Compression Information.
      */
-    Zio zio;
+    EB_Zip zip;
 };
 
 /*
@@ -362,6 +581,16 @@ struct EB_Appendix_Struct {
      * Disc type.  EB (EB/EBG/EBXA/EBXA-C/S-EBXA) or EPWING.
      */
     EB_Disc_Code disc_code;
+
+    /*
+     * Cases of the file names; upper or lower.
+     */
+    EB_Case_Code case_code;
+
+    /*
+     * Suffix to be added to file names. (None, ".", or ".;1")
+     */
+    EB_Suffix_Code suffix_code;
 
     /*
      * The number of subbooks the book has.
@@ -397,10 +626,10 @@ struct EB_Appendix_Struct {
  */
 struct EB_Font_Struct {
     /*
-     * Font Code.
-     * This font is not available, if the code is EB_FONT_INVALID.
+     * Width and height.
      */
-    EB_Font_Code font_code;
+    int width;
+    int height;
 
     /*
      * Character numbers of the start and end of the font.
@@ -415,14 +644,44 @@ struct EB_Font_Struct {
     int page;
 
     /*
+     * File descriptor of the font file. (EPWING only)
+     */
+    int font_file;
+
+    /*
      * File name of the font. (EPWING only)
      */
-    char file_name[EB_MAX_FILE_NAME_LENGTH + 1];
+    char file_name[EB_MAX_BASE_NAME_LENGTH + 1];
 
     /*
      * Compression Information.
      */
-    Zio zio;
+    EB_Zip zip;
+};
+
+/*
+ * A language in a book. (EB* only)
+ */
+struct EB_Language_Struct {
+    /*
+     * Language ID.
+     */
+    EB_Language_Code code;
+
+    /*
+     * Offset of the messages in the language file.
+     */
+    off_t offset;
+
+    /*
+     * The number of messages the language file has.
+     */
+    int message_count;
+
+    /*
+     * Language name.
+     */
+    char name[EB_MAX_LANGUAGE_NAME_LENGTH + 1];
 };
 
 /*
@@ -430,20 +689,13 @@ struct EB_Font_Struct {
  */
 struct EB_Search_Struct {
     /*
-     * Index ID.
-     */
-    int index_id;
-
-    /*
      * Page number of the start page of an index.
-     * This search method is not available, if `start_page' is 0,
      */
-    int start_page;
-    int end_page;
+    int index_page;
 
     /*
      * Page number of the start page of candidates.
-     * (for multi search entry)
+     * (for an entry in multi search)
      */
     int candidates_page;
 
@@ -504,29 +756,13 @@ struct EB_Subbook_Struct {
 
     /*
      * Subbook ID.
-     * This subbook is not available, if the code is EB_SUBBOOK_INVALID.
      */
     EB_Subbook_Code code;
 
     /*
-     * File descriptor and compression information for text file.
+     * File descriptor for the subbook file.
      */
-    Zio text_zio;
-
-    /*
-     * File descriptor and compression information for graphic file.
-     */
-    Zio graphic_zio;
-
-    /*
-     * File descriptor and compression information for sound file.
-     */
-    Zio sound_zio;
-
-    /*
-     * File descriptor and compression information for movie file.
-     */
-    Zio movie_zio;
+    int text_file;
 
     /*
      * Title of the subbook.
@@ -534,23 +770,9 @@ struct EB_Subbook_Struct {
     char title[EB_MAX_TITLE_LENGTH + 1];
 
     /*
-     * Subbook directory name.
+     * Directory name.
      */
-    char directory_name[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
-
-    /*
-     * Sub-directory names. (EPWING only)
-     */
-    char data_directory_name[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
-    char gaiji_directory_name[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
-    char movie_directory_name[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
-
-    /*
-     * File names.
-     */
-    char text_file_name[EB_MAX_FILE_NAME_LENGTH + 1];
-    char graphic_file_name[EB_MAX_FILE_NAME_LENGTH + 1];
-    char sound_file_name[EB_MAX_FILE_NAME_LENGTH + 1];
+    char directory[EB_MAX_BASE_NAME_LENGTH + 1];
 
     /*
      * The top page of search methods.
@@ -563,8 +785,8 @@ struct EB_Subbook_Struct {
     EB_Search endword_kana;
     EB_Search keyword;
     EB_Search menu;
+    EB_Search graphic;
     EB_Search copyright;
-    EB_Search sound;
 
     /*
      * The number of multi-search methods the subbook has.
@@ -577,76 +799,25 @@ struct EB_Subbook_Struct {
     EB_Multi_Search multis[EB_MAX_MULTI_SEARCHES];
 
     /*
+     * The number of fonts the subbook has.
+     */
+    int font_count;
+
+    /*
      * Font list.
      */
-    EB_Font narrow_fonts[EB_MAX_FONTS];
-    EB_Font wide_fonts[EB_MAX_FONTS];
+    EB_Font fonts[EB_MAX_FONTS * 2];
 
     /*
      * Current narrow and wide fonts.
      */
     EB_Font *narrow_current;
     EB_Font *wide_current;
-};
-
-/*
- * Length of cache buffer in a binary context.
- * It must be greater than 38, size of GIF preamble.
- * It must be greater than 44, size of WAVE sound header.
- * It must be greater than 118, size of BMP header + info + 16 rgbquads.
- */
-#define EB_SIZE_BINARY_CACHE_BUFFER	128
-
-/*
- * Context parameters for binary data.
- */
-struct EB_Binary_Context_Struct {
-    /*
-     * Binary type ID.
-     * The context is not active, if this code is EB_BINARY_INVALID.
-     */
-    EB_Binary_Code code;
 
     /*
-     * Compress information.
+     * Compression Information.
      */
-    Zio *zio;
-
-    /*
-     * Location of the the binary data, relative to the start of the file.
-     */
-    off_t location;
-
-    /*
-     * Data size.
-     * Size zero means that the binary has no size information.
-     */
-    size_t size;
-
-    /*
-     * The current offset of binary data.
-     */
-    size_t offset;
-
-    /*
-     * Cache buffer.
-     */
-    char cache_buffer[EB_SIZE_BINARY_CACHE_BUFFER];
-
-    /*
-     * Length of cached data.
-     */
-    size_t cache_length;
-
-    /*
-     * Current offset of cached data.
-     */
-    size_t cache_offset;
-
-    /*
-     * Width of Image. (monochrome graphic only)
-     */
-    int width;
+    EB_Zip zip;
 };
 
 /*
@@ -654,8 +825,7 @@ struct EB_Binary_Context_Struct {
  */
 struct EB_Text_Context_Struct {
     /*
-     * Current text content type.
-     * The context is not active, if this code is EB_TEXT_INVALID.
+     * Current text content type (text, heading, rawtext or none).
      */
     EB_Text_Code code;
 
@@ -665,34 +835,20 @@ struct EB_Text_Context_Struct {
     off_t location;
 
     /*
-     * The current point of a buffer on which text is written.
+     * Work buffer passed to hook functions.
      */
-    char *out;
+    char work_buffer[EB_MAX_TEXT_WORK_LENGTH + 1];
 
     /*
-     * Length of `out'.
+     * Length of a string in `work_buffer'.
      */
-    size_t out_rest_length;
-    
-    /*
-     * Unprocessed string that a hook function writes on text.
-     */
-    char *unprocessed;
+    size_t work_length;
 
     /*
-     * Size of `unprocessed'.
+     * The number of bytes added to `location', when a string in
+     * `work_buffer' is flushed.
      */
-    size_t unprocessed_size;
-
-    /*
-     * Length of the current input text phrase.
-     */
-    size_t in_step;
-
-    /*
-     * Length of the current output text phrase.
-     */
-    size_t out_step;
+    size_t work_step;
 
     /*
      * Narrow character region flag.
@@ -724,16 +880,6 @@ struct EB_Text_Context_Struct {
      * Stop-code automatically set by EB Library.
      */
     int auto_stop_code;
-
-    /*
-     * The current candidate word for multi search.
-     */
-    char candidate[EB_MAX_WORD_LENGTH + 1];
-
-    /*
-     * Whether the current text point is in the candidate word or not.
-     */
-    int is_candidate;
 };
 
 /*
@@ -742,7 +888,7 @@ struct EB_Text_Context_Struct {
 struct EB_Search_Context_Struct {
     /*
      * Current search method type.
-     * The context is not active, if this code is EB_SEARCH_NONE.
+     * (exactword, word, endword, keyword or none).
      */
     EB_Search_Code code;
 
@@ -827,11 +973,6 @@ struct EB_Book_Struct {
     EB_Disc_Code disc_code;
 
     /*
-     * Format version. (EPWING only)
-     */
-    int version;
-
-    /*
      * Character code of the book.
      */
     EB_Character_Code character_code;
@@ -845,6 +986,16 @@ struct EB_Book_Struct {
      * The length of the path.
      */
     size_t path_length;
+
+    /*
+     * Cases of the file names; upper or lower.
+     */
+    EB_Case_Code case_code;
+
+    /*
+     * Suffix to be added to file names. (None, ".", ";1" or ".;1")
+     */
+    EB_Suffix_Code suffix_code;
 
     /*
      * The number of subbooks the book has.
@@ -862,14 +1013,29 @@ struct EB_Book_Struct {
     EB_Subbook *subbook_current;
 
     /*
+     * The number of languages the book supports.
+     */
+    int language_count;
+
+    /*
+     * Language list.
+     */
+    EB_Language *languages;
+
+    /*
+     * Current language.
+     */
+    EB_Language *language_current;
+
+    /*
+     * Messages in the current language.
+     */
+    char *messages;
+
+    /*
      * Context parameters for text reading.
      */
     EB_Text_Context text_context;
-
-    /*
-     * Context parameters for binary reading.
-     */
-    EB_Binary_Context binary_context;
 
     /*
      * Context parameters for text reading.
@@ -912,8 +1078,8 @@ struct EB_Hook_Struct {
     /*
      * Hook function for the hook code `code'.
      */
-    EB_Error_Code (*function) EB_P((EB_Book *, EB_Appendix *, void *,
-	EB_Hook_Code, int, const unsigned int *));
+    EB_Error_Code (*function) EB_P((EB_Book *, EB_Appendix *, char *,
+	EB_Hook_Code, int, const int *));
 };
 
 /*

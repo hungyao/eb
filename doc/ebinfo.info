@@ -1,4 +1,5 @@
-This is ebinfo.info, produced by makeinfo version 4.0 from ebinfo.texi.
+This is Info file ebinfo.info, produced by Makeinfo version 1.68 from
+the input file ebinfo.texi.
 
 INFO-DIR-SECTION CD-ROM Book Utilities
 START-INFO-DIR-ENTRY
@@ -8,7 +9,7 @@ END-INFO-DIR-ENTRY
    ebinfo: Utility for getting CD-ROM book information, by Motoyuki
 Kasahara.
 
-   Copyright (C) 1997, 98, 99, 2000, 01  Motoyuki Kasahara
+   Copyright (C) 1997, 98, 99, 2000  Motoyuki Kasahara
 
    Permission is granted to make and distribute verbatim copies of this
 manual provided the copyright notice and this permission notice are
@@ -27,7 +28,7 @@ translation approved by Free Software Foundation, Inc.
 
 File: ebinfo.info,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
 
-   This is edition 3.0, for EB Library version 3.0.
+   This is edition 3.0alpha0, for EB Library version 3.0alpha0.
 
 * Menu:
 
@@ -51,11 +52,11 @@ Free Software Foundation; either version 2, or (at your option) any
 later version.
 
    `ebinfo' is distributed in the hope that it will be useful, but
-_without any warranty_; without even the implied warranty of
+*without any warranty*; without even the implied warranty of
 merchantability or fitness for a particular purpose.  See the GNU
 General Public License for more details.
 
-   This is edition 3.0, for EB Library version 3.0.
+   This is edition 3.0alpha0, for EB Library version 3.0alpha0.
 
 
 File: ebinfo.info,  Node: Invoking ebinfo,  Next: Details about Information,  Prev: Introduction,  Up: Top
@@ -83,14 +84,14 @@ like as follows:
      the number of subbooks: 2
      subbook 1:
        title: New English Japanese Dictionary (3rd edition)
-       directory: ejdict
+       directory: EJDICT
        search methods: word endword keyword menu
        font sizes: 16 24 30 48
        narrow font characters: 0xa121 -- 0xa24e
        wide font characters: 0xa321 -- 0xa27e
      subbook 2:
        title: How to use the book
-       directory: howto
+       directory: HOWTO
        search methods: word endword keyword menu
        font sizes: 16 24 30 48
        narrow font characters:
@@ -212,10 +213,10 @@ long as they are unique.
 
 
 Tag Table:
-Node: Top1028
-Node: Introduction1377
-Node: Invoking ebinfo2145
-Node: Details about Information4103
-Node: Options to ebinfo5830
+Node: Top1050
+Node: Introduction1411
+Node: Invoking ebinfo2191
+Node: Details about Information4149
+Node: Options to ebinfo5876
 
 End Tag Table

@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 98, 2000, 01
-      Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,12 +12,68 @@
  * GNU General Public License for more details.
  */
 
-#include "ebconfig.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+
+#if defined(STDC_HEADERS) || defined(HAVE_STRING_H)
+#include <string.h>
+#if !defined(STDC_HEADERS) && defined(HAVE_MEMORY_H)
+#include <memory.h>
+#endif /* not STDC_HEADERS and HAVE_MEMORY_H */
+#else /* not STDC_HEADERS and not HAVE_STRING_H */
+#include <strings.h>
+#endif /* not STDC_HEADERS and not HAVE_STRING_H */
+
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#else
+#include <sys/file.h>
+#endif
+
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
+#ifdef ENABLE_PTHREAD
+#include <pthread.h>
+#endif
 
 #include "eb.h"
 #include "error.h"
-#include "appendix.h"
 #include "internal.h"
+#include "appendix.h"
+
+#ifndef HAVE_STRCHR
+#define strchr index
+#define strrchr rindex
+#endif /* HAVE_STRCHR */
+
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
+/*
+ * The maximum length of path name.
+ */
+#ifndef PATH_MAX
+#ifdef MAXPATHLEN
+#define PATH_MAX	MAXPATHLEN
+#else /* not MAXPATHLEN */
+#define PATH_MAX	1024
+#endif /* not MAXPATHLEN */
+#endif /* not PATH_MAX */
 
 /*
  * Unexported functions.
@@ -67,18 +122,12 @@ void
 eb_finalize_appendix(appendix)
     EB_Appendix *appendix;
 {
-    int i;
-
     /*
      * Dispose memories and unset struct members.
      */
     eb_unset_appendix_subbook(appendix);
-    if (appendix->subbooks != NULL) {
-	for (i = 0; i < appendix->subbook_count; i++)
-	    zio_finalize(&(appendix->subbooks + i)->zio);
-
+    if (appendix->subbooks != NULL)
 	free(appendix->subbooks);
-    }
 
     if (appendix->path != NULL)
 	free(appendix->path);
@@ -130,20 +179,20 @@ eb_bind_appendix(appendix, path)
     /*
      * Set path of the appendix.
      * The length of the file name "path/subdir/subsubdir/file.;1" must
-     * be PATH_MAX maximum.
+     * not exceed PATH_MAX.
      */
     if (PATH_MAX < strlen(path)) {
 	error_code = EB_ERR_TOO_LONG_FILE_NAME;
 	goto failed;
     }
     strcpy(temporary_path, path);
-    error_code = eb_canonicalize_path_name(temporary_path);
+    error_code = eb_canonicalize_appendix_file_name(appendix, temporary_path);
     if (error_code != EB_SUCCESS)
 	goto failed;
     appendix->path_length = strlen(temporary_path);
 
-    if (PATH_MAX < appendix->path_length + 1 + EB_MAX_DIRECTORY_NAME_LENGTH
-	+ 1 + EB_MAX_DIRECTORY_NAME_LENGTH + 1 + EB_MAX_FILE_NAME_LENGTH) {
+    if (PATH_MAX < appendix->path_length + (1 + EB_MAX_BASE_NAME_LENGTH + 1
+	+ EB_MAX_BASE_NAME_LENGTH + 1 + EB_MAX_BASE_NAME_LENGTH + 3)) {
 	error_code = EB_ERR_TOO_LONG_FILE_NAME;
 	goto failed;
     }
@@ -156,7 +205,14 @@ eb_bind_appendix(appendix, path)
     strcpy(appendix->path, temporary_path);
 
     /*
-     * Read information from the catalog file.
+     * Get disc type and file name mode.
+     */
+    error_code = eb_appendix_catalog_file_name(appendix);
+    if (error_code != EB_SUCCESS)
+	goto failed;
+
+    /*
+     * Read information from the `CATALOG(S)' file.
      */
     error_code = eb_initialize_appendix_catalog(appendix);
     if (error_code != EB_SUCCESS)
@@ -180,16 +236,6 @@ eb_bind_appendix(appendix, path)
 
 
 /*
- * Hints of catalog file name in appendix package.
- */
-#define EB_HINT_INDEX_CATALOG		0
-#define EB_HINT_INDEX_CATALOGS		1
-
-static const char *catalog_hint_list[] = {
-    "catalog", "catalogs", NULL
-};
-
-/*
  * Read information from the `CATALOG(S)' file in `appendix'.
  * Return EB_SUCCESS, if it succeeds, error-code ohtherwise.
  */
@@ -199,56 +245,41 @@ eb_initialize_appendix_catalog(appendix)
 {
     EB_Error_Code error_code;
     char buffer[EB_SIZE_PAGE];
-    char catalog_file_name[EB_MAX_FILE_NAME_LENGTH + 1];
-    char catalog_path_name[PATH_MAX + 1];
+    char catalog_file_name[PATH_MAX + 1];
     char *space;
     EB_Appendix_Subbook *subbook;
     size_t catalog_size;
     size_t title_size;
-    int hint_index;
-    Zio zio;
+    int file = -1;
     int i;
 
-    zio_initialize(&zio);
-
     /*
-     * Find a catalog file.
+     * Check for the current status.
      */
-    eb_find_file_name(appendix->path, catalog_hint_list, catalog_file_name,
-	&hint_index);
-
-    switch (hint_index) {
-    case EB_HINT_INDEX_CATALOG:
-	appendix->disc_code = EB_DISC_EB;
+    if (appendix->disc_code == EB_DISC_EB) {
 	catalog_size = EB_SIZE_EB_CATALOG;
 	title_size = EB_MAX_EB_TITLE_LENGTH;
-	break;
-
-    case EB_HINT_INDEX_CATALOGS:
-	appendix->disc_code = EB_DISC_EPWING;
+	sprintf(catalog_file_name, "%s/%s", appendix->path,
+	    EB_FILE_NAME_CATALOG);
+    } else {
 	catalog_size = EB_SIZE_EPWING_CATALOG;
 	title_size = EB_MAX_EPWING_TITLE_LENGTH;
-	break;
-
-    default:
-	error_code = EB_ERR_FAIL_OPEN_CATAPP;
-	goto failed;
+	sprintf(catalog_file_name, "%s/%s", appendix->path,
+	    EB_FILE_NAME_CATALOGS);
     }
-
-    eb_compose_path_name(appendix->path, catalog_file_name, catalog_path_name);
-
+	
     /*
      * Open the catalog file.
      */
-    if (zio_open(&zio, catalog_path_name, ZIO_NONE) < 0) {
-	error_code = EB_ERR_FAIL_OPEN_CATAPP;
+    eb_fix_appendix_file_name(appendix, catalog_file_name);
+    file = open(catalog_file_name, O_RDONLY | O_BINARY);
+    if (file < 0) 
 	goto failed;
-    }
 
     /*
      * Get the number of subbooks in the appendix.
      */
-    if (zio_read(&zio, buffer, 16) != 16) {
+    if (eb_read_all(file, buffer, 16) != 16) {
 	error_code = EB_ERR_FAIL_READ_CATAPP;
 	goto failed;
     }
@@ -278,7 +309,7 @@ eb_initialize_appendix_catalog(appendix)
 	/*
 	 * Read data from the catalog file.
 	 */
-	if (zio_read(&zio, buffer, catalog_size) != catalog_size) {
+	if (eb_read_all(file, buffer, catalog_size) != catalog_size) {
 	    error_code = EB_ERR_FAIL_READ_CAT;
 	    goto failed;
 	}
@@ -286,32 +317,29 @@ eb_initialize_appendix_catalog(appendix)
 	/*
 	 * Set a directory name of the subbook.
 	 */
-	strncpy(subbook->directory_name, buffer + 2 + title_size,
-	    EB_MAX_DIRECTORY_NAME_LENGTH);
-	subbook->directory_name[EB_MAX_DIRECTORY_NAME_LENGTH] = '\0';
-	space = strchr(subbook->directory_name, ' ');
+	strncpy(subbook->directory, buffer + 2 + title_size,
+	    EB_MAX_BASE_NAME_LENGTH);
+	subbook->directory[EB_MAX_BASE_NAME_LENGTH] = '\0';
+	space = strchr(subbook->directory, ' ');
 	if (space != NULL)
 	    *space = '\0';
-	eb_fix_directory_name(appendix->path, subbook->directory_name);
 
 	subbook->initialized = 0;
 	subbook->code = i;
-	zio_initialize(&subbook->zio);
     }
 
     /*
      * Close the catalog file.
      */
-    zio_close(&zio);
-    zio_finalize(&zio);
+    close(file);
     return EB_SUCCESS;
 
     /*
      * An error occurs...
      */
   failed:
-    zio_close(&zio);
-    zio_finalize(&zio);
+    if (0 <= file)
+	close(file);
     if (appendix->subbooks != NULL) {
 	free(appendix->subbooks);
 	appendix->subbooks = NULL;

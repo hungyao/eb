@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 98, 99, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 99, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,12 +12,40 @@
  * GNU General Public License for more details.
  */
 
-#include "ebconfig.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#ifdef ENABLE_PTHREAD
+#include <pthread.h>
+#endif
 
 #include "eb.h"
 #include "error.h"
 #include "appendix.h"
 #include "internal.h"
+
+#ifndef HAVE_MEMCPY
+#define memcpy(d, s, n) bcopy((s), (d), (n))
+#ifdef __STDC__
+void *memchr(const void *, int, size_t);
+int memcmp(const void *, const void *, size_t);
+void *memmove(void *, const void *, size_t);
+void *memset(void *, int, size_t);
+#else /* not __STDC__ */
+char *memchr();
+int memcmp();
+char *memmove();
+char *memset();
+#endif /* not __STDC__ */
+#endif
 
 /*
  * Unexported functions.
@@ -237,9 +264,9 @@ eb_narrow_character_text_jis(appendix, character_number, text)
     char *text;
 {
     EB_Error_Code error_code;
-    int start;
-    int end;
-    off_t location;
+    int start = appendix->subbook_current->narrow_start;
+    int end = appendix->subbook_current->narrow_end;
+    int location;
     EB_Alternation_Cache *cachep;
 
     start = appendix->subbook_current->narrow_start;
@@ -262,8 +289,7 @@ eb_narrow_character_text_jis(appendix, character_number, text)
     /*
      * Calculate the location of alternation data.
      */
-    location
-	= (off_t)(appendix->subbook_current->narrow_page - 1) * EB_SIZE_PAGE
+    location = (appendix->subbook_current->narrow_page - 1) * EB_SIZE_PAGE
 	+ (((character_number >> 8) - (start >> 8)) * 0x5e
 	    + (character_number & 0xff) - (start & 0xff))
 	* (EB_MAX_ALTERNATION_TEXT_LENGTH + 1);
@@ -280,12 +306,14 @@ eb_narrow_character_text_jis(appendix, character_number, text)
     /*
      * Read the alternation data.
      */
-    if (zio_lseek(&appendix->subbook_current->zio, location, SEEK_SET) < 0) {
+    if (eb_zlseek(&(appendix->subbook_current->zip), 
+	appendix->subbook_current->appendix_file, location, SEEK_SET) < 0) {
 	error_code = EB_ERR_FAIL_SEEK_APP;
 	goto failed;
     }
     cachep->character_number = -1;
-    if (zio_read(&appendix->subbook_current->zio, cachep->text, 
+    if (eb_zread(&(appendix->subbook_current->zip), 
+	appendix->subbook_current->appendix_file, cachep->text, 
 	EB_MAX_ALTERNATION_TEXT_LENGTH + 1)
 	!= EB_MAX_ALTERNATION_TEXT_LENGTH + 1) {
 	error_code = EB_ERR_FAIL_READ_APP;
@@ -321,13 +349,10 @@ eb_narrow_character_text_latin(appendix, character_number, text)
     char *text;
 {
     EB_Error_Code error_code;
-    int start;
-    int end;
-    off_t location;
+    int start = appendix->subbook_current->narrow_start;
+    int end = appendix->subbook_current->narrow_end;
+    int location;
     EB_Alternation_Cache *cache_p;
-
-    start = appendix->subbook_current->narrow_start;
-    end = appendix->subbook_current->narrow_end;
 
     /*
      * Check for `character_number'.  Is it in a font?
@@ -346,8 +371,7 @@ eb_narrow_character_text_latin(appendix, character_number, text)
     /*
      * Calculate the location of alternation data.
      */
-    location
-	= (off_t)(appendix->subbook_current->narrow_page - 1) * EB_SIZE_PAGE
+    location = (appendix->subbook_current->narrow_page - 1) * EB_SIZE_PAGE
 	+ (((character_number >> 8) - (start >> 8)) * 0xfe
 	    + (character_number & 0xff) - (start & 0xff))
 	* (EB_MAX_ALTERNATION_TEXT_LENGTH + 1);
@@ -364,12 +388,14 @@ eb_narrow_character_text_latin(appendix, character_number, text)
     /*
      * Read the alternation data.
      */
-    if (zio_lseek(&appendix->subbook_current->zio, location, SEEK_SET) < 0) {
+    if (eb_zlseek(&(appendix->subbook_current->zip), 
+	appendix->subbook_current->appendix_file, location, SEEK_SET) < 0) {
 	error_code = EB_ERR_FAIL_SEEK_APP;
 	goto failed;
     }
     cache_p->character_number = -1;
-    if (zio_read(&appendix->subbook_current->zio, cache_p->text, 
+    if (eb_zread(&(appendix->subbook_current->zip), 
+	appendix->subbook_current->appendix_file, cache_p->text, 
 	EB_MAX_ALTERNATION_TEXT_LENGTH + 1)
 	!= EB_MAX_ALTERNATION_TEXT_LENGTH + 1) {
 	error_code = EB_ERR_FAIL_READ_APP;
@@ -578,9 +604,7 @@ eb_backward_narrow_alt_character(appendix, n, character_number)
 	/*
 	 * Check for `*character_number'. (JIS X 0208)
 	 */
-	if (*character_number < start
-	    || end < *character_number
-	    || (*character_number & 0xff) < 0x21
+	if (*character_number < start || end < *character_number || (*character_number & 0xff) < 0x21
 	    || 0x7e < (*character_number & 0xff)) {
 	    error_code = EB_ERR_NO_SUCH_CHAR_TEXT;
 	    goto failed;

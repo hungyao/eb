@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 98, 99, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 99, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,7 +12,20 @@
  * GNU General Public License for more details.
  */
 
-#include "ebconfig.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#ifdef ENABLE_PTHREAD
+#include <pthread.h>
+#endif
 
 #include "eb.h"
 #include "error.h"
@@ -29,141 +41,15 @@ static EB_Error_Code eb_narrow_character_bitmap_latin EB_P((EB_Book *, int,
     char *));
 
 /*
- * Get font information of the current font.
- *
- * If succeeded, 0 is returned.
- * Otherwise, -1 is returned.
- */
-EB_Error_Code
-eb_initialize_narrow_font(book)
-    EB_Book *book;
-{
-    EB_Error_Code error_code;
-    EB_Subbook *subbook;
-    char ebz_hint_name[EB_MAX_FILE_NAME_LENGTH + 1];
-    char font_path_name[PATH_MAX + 1];
-    char buffer[16];
-    const char *hint_list[3];
-    int hint_index;
-    int character_count;
-    Zio *zio;
-    Zio_Code zio_code;
-
-    subbook = book->subbook_current;
-
-    /*
-     * If the book is EBWING, open the narrow font file.
-     * (In EB books, font data are stored in the `START' file.)
-     */
-    if (book->disc_code == EB_DISC_EB) {
-	if (zio_mode(&subbook->narrow_current->zio) != ZIO_INVALID)
-	    zio_code = ZIO_REOPEN;
-	else
-	    zio_code = zio_mode(&subbook->text_zio);
-	eb_compose_path_name2(book->path, subbook->directory_name, 
-	    subbook->text_file_name, font_path_name);
-
-    } else {
-	if (zio_mode(&subbook->narrow_current->zio) != ZIO_INVALID)
-	    zio_code = ZIO_REOPEN;
-	else {
-	    eb_canonicalize_font_file_name(subbook->narrow_current->file_name);
-	    strcpy(ebz_hint_name, subbook->narrow_current->file_name);
-	    strcat(ebz_hint_name, ".ebz");
-
-	    hint_list[0] = subbook->narrow_current->file_name;
-	    hint_list[1] = ebz_hint_name;
-	    hint_list[2] = NULL;
-
-	    eb_find_file_name3(book->path, subbook->directory_name, 
-	    subbook->gaiji_directory_name, hint_list,
-		subbook->narrow_current->file_name, &hint_index);
-
-	    switch (hint_index) {
-	    case 0:
-		zio_code = ZIO_NONE;
-		break;
-	    case 1:
-		zio_code = ZIO_EBZIP1;
-		break;
-	    default:
-		error_code = EB_ERR_FAIL_OPEN_FONT;
-		goto failed;
-	    }
-	}
-
-	eb_compose_path_name3(book->path, subbook->directory_name,
-	    subbook->gaiji_directory_name, subbook->narrow_current->file_name,
-	    font_path_name);
-    }
-
-    if (zio_open(&subbook->narrow_current->zio, font_path_name,
-	zio_code) < 0) {
-	error_code = EB_ERR_FAIL_OPEN_FONT;
-	goto failed;
-    }
-
-    /*
-     * Read information from the text file.
-     */
-    zio = &subbook->narrow_current->zio;
-
-    if (zio_lseek(zio, 
-	(off_t)(subbook->narrow_current->page - 1) * EB_SIZE_PAGE,
-	SEEK_SET) < 0) {
-	error_code = EB_ERR_FAIL_SEEK_FONT;
-	goto failed;
-    }
-    if (zio_read(zio, buffer, 16) != 16) {
-	error_code = EB_ERR_FAIL_READ_FONT;
-	goto failed;
-    }
-
-    /*
-     * If the number of characters (`character_count') is 0, the font
-     * is unavailable).
-     */
-    character_count = eb_uint2(buffer + 12);
-    if (character_count == 0) {
-	subbook->narrow_current->font_code = EB_FONT_INVALID;
-	subbook->narrow_current = NULL;
-	goto succeeded;
-    }
-
-    /*
-     * Set the information.
-     */
-    subbook->narrow_current->start = eb_uint2(buffer + 10);
-    if (book->character_code == EB_CHARCODE_ISO8859_1) {
-	subbook->narrow_current->end = subbook->narrow_current->start
-	    + ((character_count / 0xfe) << 8) + (character_count % 0xfe) - 1;
-	if (0xfe < (subbook->narrow_current->end & 0xff))
-	    subbook->narrow_current->end += 3;
-    } else {
-	subbook->narrow_current->end = subbook->narrow_current->start
-	    + ((character_count / 0x5e) << 8) + (character_count % 0x5e) - 1;
-	if (0x7e < (subbook->narrow_current->end & 0xff))
-	    subbook->narrow_current->end += 0xa3;
-    }
-
-  succeeded:
-    return EB_SUCCESS;
-
-    /*
-     * An error occurs...
-     */
-  failed:
-    return error_code;
-}
-
-
-/*
  * Examine whether the current subbook in `book' has a narrow font.
  */
 int
 eb_have_narrow_font(book)
     EB_Book *book;
 {
+    EB_Error_Code error_code;
+    EB_Font *font;
+    int width;
     int i;
 
     /*
@@ -186,13 +72,14 @@ eb_have_narrow_font(book)
     /*
      * Scan the font table.
      */
-    for (i = 0; i < EB_MAX_FONTS; i++) {
-	if (book->subbook_current->narrow_fonts[i].font_code
-	    != EB_FONT_INVALID)
+    for (i = 0, font = book->subbook_current->fonts;
+	 i < book->subbook_current->font_count; i++, font++) {
+	error_code = eb_narrow_font_width2(font->height, &width);
+	if (error_code == EB_SUCCESS && width == font->width)
 	    break;
     }
 
-    if (EB_MAX_FONTS <= i)
+    if (book->subbook_current->font_count <= i)
 	goto failed;
 
     /*
@@ -211,8 +98,9 @@ eb_have_narrow_font(book)
 }
 
 
-/*
- * Get width of the font `font_code' in the current subbook of `book'.
+/* 
+ * Get the width of the current narrow font in the current subbook in
+ * `book'.
  */
 EB_Error_Code
 eb_narrow_font_width(book, width)
@@ -220,7 +108,6 @@ eb_narrow_font_width(book, width)
     int *width;
 {
     EB_Error_Code error_code;
-    EB_Font_Code font_code;
 
     /*
      * Lock the book.
@@ -243,13 +130,7 @@ eb_narrow_font_width(book, width)
 	goto failed;
     }
 
-    /*
-     * Calculate width.
-     */
-    font_code = book->subbook_current->narrow_current->font_code;
-    error_code = eb_narrow_font_width2(font_code, width);
-    if (error_code != EB_SUCCESS)
-	goto failed;
+    *width = book->subbook_current->narrow_current->width;
 
     /*
      * Unlock the book.
@@ -269,16 +150,17 @@ eb_narrow_font_width(book, width)
 
 
 /* 
- * Get width of the font `font_code'.
+ * Get the width of the font with `hegiht' in the current subbook in
+ * `book'.
  */
 EB_Error_Code
-eb_narrow_font_width2(font_code, width)
-    EB_Font_Code font_code;
+eb_narrow_font_width2(height, width)
+    EB_Font_Code height;
     int *width;
 {
     EB_Error_Code error_code;
 
-    switch (font_code) {
+    switch (height) {
     case EB_FONT_16:
 	*width = EB_WIDTH_NARROW_FONT_16;
 	break;
@@ -308,8 +190,8 @@ eb_narrow_font_width2(font_code, width)
 
 
 /*
- * Get the bitmap size of the font `font_code' in the current subbook
- * of `book'.
+ * Get the bitmap size of a character of the current font of the current
+ * subbook in `book'.
  */
 EB_Error_Code
 eb_narrow_font_size(book, size)
@@ -317,9 +199,92 @@ eb_narrow_font_size(book, size)
     size_t *size;
 {
     EB_Error_Code error_code;
-    EB_Font_Code font_code;
-    int width;
-    int height;
+
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
+
+    /*
+     * Current subbook must have been set.
+     */
+    if (book->subbook_current == NULL) {
+	error_code = EB_ERR_NO_CUR_SUB;
+	goto failed;
+    }
+
+    /*
+     * The narrow font must be exist in the current subbook.
+     */
+    if (book->subbook_current->narrow_current == NULL) {
+	error_code = EB_ERR_NO_CUR_FONT;
+	goto failed;
+    }
+
+    *size = (book->subbook_current->narrow_current->width / 8)
+	* book->subbook_current->narrow_current->height;
+
+    /*
+     * Unlock the book.
+     */
+    eb_unlock(&book->lock);
+
+    return EB_SUCCESS;
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    *size = 0;
+    eb_unlock(&book->lock);
+    return error_code;
+}
+
+
+/*
+ * Get the bitmap size of a character of the font with `height' of the
+ * current subbook in `book'.
+ */
+EB_Error_Code
+eb_narrow_font_size2(height, size)
+    EB_Font_Code height;
+    size_t *size;
+{
+    EB_Error_Code error_code;
+
+    switch (height) {
+    case EB_FONT_16:
+	*size = EB_SIZE_NARROW_FONT_16;
+    case EB_FONT_24:
+	*size = EB_SIZE_NARROW_FONT_24;
+    case EB_FONT_30:
+	*size = EB_SIZE_NARROW_FONT_30;
+    case EB_FONT_48:
+	*size = EB_SIZE_NARROW_FONT_48;
+    default:
+	error_code = EB_ERR_NO_SUCH_FONT;
+	goto failed;
+    }
+
+    /*
+     * An error occurs...
+     */
+  failed:
+    *size = 0;
+    return error_code;
+}
+
+
+/*
+ * Get the file name of the current narrow font in the current subbook
+ * in `book'.
+ */
+EB_Error_Code
+eb_narrow_font_file_name(book, file_name)
+    EB_Book *book;
+    char *file_name;
+{
+    EB_Error_Code error_code;
 
     /*
      * Lock the book.
@@ -343,16 +308,13 @@ eb_narrow_font_size(book, size)
     }
 
     /*
-     * Calculate size.
+     * For EB* books, NULL is always returned because they
+     * have font data in the `START' file.
      */
-    font_code = book->subbook_current->narrow_current->font_code;
-    error_code = eb_narrow_font_width2(font_code, &width);
-    if (error_code != EB_SUCCESS)
-	goto failed;
-    error_code = eb_font_height2(font_code, &height);
-    if (error_code != EB_SUCCESS)
-	goto failed;
-    *size = (width / 8) * height;
+    if (book->disc_code == EB_DISC_EB)
+	*file_name = '\0';
+    else
+	strcpy(file_name, book->subbook_current->narrow_current->file_name);
 
     /*
      * Unlock the book.
@@ -365,42 +327,82 @@ eb_narrow_font_size(book, size)
      * An error occurs...
      */
   failed:
-    *size = 0;
+    *file_name = '\0';
     eb_unlock(&book->lock);
     return error_code;
 }
 
 
 /*
- * Get the bitmap size of a character in `font_code' of the current
- * subbook.
+ * Get the file name of the narrow font with `height' in the current subbook
+ * in `book'.
  */
 EB_Error_Code
-eb_narrow_font_size2(font_code, size)
-    EB_Font_Code font_code;
-    size_t *size;
+eb_narrow_font_file_name2(book, height, file_name)
+    EB_Book *book;
+    EB_Font_Code height;
+    char *file_name;
 {
     EB_Error_Code error_code;
+    EB_Font *font;
+    int width;
+    int i;
 
-    switch (font_code) {
-    case EB_FONT_16:
-	*size = EB_SIZE_NARROW_FONT_16;
-    case EB_FONT_24:
-	*size = EB_SIZE_NARROW_FONT_24;
-    case EB_FONT_30:
-	*size = EB_SIZE_NARROW_FONT_30;
-    case EB_FONT_48:
-	*size = EB_SIZE_NARROW_FONT_48;
-    default:
+    /*
+     * Lock the book.
+     */
+    eb_lock(&book->lock);
+
+    /*
+     * Current subbook must have been set.
+     */
+    if (book->subbook_current == NULL) {
+	error_code = EB_ERR_NO_CUR_SUB;
+	goto failed;
+    }
+
+    /*
+     * Calculate the width of the font.
+     */
+    error_code = eb_narrow_font_width2(height, &width);
+    if (error_code != EB_SUCCESS)
+	goto failed;
+
+    /*
+     * Scan the font table.
+     */
+    for (i = 0, font = book->subbook_current->fonts;
+	 i < book->subbook_current->font_count; i++, font++) {
+	if (font->height == height && font->width == width)
+	    break;
+    }
+    if (font == NULL) {
 	error_code = EB_ERR_NO_SUCH_FONT;
 	goto failed;
     }
 
     /*
+     * For EB* books, NULL is always returned because they
+     * have font data in the `START' file.
+     */
+    if (book->disc_code == EB_DISC_EB)
+	*file_name = '\0';
+    else
+	strcpy(file_name, font->file_name);
+
+    /*
+     * Unlock the book.
+     */
+    eb_unlock(&book->lock);
+
+    return EB_SUCCESS;
+
+    /*
      * An error occurs...
      */
   failed:
-    *size = 0;
+    *file_name = '\0';
+    eb_unlock(&book->lock);
     return error_code;
 }
 
@@ -576,17 +578,13 @@ eb_narrow_character_bitmap_jis(book, character_number, bitmap)
     char *bitmap;
 {
     EB_Error_Code error_code;
-    int start;
-    int end;
+    int start = book->subbook_current->narrow_current->start;
+    int end = book->subbook_current->narrow_current->end;
     int character_index;
     off_t location;
-    int width;
-    int height;
     size_t size;
-    Zio *zio;
-
-    start = book->subbook_current->narrow_current->start;
-    end = book->subbook_current->narrow_current->end;
+    EB_Zip *zip;
+    int font_file;
 
     /*
      * Check for `character_number'.  Is it in a range of bitmaps?
@@ -605,34 +603,31 @@ eb_narrow_character_bitmap_jis(book, character_number, bitmap)
     /*
      * Calculate the size and the location of bitmap data.
      */
-    error_code = eb_narrow_font_width(book, &width);
-    if (error_code != EB_SUCCESS)
-	goto failed;
-    error_code = eb_font_height(book, &height);
-    if (error_code != EB_SUCCESS)
-	goto failed;
-    size = (width / 8) * height;
+    size = (book->subbook_current->narrow_current->width / 8)
+	* book->subbook_current->narrow_current->height;
 
     character_index = ((character_number >> 8) - (start >> 8)) * 0x5e
 	+ ((character_number & 0xff) - (start & 0xff));
-    location
-	= (off_t)book->subbook_current->narrow_current->page * EB_SIZE_PAGE
+
+    location = book->subbook_current->narrow_current->page * EB_SIZE_PAGE
 	+ (character_index / (1024 / size)) * 1024
 	+ (character_index % (1024 / size)) * size;
 
     /*
      * Read bitmap data.
      */
-    if (book->disc_code == EB_DISC_EB)
-	zio = &book->subbook_current->text_zio;
-    else
-	zio = &book->subbook_current->narrow_current->zio;
-
-    if (zio_lseek(zio, location, SEEK_SET) < 0) {
+    if (book->disc_code == EB_DISC_EB) {
+	zip = &(book->subbook_current->zip);
+	font_file = book->subbook_current->text_file;
+    } else {
+	zip = &(book->subbook_current->narrow_current->zip);
+	font_file = book->subbook_current->narrow_current->font_file;
+    }
+    if (eb_zlseek(zip, font_file, location, SEEK_SET) < 0) {
 	error_code = EB_ERR_FAIL_SEEK_FONT;
 	goto failed;
     }
-    if (zio_read(zio, bitmap, size) != size) {
+    if (eb_zread(zip, font_file, bitmap, size) != size) {
 	error_code = EB_ERR_FAIL_READ_FONT;
 	goto failed;
     }
@@ -659,17 +654,13 @@ eb_narrow_character_bitmap_latin(book, character_number, bitmap)
     char *bitmap;
 {
     EB_Error_Code error_code;
-    int start;
-    int end;
+    int start = book->subbook_current->narrow_current->start;
+    int end = book->subbook_current->narrow_current->end;
     int character_index;
     off_t location;
-    int width;
-    int height;
     size_t size;
-    Zio *zio;
-
-    start = book->subbook_current->narrow_current->start;
-    end = book->subbook_current->narrow_current->end;
+    EB_Zip *zip;
+    int font_file;
 
     /*
      * Check for `ch'.  Is it in a range of bitmaps?
@@ -688,34 +679,31 @@ eb_narrow_character_bitmap_latin(book, character_number, bitmap)
     /*
      * Calculate the size and the location of bitmap data.
      */
-    error_code = eb_narrow_font_width(book, &width);
-    if (error_code != EB_SUCCESS)
-	goto failed;
-    error_code = eb_font_height(book, &height);
-    if (error_code != EB_SUCCESS)
-	goto failed;
-    size = (width / 8) * height;
+    size = (book->subbook_current->narrow_current->width / 8)
+	* book->subbook_current->narrow_current->height;
 
     character_index = ((character_number >> 8) - (start >> 8)) * 0xfe
 	+ ((character_number & 0xff) - (start & 0xff));
-    location
-	= (off_t)book->subbook_current->narrow_current->page * EB_SIZE_PAGE
+
+    location = book->subbook_current->narrow_current->page * EB_SIZE_PAGE
 	+ (character_index / (1024 / size)) * 1024
 	+ (character_index % (1024 / size)) * size;
 
     /*
      * Read bitmap data.
      */
-    if (book->disc_code == EB_DISC_EB)
-	zio = &book->subbook_current->text_zio;
-    else
-	zio = &book->subbook_current->narrow_current->zio;
-
-    if (zio_lseek(zio, location, SEEK_SET) < 0) {
+    if (book->disc_code == EB_DISC_EB) {
+	zip = &(book->subbook_current->zip);
+	font_file = book->subbook_current->text_file;
+    } else {
+	zip = &(book->subbook_current->narrow_current->zip);
+	font_file = book->subbook_current->narrow_current->font_file;
+    }
+    if (eb_zlseek(zip, font_file, location, SEEK_SET) < 0) {
 	error_code = EB_ERR_FAIL_SEEK_FONT;
 	goto failed;
     }
-    if (zio_read(zio, bitmap, size) != size) {
+    if (eb_zread(zip, font_file, bitmap, size) != size) {
 	error_code = EB_ERR_FAIL_READ_FONT;
 	goto failed;
     }

@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1997, 98, 2000, 01  
- *    Motoyuki Kasahara
+ * Copyright (c) 1997, 98, 2000  Motoyuki Kasahara
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,7 +12,16 @@
  * GNU General Public License for more details.
  */
 
-#include "ebconfig.h"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+
+#ifdef ENABLE_PTHREAD
+#include <pthread.h>
+#endif
 
 #include "eb.h"
 #include "error.h"
@@ -41,7 +49,7 @@ eb_have_menu(book)
     /*
      * Check for the index page of menu search.
      */
-    if (book->subbook_current->menu.start_page == 0)
+    if (book->subbook_current->menu.index_page == 0)
 	goto failed;
 
     /*
@@ -87,7 +95,7 @@ eb_menu(book, position)
     /*
      * Check for the page number of menu search.
      */
-    page = book->subbook_current->menu.start_page;
+    page = book->subbook_current->menu.index_page;
     if (page == 0) {
 	error_code = EB_ERR_NO_SUCH_SEARCH;
 	goto failed;
