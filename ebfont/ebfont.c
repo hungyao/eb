@@ -117,10 +117,15 @@ char *strerror();
 /*
  * Tricks for gettext.
  */
+#ifdef ENABLE_NLS
 #define _(string) gettext(string)
 #ifdef gettext_noop
 #define N_(string) gettext_noop(string)
 #else
+#define N_(string) (string)
+#endif
+#else
+#define _(string) (string)       
 #define N_(string) (string)
 #endif
 
@@ -972,7 +977,7 @@ character=0x%04x\n",
 		    subbook_directory, image_height, character_number);
 		goto failed;
 	    }
-	    (image_formats[image].function)(image_data, image_width,
+	    (image_formats[image].function)(bitmap_data, image_width,
 		image_height, bitmap_data, &image_size);
 	    if (save_image_file(file_name, image_data, image_size) < 0)
 		goto failed;
@@ -980,8 +985,7 @@ character=0x%04x\n",
 	    /*
 	     * Toward next charahacter.
 	     */
-	    character_number = eb_forward_narrow_font_character(book, 1,
-		&character_number);
+	    eb_forward_narrow_font_character(book, 1, &character_number);
 	}
     }
 
@@ -1043,7 +1047,7 @@ character=0x%04x\n",
 		    subbook_directory, image_height, character_number);
 		goto failed;
 	    }
-	    (image_formats[image].function)(image_data, image_width,
+	    (image_formats[image].function)(bitmap_data, image_width,
 		image_height, bitmap_data, &image_size);
 	    if (save_image_file(file_name, image_data, image_size) < 0)
 		goto failed;
@@ -1051,8 +1055,7 @@ character=0x%04x\n",
 	    /*
 	     * Toward next charahacter.
 	     */
-	    character_number = eb_forward_wide_font_character(book, 1,
-		&character_number);
+	    eb_forward_wide_font_character(book, 1, &character_number);
 	}
     }
 

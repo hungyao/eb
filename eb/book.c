@@ -158,7 +158,7 @@ eb_bind(book, path)
     /*
      * Set the path of the book.
      * The length of the file name "<path>/subdir/subsubdir/file.ebz;1" must
-     * not exceed PATH_MAX.
+     * be PATH_MAX maximum.
      */
     if (PATH_MAX < strlen(path)) {
 	error_code = EB_ERR_TOO_LONG_FILE_NAME;
@@ -439,7 +439,7 @@ eb_initialize_catalog(book)
 		strncpy(font->file_name, buffer_p,
 		    EB_MAX_DIRECTORY_NAME_LENGTH);
 		font->file_name[EB_MAX_DIRECTORY_NAME_LENGTH] = '\0';
-		font->font_code = i;
+		font->font_code = j;
 		font->page = 1;
 		space = strchr(font->file_name, ' ');
 		if (space != NULL)
@@ -462,7 +462,7 @@ eb_initialize_catalog(book)
 		strncpy(font->file_name, buffer_p,
 		    EB_MAX_DIRECTORY_NAME_LENGTH);
 		font->file_name[EB_MAX_DIRECTORY_NAME_LENGTH] = '\0';
-		font->font_code = i;
+		font->font_code = j;
 		font->page = 1;
 		space = strchr(font->file_name, ' ');
 		if (space != NULL)
