@@ -13,11 +13,19 @@
  * GNU General Public License for more details.
  */
 
-#include "ebconfig.h"
-
+#include "build-pre.h"
 #include "eb.h"
 #include "error.h"
-#include "internal.h"
+#include "build-post.h"
+
+#ifdef WIN32
+/* a path may contain double-byte chars in SJIS. */
+#ifdef HAVE_MBSTRING_H /* keep Cygwin out. */
+#include <mbstring.h>
+#define strchr	_mbschr
+#define strrchr	_mbsrchr
+#endif /* HAVE_MBSTRING_H */
+#endif /* WIN32 */
 
 
 #ifndef DOS_FILE_PATH
@@ -32,7 +40,7 @@ eb_canonicalize_path_name(path_name)
 {
     char cwd[PATH_MAX + 1];
     char temporary_path_name[PATH_MAX + 1];
-    size_t path_name_length;
+    char *last_slash;
 
     if (*path_name != '/') {
 	/*
@@ -51,9 +59,9 @@ eb_canonicalize_path_name(path_name)
      * Unless `path_name' is "/", eliminate `/' in the tail of the
      * path name.
      */
-    path_name_length = strlen(path_name);
-    if (1 < path_name_length && *(path_name + path_name_length - 1) == '/')
-	*(path_name + path_name_length - 1) = '\0';
+    last_slash = strrchr(path_name, '/');
+    if (last_slash != path_name && *(last_slash + 1) == '\0')
+	*last_slash = '\0';
 
     return EB_SUCCESS;
 }
@@ -74,7 +82,19 @@ eb_canonicalize_path_name(path_name)
 {
     char cwd[PATH_MAX + 1];
     char temporary_path_name[PATH_MAX + 1];
-    size_t path_name_length;
+    char *slash;
+    char *last_backslash;
+
+    /*
+     * Replace `/' with `\\'.
+     */
+    slash = path_name;
+    for (;;) {
+	slash = strchr(slash, '/');
+	if (slash == NULL)
+	    break;
+	*slash++ = '\\';
+    }
 
     if (*path_name == '\\' && *(path_name + 1) == '\\') {
 	/*
@@ -82,7 +102,7 @@ eb_canonicalize_path_name(path_name)
 	 */
     } else if (isalpha(*path_name) && *(path_name + 1) == ':') {
 	/*
-	 * `path_name' is has a drive letter.
+	 * `path_name' has a drive letter.
 	 * Nothing to be done if it is an absolute path.
 	 */
 	if (*(path_name + 2) != '\\') {
@@ -131,10 +151,11 @@ eb_canonicalize_path_name(path_name)
      * Unless `path_name' is "?:\\", eliminate `\\' in the tail of the
      * path name.
      */
-    path_name_length = strlen(path_name);
-    if (3 < path_name_length && *(path_name + path_name_length - 1) == '\\')
-	*(path_name + path_name_length - 1) = '\0';
-
+    if (isalpha(*path_name)) {
+	last_backslash = strrchr(path_name + 2, '\\');
+	if (last_backslash != path_name + 2)
+	    *last_backslash = '\0';
+    }
     return EB_SUCCESS;
 }
 
@@ -142,23 +163,25 @@ eb_canonicalize_path_name(path_name)
 
 
 /*
- * Canonicalize font file name.
+ * Canonicalize file name.
  *    - Suffix including dot is removed
  *    - Version including semicolon is removed.
+ *    - Letters are converted to upper case.
  *
- * We minght fail to initialize a font after we fix the font file name.
- * If initialization of the font is tried again, we need the original
- * font file name, not fixed file name.  Therefore, we get orignal file
- * name from fixed file name using this function.
+ * We minght fail to load a file after we fix the file name.
+ * If loading of the file is tried again, we need the original file name,
+ * not fixed file name.  Therefore, we get orignal file name from fixed
+ * file name using this function.
  */
 void
-eb_canonicalize_font_file_name(file_name)
+eb_canonicalize_file_name(file_name)
     char *file_name;
 {
     char *p;
 
-    for (p = file_name; *p != '\0' && *p != '.' && *p != ';'; p++)
-	;
+    for (p = file_name; *p != '\0' && *p != '.' && *p != ';'; p++) {
+	*p = toupper(*p);
+    }
     *p = '\0';
 }
 
@@ -225,10 +248,10 @@ eb_fix_directory_name2(path, directory_name, sub_directory_name)
     const char *directory_name;
     char *sub_directory_name;
 {
-    char sub_path[PATH_MAX + 1];
+    char sub_path_name[PATH_MAX + 1];
 
-    sprintf(sub_path, F_("%s/%s", "%s\\%s"), path, directory_name);
-    return eb_fix_directory_name(sub_path, sub_directory_name);
+    eb_compose_path_name(path, directory_name, sub_path_name);
+    return eb_fix_directory_name(sub_path_name, sub_directory_name);
 }
 
 
@@ -247,7 +270,11 @@ eb_fix_path_name_suffix(path_name, suffix)
     char *dot;
     char *semicolon;
 
-    base_name = strrchr(path_name, F_('/', '\\'));
+#ifndef DOS_FILE_PATH
+    base_name = strrchr(path_name, '/');
+#else
+    base_name = strrchr(path_name, '\\');
+#endif
     if (base_name == NULL)
 	base_name = path_name;
     else
@@ -295,24 +322,32 @@ eb_fix_path_name_suffix(path_name, suffix)
 
 
 /*
- * Rewrite `file_name' to a real file name in the `path_name' directory.
+ * Rewrite `found_file_name' to a real file name in the `path_name'
+ * directory.
  * 
- * If a file matched to `file_name' exists, then EB_SUCCESS is returned,
- * and `file_name' is rewritten to that name.  Otherwise EB_ERR_BAD_FILE_NAME
- * is returned.
+ * If a file matched to `rarget_file_name' exists, then EB_SUCCESS
+ * is returned, and `found_file_name' is rewritten to that name.
+ * Otherwise EB_ERR_BAD_FILE_NAME is returned.
+ *
+ * Note that `target_file_name' must not contain `.' or excceed
+ * EB_MAX_DIRECTORY_NAME_LENGTH characters.
  */
 EB_Error_Code
-eb_find_file_name(path_name, file_hint_list, found_file_name, found_hint_index)
+eb_find_file_name(path_name, target_file_name, found_file_name)
     const char *path_name;
+    const char *target_file_name;
     char *found_file_name;
-    const char *file_hint_list[];
-    int *found_hint_index;
 {
+    char ebz_target_file_name[EB_MAX_FILE_NAME_LENGTH + 1];
+    char org_target_file_name[EB_MAX_FILE_NAME_LENGTH + 1];
     DIR *dir;
     struct dirent *entry;
     size_t d_namlen;
-    int is_found;
-    int i;
+
+    strcpy(ebz_target_file_name, target_file_name);
+    strcat(ebz_target_file_name, ".ebz");
+    strcpy(org_target_file_name, target_file_name);
+    strcat(org_target_file_name, ".org");
 
     /*
      * Open the directory `path_name'.
@@ -321,9 +356,7 @@ eb_find_file_name(path_name, file_hint_list, found_file_name, found_hint_index)
     if (dir == NULL)
 	goto failed;
 
-    is_found = 0;
-
-    while (!is_found) {
+    for (;;) {
 	/*
 	 * Read the directory entry.
 	 */
@@ -336,10 +369,14 @@ eb_find_file_name(path_name, file_hint_list, found_file_name, found_hint_index)
 	 * We consider they are matched when one of the followings
 	 * is true:
 	 *
-	 *   <given name>       == <entry name>
-	 *   <given name>+";1'  == <entry name>,
-	 *   <given name>+"."   == <entry name> if no "." in <given name>
-	 *   <given name>+".;1" == <entry name> if no "." in <given name>
+	 *   <target name>          == <entry name>
+	 *   <target name>+";1'     == <entry name>
+	 *   <target name>+"."      == <entry name>
+	 *   <target name>+".;1"    == <entry name>
+	 *   <target name>+".ebz"   == <entry name>
+	 *   <target name>+".ebz;1" == <entry name>
+	 *   <target name>+".org"   == <entry name>
+	 *   <target name>+".org;1" == <entry name>
 	 *
 	 * All the comparisons are done without case sensitivity.
 	 * We support version number ";1" only.
@@ -353,19 +390,23 @@ eb_find_file_name(path_name, file_hint_list, found_file_name, found_hint_index)
 	if (1 < d_namlen && *(entry->d_name + d_namlen - 1) == '.')
 	    d_namlen--;
 
-	for (i = 0; file_hint_list[i] != NULL; i++) {
-	    if (strncasecmp(entry->d_name, file_hint_list[i], d_namlen) == 0
-		&& *(file_hint_list[i] + d_namlen) == '\0') {
-		strcpy(found_file_name, entry->d_name);
-		if (found_hint_index != NULL)
-		    *found_hint_index = i;
-		is_found = 1;
-		break;
-	    }
+	if (strncasecmp(entry->d_name, target_file_name, d_namlen) == 0
+	    && *(target_file_name + d_namlen) == '\0') {
+	    break;
+	}
+	if (strcasecmp(entry->d_name, ebz_target_file_name) == 0
+	    && *(ebz_target_file_name + d_namlen) == '\0') {
+	    break;
+	}
+	if (strcasecmp(entry->d_name, org_target_file_name) == 0
+	    && *(org_target_file_name + d_namlen) == '\0') {
+	    break;
 	}
     }
 
+    strcpy(found_file_name, entry->d_name);
     closedir(dir);
+
     return EB_SUCCESS;
 
     /*
@@ -374,8 +415,6 @@ eb_find_file_name(path_name, file_hint_list, found_file_name, found_hint_index)
   failed:
     if (dir != NULL)
 	closedir(dir);
-    if (found_hint_index != NULL)
-	*found_hint_index = -1;
     return EB_ERR_BAD_FILE_NAME;
 }
 
@@ -389,41 +428,35 @@ eb_find_file_name(path_name, file_hint_list, found_file_name, found_hint_index)
  * is returned.
  */
 EB_Error_Code
-eb_find_file_name2(path_name, sub_directory_name, file_hint_list,
-    found_file_name, found_hint_index)
+eb_find_file_name2(path_name, sub_directory_name, target_file_name,
+    found_file_name)
     const char *path_name;
     const char *sub_directory_name;
-    const char *file_hint_list[];
+    const char *target_file_name;
     char *found_file_name;
-    int *found_hint_index;
 {
     char sub_path_name[PATH_MAX + 1];
 
-    sprintf(sub_path_name, F_("%s/%s", "%s\\%s"),
-	path_name, sub_directory_name);
-
-    return eb_find_file_name(sub_path_name, file_hint_list, found_file_name,
-	found_hint_index);
+    eb_compose_path_name(path_name, sub_directory_name, sub_path_name);
+    return eb_find_file_name(sub_path_name, target_file_name, found_file_name);
 }
 
 
 EB_Error_Code
 eb_find_file_name3(path_name, sub_directory_name, sub2_directory_name,
-    file_hint_list, found_file_name, found_hint_index)
+    target_file_name, found_file_name)
     const char *path_name;
     const char *sub_directory_name;
     const char *sub2_directory_name;
-    const char *file_hint_list[];
+    const char *target_file_name;
     char *found_file_name;
-    int *found_hint_index;
 {
     char sub2_path_name[PATH_MAX + 1];
 
-    sprintf(sub2_path_name, F_("%s/%s/%s", "%s\\%s\\%s"),
-	path_name, sub_directory_name, sub2_directory_name);
-
-    return eb_find_file_name(sub2_path_name, file_hint_list, found_file_name,
-	found_hint_index);
+    eb_compose_path_name2(path_name, sub_directory_name, sub2_directory_name,
+	sub2_path_name);
+    return eb_find_file_name(sub2_path_name, target_file_name,
+	found_file_name);
 }
 
 
@@ -438,8 +471,19 @@ eb_compose_path_name(path_name, file_name, composed_path_name)
     const char *file_name;
     char *composed_path_name;
 {
-    sprintf(composed_path_name, F_("%s/%s", "%s\\%s"),
-	path_name, file_name);
+#ifndef DOS_FILE_PATH
+    if (strcmp(path_name, "/") == 0) {
+	sprintf(composed_path_name, "%s%s", path_name, file_name);
+    } else {
+	sprintf(composed_path_name, "%s/%s", path_name, file_name);
+    }
+#else
+    if (isalpha(*path_name) && strcmp(path_name + 1, ":\\") == 0) {
+	sprintf(composed_path_name, "%s%s", path_name, file_name);
+    } else {
+	sprintf(composed_path_name, "%s\\%s", path_name, file_name);
+    }
+#endif
 }
 
 
@@ -456,8 +500,23 @@ eb_compose_path_name2(path_name, sub_directory_name, file_name,
     const char *file_name;
     char *composed_path_name;
 {
-    sprintf(composed_path_name, F_("%s/%s/%s", "%s\\%s\\%s"),
-	path_name, sub_directory_name, file_name);
+#ifndef DOS_FILE_PATH
+    if (strcmp(path_name, "/") == 0) {
+	sprintf(composed_path_name, "%s%s/%s",
+	    path_name, sub_directory_name, file_name);
+    } else {
+	sprintf(composed_path_name, "%s/%s/%s",
+	    path_name, sub_directory_name, file_name);
+    }
+#else
+    if (isalpha(*path_name) && strcmp(path_name + 1, ":\\") == 0) {
+	sprintf(composed_path_name, "%s%s\\%s", 
+	    path_name, sub_directory_name, file_name);
+    } else {
+	sprintf(composed_path_name, "%s\\%s\\%s",
+	    path_name, sub_directory_name, file_name);
+    }
+#endif
 }
 
 
@@ -475,8 +534,23 @@ eb_compose_path_name3(path_name, sub_directory_name, sub2_directory_name,
     const char *file_name;
     char *composed_path_name;
 {
-    sprintf(composed_path_name, F_("%s/%s/%s/%s", "%s\\%s\\%s\\%s"),
-	path_name, sub_directory_name, sub2_directory_name, file_name);
+#ifndef DOS_FILE_PATH
+    if (strcmp(path_name, "/") == 0) {
+	sprintf(composed_path_name, "%s%s/%s/%s",
+	    path_name, sub_directory_name, sub2_directory_name, file_name);
+    } else {
+	sprintf(composed_path_name, "%s/%s/%s/%s",
+	    path_name, sub_directory_name, sub2_directory_name, file_name);
+    }
+#else
+    if (isalpha(*path_name) && strcmp(path_name + 1, ":\\") == 0) {
+	sprintf(composed_path_name, "%s%s\\%s\\%s", 
+	    path_name, sub_directory_name, sub2_directory_name, file_name);
+    } else {
+	sprintf(composed_path_name, "%s\\%s\\%s\\%s",
+	    path_name, sub_directory_name, sub2_directory_name, file_name);
+    }
+#endif
 }
 
 
@@ -589,3 +663,26 @@ eb_decompose_movie_file_name(argv, composed_file_name)
 }
 
 
+void
+eb_path_name_zio_code(path_name, default_zio_code, zio_code)
+    const char *path_name;
+    Zio_Code default_zio_code;
+    Zio_Code *zio_code;
+{
+    const char *base_name;
+    const char *dot;
+
+    base_name = strchr(path_name, '/');
+    if (base_name != NULL)
+	base_name++;
+    else
+	base_name = path_name;
+
+    dot = strchr(base_name, '.');
+    if (dot != NULL && strncasecmp(dot, ".ebz", 4) == 0)
+	*zio_code = ZIO_EBZIP1;
+    else if (dot != NULL && strncasecmp(dot, ".org", 4) == 0)
+	*zio_code = ZIO_PLAIN;
+    else
+	*zio_code = default_zio_code;
+}

@@ -38,7 +38,7 @@ int eb_is_appendix_bound EB_P((EB_Appendix *));
 EB_Error_Code eb_appendix_path EB_P((EB_Appendix *, char *));
 
 /* appsub.c */
-EB_Error_Code eb_initialize_all_appendix_subbooks EB_P((EB_Appendix *));
+EB_Error_Code eb_load_all_appendix_subbooks EB_P((EB_Appendix *));
 EB_Error_Code eb_appendix_subbook_list EB_P((EB_Appendix *,
     EB_Subbook_Code *, int *));
 EB_Error_Code eb_appendix_subbook EB_P((EB_Appendix *, EB_Subbook_Code *));
@@ -69,6 +69,9 @@ EB_Error_Code eb_wide_alt_end EB_P((EB_Appendix *, int *));
 EB_Error_Code eb_wide_alt_character_text EB_P((EB_Appendix *, int, char *));
 EB_Error_Code eb_forward_wide_alt_character EB_P((EB_Appendix *, int, int *));
 EB_Error_Code eb_backward_wide_alt_character EB_P((EB_Appendix *, int, int *));
+
+/* for backward compatibility */
+#define eb_initialize_all_appendix_subbooks eb_load_all_appendix_subbooks
 
 #ifdef __cplusplus
 }

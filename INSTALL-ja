@@ -213,6 +213,8 @@ distclean' を実行してください。
     が pthread を使ったサンプルプログラムのコンパイルや実行に失敗する
     と、エラーが報告されます。
 
+    注意: pthread への対応は、まだ不完全で実験的なものです。
+
 `--with-pthread-cppflags=FLAGS'
 `--with-pthread-cflags=FLAGS'
 `--with-pthread-ldflags=FLAGS'
@@ -300,3 +302,7 @@ distclean' を実行してください。
      ロックしないようにします。(並列コンパイルは、正しく行われない可能
      性があります。)
 
+`--enable-debug'
+     デバック用のコードを有効にします (開発者向け)。EB ライブラリはおび
+     ただしい数のメッセージを標準エラー出力に出力するようになります。
+     無指定時は `no' です。

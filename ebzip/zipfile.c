@@ -13,150 +13,15 @@
  * GNU General Public License for more details.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include <stdio.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <errno.h>
-
-#if defined(STDC_HEADERS) || defined(HAVE_STRING_H)
-#include <string.h>
-#if !defined(STDC_HEADERS) && defined(HAVE_MEMORY_H)
-#include <memory.h>
-#endif /* not STDC_HEADERS and HAVE_MEMORY_H */
-#else /* not STDC_HEADERS and not HAVE_STRING_H */
-#include <strings.h>
-#endif /* not STDC_HEADERS and not HAVE_STRING_H */
-
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-#ifdef HAVE_FCNTL_H
-#include <fcntl.h>
-#else
-#include <sys/file.h>
-#endif
-
-#ifdef HAVE_LIMITS_H
-#include <limits.h>
-#endif
-
-#ifdef HAVE_UTIME_H
-#include <utime.h>
-#endif
-
-#ifdef ENABLE_NLS
-#ifdef HAVE_LOCALE_H
-#include <locale.h>
-#endif
-#include <libintl.h>
-#endif
-
-#include <zlib.h>
-
-#ifndef HAVE_MEMCPY
-#define memcpy(d, s, n) bcopy((s), (d), (n))
-#ifdef __STDC__
-void *memchr(const void *, int, size_t);
-int memcmp(const void *, const void *, size_t);
-void *memmove(void *, const void *, size_t);
-void *memset(void *, int, size_t);
-#else /* not __STDC__ */
-char *memchr();
-int memcmp();
-char *memmove();
-char *memset();
-#endif /* not __STDC__ */
-#endif
-
-#ifndef O_BINARY
-#define O_BINARY 0
-#endif
-
-/*
- * Whence parameter for lseek().
- */
-#ifndef SEEK_SET
-#define SEEK_SET 0
-#define SEEK_CUR 1
-#define SEEK_END 2
-#endif
-
-/*
- * stat macros.
- */
-#ifdef  STAT_MACROS_BROKEN
-#ifdef  S_ISREG
-#undef  S_ISREG
-#endif
-#ifdef  S_ISDIR
-#undef  S_ISDIR
-#endif
-#endif  /* STAT_MACROS_BROKEN */
-
-#ifndef S_ISREG
-#define S_ISREG(m)   (((m) & S_IFMT) == S_IFREG)
-#endif
-#ifndef S_ISDIR
-#define S_ISDIR(m)   (((m) & S_IFMT) == S_IFDIR)
-#endif
-
-/*
- * The maximum length of path name.
- */
-#ifndef PATH_MAX
-#ifdef MAXPATHLEN
-#define PATH_MAX        MAXPATHLEN
-#else /* not MAXPATHLEN */
-#define PATH_MAX        1024
-#endif /* not MAXPATHLEN */
-#endif /* not PATH_MAX */
-
 #include "eb.h"
-#include "internal.h"
+#include "build-post.h"
+
+#include "ebzip.h"
 
 #include "getumask.h"
 #include "makedir.h"
 #include "samefile.h"
 #include "yesno.h"
-
-#include "ebzip.h"
-#include "ebutils.h"
-
-/*
- * Trick for function protypes.
- */
-#ifndef EB_P
-#ifdef __STDC__
-#define EB_P(p) p
-#else /* not __STDC__ */
-#define EB_P(p) ()
-#endif /* not __STDC__ */
-#endif /* EB_P */
-
-/*
- * Tricks for gettext.
- */
-#ifdef ENABLE_NLS
-#define _(string) gettext(string)
-#ifdef gettext_noop
-#define N_(string) gettext_noop(string)
-#else
-#define N_(string) (string)
-#endif
-#else
-#define _(string) (string)       
-#define N_(string) (string)
-#endif
 
 /*
  * File name to be deleted and file to be closed when signal is received.
@@ -167,11 +32,14 @@ static int trap_file = -1;
 /*
  * Unexported function.
  */
+static int ebzip_zip_file_internal EB_P((const char *, const char *,
+    Zio_Code, int));
 static RETSIGTYPE trap EB_P((int));
 
+
 /*
- * Compress a file `in_file_name'.
- * It compresses the existed file nearest to the beginning of the list.
+ * Ccompress a file `in_file_name'.
+ * For START file, use ebzip_zip_start_file() instead.
  * If it succeeds, 0 is returned.  Otherwise -1 is returned.
  */
 int
@@ -179,6 +47,36 @@ ebzip_zip_file(out_file_name, in_file_name, in_zio_code)
     const char *out_file_name;
     const char *in_file_name;
     Zio_Code in_zio_code;
+{
+    return ebzip_zip_file_internal(out_file_name, in_file_name,
+	in_zio_code, 0);
+}
+
+/*
+ * Compress TART file `in_file_name'.
+ * If it succeeds, 0 is returned.  Otherwise -1 is returned.
+ */
+int
+ebzip_zip_start_file(out_file_name, in_file_name, in_zio_code, index_page)
+    const char *out_file_name;
+    const char *in_file_name;
+    Zio_Code in_zio_code;
+    int index_page;
+{
+    return ebzip_zip_file_internal(out_file_name, in_file_name,
+	in_zio_code, index_page);
+}
+
+/*
+ * Internal function for zip_unzip_file() and ebzip_zip_sebxa_start().
+ * If it succeeds, 0 is returned.  Otherwise -1 is returned.
+ */
+static int
+ebzip_zip_file_internal(out_file_name, in_file_name, in_zio_code, index_page)
+    const char *out_file_name;
+    const char *in_file_name;
+    Zio_Code in_zio_code;
+    int index_page;
 {
     Zio in_zio, out_zio;
     unsigned char *in_buffer = NULL, *out_buffer = NULL;
@@ -279,6 +177,20 @@ ebzip_zip_file(out_file_name, in_file_name, in_zio_code)
 	    invoked_name, strerror(errno), in_file_name);
 	goto failed;
     }
+    if (in_zio_code == ZIO_SEBXA) {
+	off_t index_location;
+	off_t index_base;
+	off_t zio_start_location;
+	off_t zio_end_location;
+
+	if (get_sebxa_indexes(in_file_name, index_page, &index_location,
+	    &index_base, &zio_start_location, &zio_end_location) < 0) {
+	    goto failed;
+	}
+	zio_set_sebxa_mode(&in_zio, index_location, index_base,
+	    zio_start_location, zio_end_location);
+    }
+
     if (!ebzip_test_flag) {
 	trap_file_name = out_file_name;
 #ifdef SIGHUP
@@ -614,7 +526,7 @@ ebzip_zip_file(out_file_name, in_file_name, in_zio_code)
 #if defined(HAVE_CHMOD)
 	chmod(out_file_name, in_status.st_mode);
 #endif
-#if defined(HAVE_UTIME)
+#if defined(HAVE_UTIME) && defined(HAVE_STRUCT_UTIMBUF)
 	{
 	    struct utimbuf utim;
 

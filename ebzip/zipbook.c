@@ -13,88 +13,16 @@
  * GNU General Public License for more details.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include <stdio.h>
-#include <sys/types.h>
-
-#if defined(STDC_HEADERS) || defined(HAVE_STRING_H)
-#include <string.h>
-#if !defined(STDC_HEADERS) && defined(HAVE_MEMORY_H)
-#include <memory.h>
-#endif /* not STDC_HEADERS and HAVE_MEMORY_H */
-#else /* not STDC_HEADERS and not HAVE_STRING_H */
-#include <strings.h>
-#endif /* not STDC_HEADERS and not HAVE_STRING_H */
-
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-#ifdef HAVE_LIMITS_H
-#include <limits.h>
-#endif
-
-#ifdef ENABLE_NLS
-#ifdef HAVE_LOCALE_H
-#include <locale.h>
-#endif
-#include <libintl.h>
-#endif
-
-/*
- * The maximum length of path name.
- */
-#ifndef PATH_MAX
-#ifdef MAXPATHLEN
-#define PATH_MAX        MAXPATHLEN
-#else /* not MAXPATHLEN */
-#define PATH_MAX        1024
-#endif /* not MAXPATHLEN */
-#endif /* not PATH_MAX */
-
 #include "eb.h"
 #include "error.h"
-#include "internal.h"
 #include "font.h"
+#include "build-post.h"
+
+#include "ebzip.h"
+#include "ebutils.h"
 
 #include "getumask.h"
 #include "makedir.h"
-
-#include "ebutils.h"
-#include "ebzip.h"
-
-/*
- * Trick for function protypes.
- */
-#ifndef EB_P
-#ifdef __STDC__
-#define EB_P(p) p
-#else /* not __STDC__ */
-#define EB_P(p) ()
-#endif /* not __STDC__ */
-#endif /* EB_P */
-
-/*
- * Tricks for gettext.
- */
-#ifdef ENABLE_NLS
-#define _(string) gettext(string)
-#ifdef gettext_noop
-#define N_(string) gettext_noop(string)
-#else
-#define N_(string) (string)
-#endif
-#else
-#define _(string) (string)       
-#define N_(string) (string)
-#endif
 
 /*
  * Unexported function.
@@ -185,9 +113,6 @@ ebzip_zip_book(out_top_path, book_path, subbook_name_list, subbook_name_count)
  * Internal function for `zip_book'.
  * This is used to compress an EB book.
  */
-static const char *catalog_hint_list[] = {"catalog", NULL};
-static const char *language_hint_list[] = {"language", "language.ebz", NULL};
-
 static int
 ebzip_zip_book_eb(book, out_top_path, book_path, subbook_list, subbook_count)
     EB_Book *book;
@@ -204,7 +129,6 @@ ebzip_zip_book_eb(book, out_top_path, book_path, subbook_list, subbook_count)
     char language_file_name[EB_MAX_FILE_NAME_LENGTH];
     mode_t out_directory_mode;
     Zio_Code in_zio_code;
-    int hint_index;
     int i;
 
     /*
@@ -220,7 +144,7 @@ ebzip_zip_book_eb(book, out_top_path, book_path, subbook_list, subbook_count)
      * Initialize variables.
      */
     out_directory_mode = 0777 ^ get_umask();
-    eb_initialize_all_subbooks(book);
+    eb_load_all_subbooks(book);
 
     /*
      * Compress a book.
@@ -248,18 +172,19 @@ ebzip_zip_book_eb(book, out_top_path, book_path, subbook_list, subbook_count)
 	    eb_compose_path_name2(out_top_path, subbook->directory_name,
 		subbook->text_file_name, out_path_name);
 	    eb_fix_path_name_suffix(out_path_name, EBZIP_SUFFIX_EBZ);
-	    ebzip_zip_file(out_path_name, in_path_name, in_zio_code);
+	    ebzip_zip_start_file(out_path_name, in_path_name, in_zio_code,
+		subbook->index_page);
 	}
     }
 
     /*
      * Compress a language file.
      */
-    if (eb_find_file_name(book->path, language_hint_list, language_file_name,
-	&hint_index) == EB_SUCCESS) {
-	in_zio_code = (hint_index == 0) ? ZIO_NONE : ZIO_EBZIP1;
+    if (eb_find_file_name(book->path, "language", language_file_name)
+	== EB_SUCCESS) {
 	eb_compose_path_name(book->path, language_file_name, in_path_name);
 	eb_compose_path_name(out_top_path, language_file_name, out_path_name);
+	eb_path_name_zio_code(in_path_name, ZIO_PLAIN, &in_zio_code);
 	eb_fix_path_name_suffix(out_path_name, EBZIP_SUFFIX_EBZ);
 	ebzip_zip_file(out_path_name, in_path_name, in_zio_code);
     }
@@ -267,10 +192,11 @@ ebzip_zip_book_eb(book, out_top_path, book_path, subbook_list, subbook_count)
     /*
      * Copy CATALOG file.
      */
-    if (eb_find_file_name(book->path, catalog_hint_list, catalog_file_name,
-	NULL) == EB_SUCCESS) {
+    if (eb_find_file_name(book->path, "catalog", catalog_file_name)
+	== EB_SUCCESS) {
 	eb_compose_path_name(book->path, catalog_file_name, in_path_name);
 	eb_compose_path_name(out_top_path, catalog_file_name, out_path_name);
+	eb_path_name_zio_code(in_path_name, ZIO_PLAIN, &in_zio_code);
 	ebzip_copy_file(out_path_name, in_path_name);
     }
 
@@ -282,8 +208,6 @@ ebzip_zip_book_eb(book, out_top_path, book_path, subbook_list, subbook_count)
  * Internal function for `zip_book'.
  * This is used to compress an EPWING book.
  */
-static const char *catalogs_hint_list[] = {"catalogs", NULL};
-
 static int
 ebzip_zip_book_epwing(book, out_top_path, book_path, subbook_list,
     subbook_count)
@@ -316,7 +240,7 @@ ebzip_zip_book_epwing(book, out_top_path, book_path, subbook_list,
      * Initialize variables.
      */
     out_directory_mode = 0777 ^ get_umask();
-    eb_initialize_all_subbooks(book);
+    eb_load_all_subbooks(book);
 
     /*
      * Compress a book.
@@ -465,8 +389,8 @@ ebzip_zip_book_epwing(book, out_top_path, book_path, subbook_list,
     /*
      * Copy CATALOGS file.
      */
-    if (eb_find_file_name(book->path, catalogs_hint_list, catalogs_file_name,
-	NULL) == EB_SUCCESS) {
+    if (eb_find_file_name(book->path, "catalogs", catalogs_file_name)
+	== EB_SUCCESS) {
 	eb_compose_path_name(book->path, catalogs_file_name, in_path_name);
 	eb_compose_path_name(out_top_path, catalogs_file_name, out_path_name);
 	ebzip_copy_file(out_path_name, in_path_name);
