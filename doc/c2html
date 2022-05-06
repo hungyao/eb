@@ -23,6 +23,7 @@ $tab_width = $options{t} if (defined($options{t}));
 #
 # Convert C to HTML.
 #
+print "<meta charset=\"utf-8\">\n";
 print "<blockquote>\n";
 print "<pre>\n";
 
