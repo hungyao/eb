@@ -54,6 +54,7 @@ eb_canonicalize_path_name(char *path_name)
     char cwd[EB_MAX_PATH_LENGTH + 1];
     char temporary_path_name[EB_MAX_PATH_LENGTH + 1];
     char *last_slash;
+    int bytes_written;
 
     if (*path_name != '/') {
 	/*
@@ -62,16 +63,22 @@ eb_canonicalize_path_name(char *path_name)
 	 */
 	if (getcwd(cwd, EB_MAX_PATH_LENGTH + 1) == NULL)
 	    return EB_ERR_FAIL_GETCWD;
-	if (EB_MAX_PATH_LENGTH < strlen(cwd) + 1 + strlen(path_name))
-	    return EB_ERR_TOO_LONG_FILE_NAME;
 
 	if (strcmp(path_name, ".") == 0) {
 	    strcpy(path_name, cwd);
-	} else if (strncmp(path_name, "./", 2) == 0) {
-	    sprintf(temporary_path_name, "%s/%s", cwd, path_name + 2);
-	    strcpy(path_name, temporary_path_name);
 	} else {
-	    sprintf(temporary_path_name, "%s/%s", cwd, path_name);
+	    if (strncmp(path_name, "./", 2) == 0) {
+		bytes_written =
+		    snprintf(temporary_path_name, EB_MAX_PATH_LENGTH + 1,
+		             "%s/%s", cwd, path_name + 2);
+	    } else {
+		bytes_written =
+		    snprintf(temporary_path_name, EB_MAX_PATH_LENGTH + 1,
+		             "%s/%s", cwd, path_name);
+	    }
+	    if (bytes_written < 0 || bytes_written >= EB_MAX_PATH_LENGTH + 1) {
+		return EB_ERR_TOO_LONG_FILE_NAME;
+	    }
 	    strcpy(path_name, temporary_path_name);
 	}
     }

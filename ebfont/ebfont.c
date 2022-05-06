@@ -628,6 +628,7 @@ make_book_fonts(EB_Book *book, const char *out_path,
     char subbook_path[PATH_MAX + 1];
     char subbook_directory[EB_MAX_DIRECTORY_NAME_LENGTH + 1];
     int i;
+    int bytes_written;
 
     /*
      * If `book_path' represents "/", replace it to an empty string,
@@ -668,8 +669,11 @@ make_book_fonts(EB_Book *book, const char *out_path,
 	/*
 	 * Make a directory for the subbook.
 	 */
-	sprintf(subbook_path, F_("%s/%s", "%s\\%s"),
-	    out_path, subbook_directory);
+	bytes_written =
+	    snprintf(subbook_path, PATH_MAX + 1, F_("%s/%s", "%s\\%s"),
+	             out_path, subbook_directory);
+	if (bytes_written < 0 || bytes_written >= PATH_MAX + 1)
+	    goto failed;
 	if (make_missing_directory(subbook_path, 0777 ^ get_umask()) < 0)
 	    goto failed;
 
@@ -705,6 +709,7 @@ make_subbook_fonts(EB_Book *book, const char *subbook_path,
     char font_path[PATH_MAX + 1];
     int font_height;
     int i;
+    int bytes_written;
 
     /*
      * Get the current subbook name.
@@ -746,7 +751,10 @@ make_subbook_fonts(EB_Book *book, const char *subbook_path,
 	 * Make a directory for the font.
 	 */
 	eb_font_height2(font_list[i], &font_height);
-	sprintf(font_path, F_("%s/%d", "%s\\%d"), subbook_path, font_height);
+	bytes_written = snprintf(font_path, PATH_MAX + 1, F_("%s/%d", "%s\\%d"),
+	                         subbook_path, font_height);
+	if (bytes_written < 0 || bytes_written >= PATH_MAX + 1)
+	    goto failed;
 	if (make_missing_directory(font_path, 0777 ^ get_umask()) < 0)
 	    goto failed;
 
@@ -834,6 +842,7 @@ make_subbook_size_image_fonts(EB_Book *book, const char *image_path,
     int image_width;
     int image_height;
     int character_number;
+    int bytes_written;
 
     /*
      * Get the current subbook name.
@@ -880,8 +889,11 @@ make_subbook_size_image_fonts(EB_Book *book, const char *image_path,
 	/*
 	 * Make a directory for the narrow font.
 	 */
-	sprintf(type_path, F_("%s/narrow", "%s\\narrow"), image_path);
-	if (make_missing_directory(type_path, 0777 ^ get_umask()) < 0)
+	bytes_written = snprintf(type_path, PATH_MAX + 1,
+	                         F_("%s/narrow", "%s\\narrow"), image_path);
+	if (bytes_written < 0 || bytes_written >= PATH_MAX + 1)
+            goto failed;
+        if (make_missing_directory(type_path, 0777 ^ get_umask()) < 0)
 	    goto failed;
 
 	while (0 <= character_number) {
@@ -896,8 +908,11 @@ make_subbook_size_image_fonts(EB_Book *book, const char *image_path,
 	    /*
 	     * Generate a bitmap file for the character `character_number'.
 	     */
-	    sprintf(file_name, F_("%s/%04x.%s", "%s\\%04x.%s"),
+	    bytes_written = snprintf(
+		file_name, PATH_MAX + 1, F_("%s/%04x.%s", "%s\\%04x.%s"),
 		type_path, character_number, image_formats[image].suffix);
+	    if (bytes_written < 0 || bytes_written >= PATH_MAX + 1)
+	        goto failed;
 	    error_code = eb_narrow_font_character_bitmap(book,
 		character_number, bitmap_data);
 	    if (error_code != EB_SUCCESS) {
@@ -952,7 +967,10 @@ character=0x%04x\n",
 	/*
 	 * Make a directory for the wide font.
 	 */
-	sprintf(type_path, F_("%s/wide", "%s\\wide"), image_path);
+	bytes_written = snprintf(type_path, PATH_MAX + 1,
+	                         F_("%s/wide", "%s\\wide"), image_path);
+	if (bytes_written < 0 || bytes_written >= PATH_MAX + 1)
+            goto failed;
 	if (make_missing_directory(type_path, 0777 ^ get_umask()) < 0)
 	    goto failed;
 
@@ -968,8 +986,11 @@ character=0x%04x\n",
 	    /*
 	     * Generate a bitmap file for the character `character_number'.
 	     */
-	    sprintf(file_name, F_("%s/%04x.%s", "%s\\%04x.%s"),
+	    bytes_written = snprintf(
+		file_name, PATH_MAX + 1, F_("%s/%04x.%s", "%s\\%04x.%s"),
 		type_path, character_number, image_formats[image].suffix);
+	    if (bytes_written < 0 || bytes_written >= PATH_MAX + 1)
+		goto failed;
 	    error_code = eb_wide_font_character_bitmap(book, character_number,
 		bitmap_data);
 	    if (error_code != EB_SUCCESS) {
