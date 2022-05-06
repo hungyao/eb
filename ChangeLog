@@ -1,3 +1,41 @@
+2022-04-28  Kazuhiro Ito  <kzhr@d1.dion.ne.jp>
+
+	* ebu/multiplex.c (ebnet_set_book_name): Copy less one byte.  The
+	last one byte is always overwritten.
+	(ebnet_set_file_path): Moreover fix buffer overrun.
+	cf. [edict 2733] on 2022-04-25
+	Origin: http://green.ribbon.to/~ikazuhiro/dic/files/ebu-4.5-20220425.tar.gz
+
+2022-04-28  Hiroshi Miura  <miurahr@linux.com>
+
+	* eb/bitmap.c: Fix BMP size header ret by eb_bitmap_to_bmp.
+	eb_bitmap_to_bmp() calcuation of data size is wrongly large.
+	For example, wide font file size will be 126 but it put 226 for BMP
+	header.  It breaks images.
+	Origin: https://github.com/eb4j/eb/commit/8292c7814e2c65d0809bb8a401c00b593aefec43
+
+2021-02-23  Tatsuya Kinoshita  <tats@debian.org>
+
+	* README: Convert README to UTF-8.
+
+2016-10-09  paulownia  <paulownia@Safe-mail.net>
+
+	* eb/zio.c: Fix return value assigned to variable of wrong type.
+	Origin: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=833085#5
+
+2015-02-01  paulownia  <paulownia@Safe-mail.net>
+
+	* ebinfo/ebinfo.c: Fix too many arguments for format string.
+	Origin: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=776602#5
+
+	* libebutils/makedir.h:
+	Correct parameter declarations of make_missing_directory().
+	Origin: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=748030#12
+
+	* eb/urlparts.c:
+	Fix that url_parts_parse() performs a NULL-pointer dereference.
+	Origin: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=715855#20
+
 2010-03-08  Motoyuki Kasahara  <m-kasahr@sra.co.jp>
 
 	* Version 4.4.3.
